@@ -13,7 +13,7 @@ use std::rc::*;
 
 use ec_composer::*;
 use g_lue::ec_util::*;
-use g_lue::window_util::event_util::constants::EventKinds;
+use g_lue::window_util::event_util::constants::EventKind;
 use glow::*;
 
 // macro_rules! tuple_as {
@@ -79,7 +79,7 @@ fn main() -> Result<(), GlueError> {
         let gl = window.gl.clone();
         for event in window.get_events().iter_mut() {
             match event {
-                EventKinds::Quit => *running = false,
+                EventKind::Quit => *running = false,
                 _ => (),
             }
         }
