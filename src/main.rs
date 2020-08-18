@@ -13,8 +13,9 @@ use std::rc::*;
 
 use ec_composer::*;
 use g_lue::ec_util::*;
-use g_lue::window_util::event_util::constants::EventKind;
+use g_lue::window_util::event_util::constants::*;
 use glow::*;
+use std::mem::*; 
 
 // macro_rules! tuple_as {
 //     (  $tuple_ident:ident , ( $($y:expr),*)  ) => {
@@ -44,29 +45,29 @@ use glow::*;
 use std::num::ParseIntError;
 
 fn main() -> Result<(), GlueError> {
-    let gd = GameData::new();
-    let mut gs = gd.init_tables();
+    // let gd = GameData::new();
+    // let mut gs = gd.init_tables();
 
-    for &pos in [(10, 20), (30, 40), (50, 60)].iter() {
-        let constructor = gd.borrow().billiardball_factory.entity_constructor();
-        let entity = gs.new_entity(constructor);
-        gd.mutate_data::<DataBorrow, _, _>(|data| {
-            let (_, transform_col) = entity.get_component_chain()[0].get_index_pair_part();
-            data.transform[transform_col as usize].x = pos.0 as f32;
-            data.transform[transform_col as usize].y = pos.1 as f32;
-        });
-        gd.borrow_mut().billiardball_factory.push_entity(entity);
-        gd.mutate_data::<DataBorrow, _, _>(|data| {
-            //update most recently added billiard ball
-            gs.update_entity(data.billiardball_factory.billiard_balls.last().unwrap());
-        });
-    }
+    // for &pos in [(10, 20), (30, 40), (50, 60)].iter() {
+    //     let constructor = gd.borrow().billiardball_factory.entity_constructor();
+    //     let entity = gs.new_entity(constructor);
+    //     gd.mutate_data::<DataBorrow, _, _>(|data| {
+    //         let (_, transform_col) = entity.get_component_chain()[0].get_index_pair_part();
+    //         data.transform[transform_col as usize].x = pos.0 as f32;
+    //         data.transform[transform_col as usize].y = pos.1 as f32;
+    //     });
+    //     gd.borrow_mut().billiardball_factory.push_entity(entity);
+    //     gd.mutate_data::<DataBorrow, _, _>(|data| {
+    //         //update most recently added billiard ball
+    //         gs.update_entity(data.billiardball_factory.billiard_balls.last().unwrap());
+    //     });
+    // }
 
     let config_text = "
     <window>
         <width>800</width>
         <height>600</height>
-        <title>Super serious project</title>
+        <title>title</title>
     </window>";
 
     let window = GlueWindow::init(config_text)?;
@@ -80,6 +81,14 @@ fn main() -> Result<(), GlueError> {
         for event in window.get_events().iter_mut() {
             match event {
                 EventKind::Quit => *running = false,
+                EventKind::KeyDown{ code} => {
+                    let code :i128 = code.into(); 
+
+                    if (code > KeyCode::KEY_A.into()) || (code < KeyCode::KEY_Z.into()) {
+                        println!("char = {}\n",(code as u8 as char).to_lowercase());
+                    }
+                    
+                },
                 _ => (),
             }
         }
