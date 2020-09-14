@@ -1,0 +1,111 @@
+X(Set 2) 	keycap
+29 	` ~
+02 	1 !
+03 	2 @
+04 	3 #
+05 	4 $
+06 	5 % E
+07 	6 ^
+08 	7 &
+09 	8 *
+0a 	9 (
+0b 	0 )
+0c 	- _
+0d 	= +
+0e 	Backspace
+0f 	Tab
+10 	Q
+11 	W
+12 	E
+13 	R
+14 	T
+15 	Y
+16 	U
+17 	I
+18 	O
+19 	P
+1a 	[ {
+1b 	] }
+2b 	\ |
+3a 	CapsLock
+1e 	A
+1f 	S
+20 	D
+21 	F
+22 	G
+23 	H
+24 	J
+25 	K
+26 	L
+27 	; :
+28 	' "
+ff 	non-US-1
+1c 	Enter
+2a 	LShift
+2c 	Z
+2d 	X
+2e 	C
+2f 	V
+30 	B
+31 	N
+32 	M
+33 	, <
+34 	. >
+35 	/ ?
+36 	RShift
+1d 	LCtrl
+38 	LAlt
+39 	space
+e0-38 	RAlt
+e0-1d 	RCtrl
+e0-52 	Insert
+e0-53 	Delete
+e0-47 	Home
+e0-4f 	End
+e0-49 	PgUp
+e0-51 	PgDn
+e0-4b 	Left
+e0-48 	Up
+e0-50 	Down
+e0-4d 	Right
+45 	NumLock
+47 	KP-7  Home
+4b 	KP-4  Left
+4f 	KP-1  End
+e0-35 	KP-/
+48 	KP-8  Up
+4c 	KP-5
+50 	KP-2  Down
+52 	KP-0  Ins
+37 	KP-*
+49 	KP-9  PgUp
+4d 	KP-6  Right
+51 	KP-3  PgDn
+53 	KP-.  Del
+4a 	KP--
+4e 	KP-+
+e0-1c 	KP-Enter
+01 	Esc
+3b 	F1
+3c 	F2
+3d 	F3
+3e 	F4
+3f 	F5
+40 	F6
+41 	F7
+42 	F8
+43 	F9
+44 	F10
+57 	F11
+58 	F12
+e0-37 	PrtScr
+54 	Alt+SysRq
+46 	ScrollLock
+e1-1d-45 	Pause
+e0-46 	Ctrl+Break
+e0-5b 	LWin (USB: LGUI)
+e0-5c 	RWin (USB: RGUI)
+e0-5d 	Menu
+e0-5f 	Sleep
+e0-5e 	Power
+e0-63 	Wake
