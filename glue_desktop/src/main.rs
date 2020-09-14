@@ -126,7 +126,7 @@ fn main() -> Result<(), GlueError> {
     // });
 
     let wav = {
-        let wav_data: Vec<u8> = fs::read("./resources/clip.wav").unwrap();
+        let wav_data: Vec<u8> = fs::read("./resources/sound_test.wav").unwrap();
         wav::WavFile::new().with_data(wav_data).parse()?
     };
 

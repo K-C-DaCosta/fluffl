@@ -1,12 +1,12 @@
 use crate::io::*;
+use std::cell::RefCell;
 use std::fs::File;
 use std::io::prelude::*;
 use std::io::SeekFrom;
 use std::io::{BufRead, BufReader};
 use std::rc::Rc;
-use std::cell::RefCell;
-use std::sync::Arc;
 use std::slice::*;
+use std::sync::Arc;
 
 #[cfg(feature = "desktop")]
 #[path = "./audio/sdl2_audio.rs"]
@@ -73,11 +73,19 @@ pub struct GlueDesiredSpecs {
     pub channels: Option<u32>,
     pub buffer_size: Option<u32>,
 }
-
-pub trait IntoWithArg<T,Arg>{
-    fn into_with(self,arg:Arg)->T;
+impl GlueDesiredSpecs {
+    fn get_specs(&self) -> (u32, usize, usize) {
+        (
+            self.sample_rate.unwrap_or(48000),
+            self.channels.unwrap_or(2) as usize,
+            self.buffer_size.unwrap_or(1024) as usize,
+        )
+    }
 }
 
+pub trait IntoWithArg<T, Arg> {
+    fn into_with(self, arg: Arg) -> T;
+}
 
 //has common resources both implementations need
 pub struct GlueAudioDeviceCore<F, S> {
@@ -112,14 +120,12 @@ where
         self
     }
 
-    pub fn with_specs(mut self, specs: GlueDesiredSpecs) -> Self{
-        self.desired_specs = specs; 
+    pub fn with_specs(mut self, specs: GlueDesiredSpecs) -> Self {
+        self.desired_specs = specs;
         self
     }
 
-    pub fn callback(&self)-> F{
+    pub fn callback(&self) -> F {
         self.cb.unwrap()
     }
 }
-
-
