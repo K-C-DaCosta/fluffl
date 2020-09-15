@@ -5,6 +5,7 @@ pub mod ec_util;
 pub mod io;
 pub mod parsers;
 pub mod window_util;
+pub mod console; 
 #[derive(Debug)]
 pub enum GlueError {
     GenericError(String),
@@ -55,12 +56,7 @@ mod glue_tests;
 
 // }
 
-#[macro_export]
-macro_rules! console_log {
-    // Note that this is using the `log` function imported above during
-    // `bare_bones`
-    ($($t:tt)*) => (console_write(&format_args!($($t)*).to_string()))
-}
+
 
 #[test]
 fn serde_test_thing() -> serde_json::Result<()> {

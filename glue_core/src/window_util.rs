@@ -18,8 +18,10 @@ pub mod window;
 #[path = "./window_util/web_window.rs"]
 pub mod window;
 
-pub use event_util::GlueEvent;
 pub use window::*;
+
+pub use event_util::GlueEvent;
+
 
 #[derive(Clone)]
 pub struct GlueWindowPtr {

@@ -17,6 +17,7 @@ pub mod audio_util;
 pub mod audio_util;
 
 pub mod wav;
+pub mod music_player;
 
 pub use audio_util::*;
 
