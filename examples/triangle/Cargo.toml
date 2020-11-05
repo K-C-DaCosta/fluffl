@@ -1,0 +1,25 @@
+[package]
+name = "fluffr_web"
+version = "0.1.0"
+authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[workspace]
+
+[features]
+default = ["web"]
+
+web = [ 
+    'console_error_panic_hook',
+    'fluffr_util/web',
+    'fluffr/web'
+]
+
+[dependencies]
+console_error_panic_hook = { version = "0.1.6" , optional=true } 
+fluffr_util = { path="../../fluffr_util", default-features = false, optional = true }
+fluffr = { path = "../fluffr" , default-features = false, optional=true}
+

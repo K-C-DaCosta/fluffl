@@ -1,11 +1,16 @@
-# what is glue?
-glue is a simple front end that provides an extremely simple, but cross-platform interface between desktop and wasm targets.
+# what is fluffl?
+fluffl is a media layer that provides an extremely simple, but cross-platform, interface between **desktop** and **wasm** targets.
 
-# why glue? 
-I basically needed a generic way to write OpenGL for graphics, do audio processing and handle keyboard input etc for both WASM and Desktop targets, but there were no big crates that were as simple as SDL but buildable for both WASM32 and desktop. The rust-sdl2 project doesn't appear have good WASM support. Every SDL2 demo floating around on github I compile is broken in some way out of the box and also relies on the wasm32-unknown-emscripten target 
-which appearently has larger binaries: https://kripken.github.io/blog/binaryen/2018/04/18/rust-emscripten.html.
+# why fluffl? 
+If you need a *simple* layer that provides audio,graphics, and maybe networking then this is the crate for you. 
+Think of it like SDL but more primitive.
 
 # Status
+## Update *[Wed nov 4 2020]* 
+- Added websocket client functionality 
+- Working on canvas resizing issue on web side of things 
+Other than that i just need to work on documentation and examples
+Crates.io upload will be soon  
 
 ## Update *[Mon sept 14 2020]*
 

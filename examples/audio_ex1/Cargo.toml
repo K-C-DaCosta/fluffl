@@ -1,0 +1,30 @@
+[package]
+name = "audio_ex1"
+version = "0.1.0"
+authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
+edition = "2018"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+
+
+[features]
+default=['desktop']
+
+desktop = [
+    "tokio",
+    "fluffl/desktop",
+    "fluffl/extras",
+]
+
+web = [ 
+    "fluffl/web",
+]
+
+[dependencies]
+tokio = { version = "0.3", features = ["full"], optional=true }
+fluffl = {path = "../../../fluffl",default-features = false, optional=true}
+

@@ -1,0 +1,7 @@
+{
+    "rust-analyzer.cargo.loadOutDirsFromCheck": true,
+    "rust-analyzer.procMacro.enable": true,
+    "editor.tokenColorCustomizationsExperimental": {
+        "unresolvedReference": "#FF0000"
+    }
+}
