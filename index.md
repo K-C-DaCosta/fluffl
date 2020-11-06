@@ -1,5 +1,5 @@
 <html>
     <body>
-         <iframe src="./wasm_bins/examples/audio_ex_1/index.html" title="W3Schools Free Online Web Tutorials"></iframe> 
+         <iframe width="900" height="700" src="./wasm_bins/examples/audio_ex_1/index.html" title="ex1"\> 
     </body>
 </html>
