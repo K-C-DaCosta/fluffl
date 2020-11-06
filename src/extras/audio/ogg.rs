@@ -1,5 +1,8 @@
 use super::super::{ErrorKind, Result};
-use crate::audio::{AudioBuffer, AudioSample, GenericAudioSpecs};
+
+use crate::audio::{GenericAudioSpecs};
+use super::{AudioSample, AudioBuffer};
+
 use lewton::inside_ogg::OggStreamReader;
 use std::io::{BufReader, Cursor};
 

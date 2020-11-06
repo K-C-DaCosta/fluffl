@@ -19,27 +19,7 @@ pub trait GenericAudioSpecs {
     fn bits_per_sample(&self) -> Option<u32>;
     fn channels(&self) ->Option<u32>;
 }
-/// A trait that converts a type into a list of `AudioSamples`
-pub trait PcmConverter<T> {
-    fn samples(self) -> Vec<AudioSample<T>>;
-}
 
-#[derive(Copy, Clone)]
-/// A sample just a 2-tuple of type `T`
-pub struct AudioSample<T> {
-    pub channel: [T; 2],
-}
-/// An audio buffer is used for audio pla
-pub trait AudioBuffer<T: Copy> {
-    fn read(&mut self, out: &mut [AudioSample<T>]) -> usize;
-    fn seek_to_start(&mut self);
-}
-
-impl<T> From<[T; 2]> for AudioSample<T> {
-    fn from(list: [T; 2]) -> Self {
-        Self { channel: list }
-    }
-}
 /// A POD-ish struct for defining properties of the sound we with to play \
 /// If one of the fields isn't defined it will fallback to a somewhat sane default value
 pub struct DesiredSpecs {

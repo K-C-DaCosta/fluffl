@@ -3,7 +3,7 @@ use fluffl::{
     audio::*,
     console::*,
     io::*,
-    net::*,
+    // net::*,
     window::{event_util::*, glow::*, *},
     *,
 };
@@ -15,7 +15,7 @@ use fluffl::extras::{
     audio::{ogg::*, *},
     hiero_pack::*,
     ogl::text_writer::*,
-    ogl::{array::*, buffer::*, program::*, texture::*, *},
+    // ogl::{array::*, buffer::*, program::*, texture::*, *},
 };
 
 

@@ -1,6 +1,5 @@
-use crate::{
-    audio::{AudioBuffer, AudioSample, GenericAudioSpecs, PcmConverter}
-};
+use crate::audio::{GenericAudioSpecs};
+use super::{AudioSample, AudioBuffer,PcmConverter};
 use super::super::{ErrorKind,Result};
 
 use std::io::Read;

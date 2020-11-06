@@ -1,4 +1,5 @@
-use crate::audio::{AudioSample, GenericAudioSpecs, AudioBuffer};
+use crate::audio::{GenericAudioSpecs};
+use super::{AudioSample, AudioBuffer};
 use super::super::{Result,ErrorKind}; 
 
 //mp3 decoding relies on puremp3 crate, its appears to have performance problems 
