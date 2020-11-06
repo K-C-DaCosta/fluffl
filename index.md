@@ -1,7 +1,5 @@
 <html>
     <body>
-        <p>fluffl</p>
-        <p>fluffl</p>
-        <p>fluffl</p>
+         <iframe src="./wasm_bins/examples/audio_ex_1/index.html" title="W3Schools Free Online Web Tutorials"></iframe> 
     </body>
 </html>
