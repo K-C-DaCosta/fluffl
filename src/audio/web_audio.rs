@@ -1,9 +1,12 @@
 use super::{AudioDeviceCore};
 
 use wasm_bindgen::prelude::*;
-use wasm_bindgen::*;
+use wasm_bindgen::JsCast;
+
 // use wasm_bindgen_futures::*;
 use web_sys::*;
+
+
 
 use std::cell::RefCell;
 use std::collections::VecDeque;
@@ -80,7 +83,7 @@ where
         audio_context: Arc<RefCell<FlufflAudioContext>>,
     ) -> Self {
         // the time (in seconds) to buffer ahead to avoid choppy playback
-        const BUFFER_TIME: f64 = 0.5;
+        const BUFFER_TIME: f64 = 0.05;
 
         let pump_list: Rc<RefCell<VecDeque<js_sys::Function>>> =
             Rc::new(RefCell::new(VecDeque::new()));
@@ -117,6 +120,8 @@ where
         // get pointer to the front
         let thread_id = get_audio_thread_list().get_front();
 
+        let mut warmup_count = 0; 
+
         let process_raw_pcm = move || {
             //buffer for one second into the future
             while play_time - audio_context.borrow().ctx.current_time() < BUFFER_TIME {
@@ -133,9 +138,12 @@ where
                 sample_callback_buffer.resize(buffer_size * channels, 0f32);
 
                 //call the callback provided by the user
-                let state_ref = unsafe { &mut *state_ptr };
-                glue_callback(state_ref, &mut sample_callback_buffer[..]);
-
+                if warmup_count >= 10{
+                    let state_ref = unsafe { &mut *state_ptr };
+                    glue_callback(state_ref, &mut sample_callback_buffer[..]);
+                }else{
+                    warmup_count+=1; 
+                }
                 //de-interleave samples into a buffer with samples associated with just a single channel
                 for channel_index in 0..channels {
                     //clear the buffer holding PCM for a specific channel
@@ -187,6 +195,19 @@ where
                 // when this buffer finished playing resume buffering
                 web_audio_buffer_source_node.set_onended(pump_list.borrow().back());
 
+                // prepare to connect audio node to destination (MUST be done before playing sound)
+                // by casting down to &AudioNode
+                let node: &AudioNode = web_audio_buffer_source_node
+                    .dyn_ref::<AudioNode>()
+                    .unwrap();
+
+                // Connecting source to destination happens here. I don't bother 
+                // checking the connection results. don't care about it right now,
+                // this could go wrong in the future.
+                let _connect_result = node.connect_with_audio_node(
+                    &audio_context.borrow().ctx.destination().dyn_into().unwrap(),
+                );
+
                 // play the buffer at time t=play_time
                 web_audio_buffer_source_node
                     .start_with_when(play_time)
@@ -195,16 +216,6 @@ where
                 //because each chunk of samples takes some time,DT,to play  I have to 
                 //increment play_time by that amount. DT in this case is equal to : buffer_size/sample_rate  
                 play_time += buffer_size as f64 / sample_rate as f64;
-
-                let node: AudioNode = web_audio_buffer_source_node
-                    .dyn_into::<AudioNode>()
-                    .unwrap();
-
-                // I don't bother checking the connection results.
-                // don't care about it right now, this could go wrong in the future.
-                let _connect_result = node.connect_with_audio_node(
-                    &audio_context.borrow().ctx.destination().dyn_into().unwrap(),
-                );
             }
         };
 
