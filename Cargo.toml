@@ -6,7 +6,7 @@ edition = "2018"
 description = "A cross-platform multimedia layer that exposes opengl,sockets,and audio utilities for desktop and broswer"
 readme = "README.md"
 repository="https://github.com/K-C-DaCosta/fluffl"
-keywords=["multimedia","graphics","audio","networking","wasm","browser"]
+keywords=["multimedia","graphics","audio","wasm"]
 categories=["graphics","gui","game-developmentt","multimedia","wasm"]
 license = "MIT OR Apache-2.0"
 
