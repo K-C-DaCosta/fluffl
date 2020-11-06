@@ -4,6 +4,10 @@ version = "0.1.0"
 authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
 edition = "2018"
 
+[[bin]]
+name = "audio_ex1_desktop"
+path = "./src/main.rs"
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -21,10 +25,14 @@ desktop = [
 ]
 
 web = [ 
+    "fluffl/extras",
     "fluffl/web",
+    "console_error_panic_hook"
 ]
 
 [dependencies]
 tokio = { version = "0.3", features = ["full"], optional=true }
+console_error_panic_hook = { version = "0.1.6" , optional=true } 
 fluffl = {path = "../../../fluffl",default-features = false, optional=true}
+
 

@@ -1,9 +1,13 @@
 # what is fluffl?
 fluffl is a media layer that provides an extremely simple, but cross-platform, interface between **desktop** and **wasm** targets.
 
-# why fluffl? 
+## why fluffl? 
 If you need a *simple* layer that provides audio,graphics, and maybe networking then this is the crate for you. 
 Think of it like SDL but more primitive.
+
+## an example
+Here's an example <a href="./wasm_bins/examples/audio_ex_1/index.html">here</a>. There are still audio buffering issues in webaudio 
+that im looking into fixing.
 
 # Status
 ## Update *[Wed nov 4 2020]* 

@@ -18,13 +18,15 @@ use fluffl::extras::{
     ogl::{array::*, buffer::*, program::*, texture::*, *},
 };
 
+
+
 //This is the entry point for the web target (not default )
 #[cfg(feature="web")]
 #[wasm_bindgen(start)]
 pub fn wasm_entry_point() {
-    panic::set_hook(Box::new(console_error_panic_hook::hook));
+    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
     spawn_local(async move {
-        let _ = fluffr_main().await;
+        let _ = fluffl_main().await;
     });
 }
 
@@ -49,29 +51,24 @@ type ShortDeviceContext = FlufflAudioDeviceContext<ShortDeviceCB, ShortMusicPlay
 
 pub struct MainState {
     pub dev_ptr: ShortDeviceContext,
-    pub vao: OglArray,
-    pub progbox: OglProg,
     pub t: f32,
     pub pos_x: f32,
     pub pos_y: f32,
-    pub tex: Texture,
-    pub noise: OglTexture,
     pub writer: TextWriter,
-    pub client_socket: Box<dyn HasWebSocketClient>,
 }
 
 pub async fn fluffl_main() -> Result<(), FlufflError> {
     
     let ogg = {
-        let wav_data: Vec<u8> = load_file!("./resources/st2.ogg")?;
+        let file_bytes: Vec<u8> = load_file!("../../wasm_bins/resources/st2.ogg").expect("ogg failed to load");
         ogg::OggFile::new()
-            .with_data(wav_data)
+            .with_data(file_bytes)
             .parse()
             .expect("parse failed")
     };
 
     //GlueWindow is configured with XML, the format is self-explanitory
-    let raw_bytes = load_file!("./resources/config.xml")?;
+    let raw_bytes = load_file!("../../wasm_bins/resources/config.xml").expect("config failed to load");
     let config_text = String::from_utf8(raw_bytes)?;
     let window = FlufflWindow::init(config_text.as_str())?;
     let gl = window.gl();
@@ -82,7 +79,7 @@ pub async fn fluffl_main() -> Result<(), FlufflError> {
             .gl()
             .viewport(0, 0, window.width() as i32, window.height() as i32);
     }
-    console_log!("widht = {}, height = {}\n", window.width(), window.height());
+    console_log!("width = {}, height = {}\n", window.width(), window.height());
 
     let device_core: AudioDeviceCore<ShortDeviceCB, ShortMusicPlayer> = AudioDeviceCore::new()
         .with_specs(DesiredSpecs {
@@ -93,149 +90,24 @@ pub async fn fluffl_main() -> Result<(), FlufflError> {
         .with_state(MusicPlayer {
             ticks: 0,
             state: PlayState::Paused,
-            volume: 0.7,
+            volume: 0.5,
             music_src: ogg.into(),
         })
         .with_callback(music_callback);
 
     let device = FlufflAudioDeviceContext::new(device_core, window.audio_context());
 
-    let atlas_bin = load_file!("font.bcode").unwrap();
-    let atlas = HieroAtlas::deserialize(atlas_bin).ok().unwrap();
-    let page = atlas.try_unpack_page(0).ok().unwrap();
-
-    let (vao, prog, texture, noise) = {
-        let geo_data: Vec<f32> = vec![
-            0.5, -0.5, 0., 1., -0.5, 0.5, 0., 1., -0.5, -0.5, 0., 1., 0.5, -0.5, 0., 1., 0.5, 0.5,
-            0., 1., -0.5, 0.5, 0., 1.,
-        ];
-        let _color_data: Vec<f32> = vec![1., 0., 0., 1., 0., 1., 0., 1., 0., 0., 1., 1.];
-        let uvs: Vec<f32> = vec![1., 1., 0., 0., 0., 1., 1., 1., 1., 0., 0., 0.];
-
-        let shader_source =
-            String::from_utf8(load_file!("./resources/phong.glsl").unwrap()).unwrap();
-
-        let program = match OglProg::compile_program(&gl, shader_source.as_str()) {
-            Ok(p) => p,
-            Err(err) => match err {
-                program::CompilationError::ShaderError {
-                    ogl_error,
-                    faulty_source,
-                } => panic!("error:\n{}\nsource:\n{}\n", ogl_error, faulty_source),
-                program::CompilationError::LinkError {
-                    ogl_error,
-                    faulty_source,
-                } => panic!("error:\n{}\nsource:\n{}\n", ogl_error, faulty_source),
-            },
-        };
-
-        let vao = OglArray::new(&gl).init(vec![
-            BufferPair::new(
-                "verts",
-                OglBuf::new(&gl)
-                    .with_target(glow::ARRAY_BUFFER)
-                    .with_data(geo_data)
-                    .with_index(1)
-                    .with_num_comps(4)
-                    .with_usage(glow::STATIC_DRAW)
-                    .build()
-                    .into(),
-            ),
-            BufferPair::new(
-                "uv",
-                OglBuf::new(&gl)
-                    .with_target(glow::ARRAY_BUFFER)
-                    .with_index(2)
-                    .with_num_comps(2)
-                    .with_usage(glow::STATIC_DRAW)
-                    .with_data(uvs)
-                    .build()
-                    .into(),
-            ),
-        ]);
-
-        //checkerboard texture for debugging purposes
-        let width = 128;
-        let height = 128;
-        let mut checker_board: Vec<u8> = (0..3 * width * height).map(|_| 0).collect();
-        for y in 0..height {
-            for x in 0..width {
-                let pixel_start = (y * width + x) * 3;
-                let val = (((y as u8 / 16) % 2) ^ ((x as u8 / 16) % 2)) * 255;
-                checker_board[pixel_start + 0] = val;
-                checker_board[pixel_start + 1] = val;
-                checker_board[pixel_start + 2] = val;
-            }
-        }
-
-        let texture: Texture = unsafe {
-            let to = gl.create_texture().unwrap();
-            gl.bind_texture(TEXTURE_2D, Some(to));
-            gl.tex_image_2d(
-                glow::TEXTURE_2D,
-                0,
-                glow::RGBA as i32,
-                width as i32,
-                height as i32,
-                0,
-                glow::RGB,
-                glow::UNSIGNED_BYTE,
-                Some(&checker_board[..]),
-            );
-            gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
-            gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
-            gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::REPEAT as i32);
-            gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::REPEAT as i32);
-            to
-        };
-
-        println!(
-            "page width = {},page_height={}",
-            page.info().width,
-            page.info().height
-        );
-
-        let noise: OglTexture = TextureObj::<u8>::new(&gl)
-            .with_format(glow::RGBA)
-            .with_width(page.info().width)
-            .with_height(page.info().height)
-            .with_pixels_slice(&page.pixels()[..])
-            .build()
-            .into();
-
-        // noise.copy_image(512,512,);
-        (vao, program, texture, noise)
-    };
+    let atlas_bytes = load_file!("../../wasm_bins/resources/font.bcode").expect("file not found");
+    let atlas = HieroAtlas::deserialize(atlas_bytes).ok().expect("font parse failed");
 
     FlufflWindow::main_loop(
         window,
         MainState {
-            dev_ptr: device.clone(),
-            vao,
-            progbox: prog,
+            dev_ptr: device,
             t: 0.,
             pos_x: 0.,
             pos_y: 0.,
-            tex: texture,
-            noise,
             writer: TextWriter::new(&gl).with_atlas(atlas).build(),
-            client_socket: WsClient::new(ClientState::default())
-                .with_on_message_cb(|_websocket, _state, message| {
-                    match String::from_utf8(message.to_vec()) {
-                        Ok(text) => console_log!("recieved: {}\n", text),
-                        Err(_) => console_log!("unexpected input!\n"),
-                    }
-                })
-                .with_on_close_cb(|_state| {
-                    console_log!("socket has been closed!\n");
-                })
-                .with_on_error_cb(|_state| {
-                    console_log!("An Error has occoured!\n");
-                })
-                .connect("ws://localhost:9001")
-                .ok()
-                .expect("Socket failed to connect, server may be offline")
-                .into(),
         },
         core_loop,
     );
@@ -306,20 +178,23 @@ pub async fn core_loop(
                     });
                     device.resume();
                 }
-                if let KeyCode::KEY_B = code {
-                    let message = "Hello Server!";
-                    match ms.client_socket.send(message.as_bytes()) {
-                        Err(_err) => {
-                            console_log!("Woah! Send error!\n");
-                        }
-                        Ok(_) => (),
-                    }
-                }
 
-                let code: i128 = code.into();
-                if (code > KeyCode::KEY_A.into()) || (code < KeyCode::KEY_Z.into()) {
-                    console_log!("char = {}\n", (code as u8 as char).to_lowercase());
-                }
+                console_log!("char = {}\n",code.key_val().unwrap());
+
+                // if let KeyCode::KEY_B = code {
+                //     let message = "Hello Server!";
+                //     match ms.client_socket.send(message.as_bytes()) {
+                //         Err(_err) => {
+                //             console_log!("Woah! Send error!\n");
+                //         }
+                //         Ok(_) => (),
+                //     }
+                // }
+
+                // let code: i128 = code.into();
+                // if (code > KeyCode::KEY_A.into()) || (code < KeyCode::KEY_Z.into()) {
+                //     console_log!("char = {}\n", (code as u8 as char).to_lowercase());
+                // }
             }
             EventKind::MouseMove { x, y, dx, dy } => {
                 console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
@@ -361,7 +236,7 @@ pub async fn core_loop(
 
         let x = main_state.borrow().pos_x;
         let y = main_state.borrow().pos_y;
-        let caption_list = ["Hello World!"];
+        let caption_list = ["fluffl!"];
 
         caption_list.iter().enumerate().for_each(|(k, caption)| {
             main_state.borrow_mut().writer.draw_text_line(
@@ -374,5 +249,5 @@ pub async fn core_loop(
         });
     }
 
-    main_state.borrow_mut().client_socket.listen();
+    // main_state.borrow_mut().client_socket.listen();
 }

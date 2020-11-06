@@ -198,6 +198,18 @@ pub enum KeyCode {
     KP_FORWARD_SLASH,
 }
 
+impl KeyCode {
+    pub fn key_val(self)->Option<char>{
+        let code: i128 = self.into();
+        if (code > KeyCode::KEY_A.into()) || (code < KeyCode::KEY_Z.into()) {
+            let c = code as u8 as char; 
+            Some(c)
+        }else{
+            None
+        }
+    }
+}
+
 impl Into<i128> for KeyCode {
     fn into(self) -> i128 {
         use std::mem::transmute_copy;

@@ -7,15 +7,34 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug executable 'glue_desktop'",
+            "name": "Debug unit tests in library 'audio_ex1'",
+            "cargo": {
+                "args": [
+                    "test",
+                    "--no-run",
+                    "--lib",
+                    "--package=audio_ex1"
+                ],
+                "filter": {
+                    "name": "audio_ex1",
+                    "kind": "lib"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'audio_ex1'",
             "cargo": {
                 "args": [
                     "build",
-                    "--bin=glue_desktop",
-                    "--package=glue_desktop"
+                    "--bin=audio_ex1",
+                    "--package=audio_ex1"
                 ],
                 "filter": {
-                    "name": "glue_desktop",
+                    "name": "audio_ex1",
                     "kind": "bin"
                 }
             },
@@ -25,16 +44,16 @@
         {
             "type": "lldb",
             "request": "launch",
-            "name": "Debug unit tests in executable 'glue_desktop'",
+            "name": "Debug unit tests in executable 'audio_ex1'",
             "cargo": {
                 "args": [
                     "test",
                     "--no-run",
-                    "--bin=glue_desktop",
-                    "--package=glue_desktop"
+                    "--bin=audio_ex1",
+                    "--package=audio_ex1"
                 ],
                 "filter": {
-                    "name": "glue_desktop",
+                    "name": "audio_ex1",
                     "kind": "bin"
                 }
             },
