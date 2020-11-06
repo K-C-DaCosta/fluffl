@@ -6,7 +6,7 @@ If you need a *simple* layer that provides audio,graphics, and maybe networking 
 Think of it like SDL but more primitive.
 
 ## an example
-Here's an example <a href="[./wasm_bins/examples/audio_ex_1/index.html](https://k-c-dacosta.github.io/wasm_bins/examples/audio_ex_1/index.html)">here</a>. There are still audio buffering issues in webaudio 
+Here's an example <a href="http://k-c-dacosta.github.io/wasm_bins/examples/audio_ex_1/index.html">here</a>. There are still audio buffering issues in webaudio 
 that im looking into fixing.
 
 # Status
