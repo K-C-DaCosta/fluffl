@@ -1,4 +1,4 @@
-use super::{AudioDeviceCore};
+use super::AudioDeviceCore;
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -6,10 +6,7 @@ use wasm_bindgen::JsCast;
 // use wasm_bindgen_futures::*;
 use web_sys::*;
 
-
-
 use std::cell::RefCell;
-use std::collections::VecDeque;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -17,8 +14,13 @@ use crate::collections::linked_list::*;
 use crate::console::*;
 use crate::*;
 
+struct ThreadState {
+    play_time: f64,
+    audio_thread: js_sys::Function,
+}
+
 // audio 'threads' are just JS functions that get put on
-static mut AUDIO_THREADS: Option<LinkedList<Option<js_sys::Function>>> = None;
+static mut AUDIO_THREADS: Option<LinkedList<Option<ThreadState>>> = None;
 
 /// Inits a gobally managed pool of 'audio threads'(These threads are NOT executed in parallel).\
 /// These javascript functions are put on either the microtask or task queue of the hosts javascript engine\
@@ -29,12 +31,38 @@ pub fn init_audio_threads() {
     }
 }
 
-fn get_audio_thread_list() -> &'static LinkedList<Option<js_sys::Function>> {
+fn get_audio_thread_list() -> &'static LinkedList<Option<ThreadState>> {
     unsafe { AUDIO_THREADS.as_ref().unwrap() }
 }
 
-fn get_audio_thread_list_mut() -> &'static mut LinkedList<Option<js_sys::Function>> {
+fn get_audio_thread_list_mut() -> &'static mut LinkedList<Option<ThreadState>> {
     unsafe { AUDIO_THREADS.as_mut().unwrap() }
+}
+
+fn get_thread_state<'a>(thread_id: u32) -> Option<&'a ThreadState> {
+    get_audio_thread_list()[thread_id]
+        .get_data()
+        .unwrap()
+        .as_ref()
+        .map(|thread_state| thread_state)
+}
+
+fn get_thread_state_mut<'a>(thread_id: u32) -> Option<&'a mut ThreadState> {
+    get_audio_thread_list_mut()[thread_id]
+        .get_data_mut()
+        .unwrap()
+        .as_mut()
+        .map(|thread_state| thread_state)
+}
+
+fn can_buffer(
+    thread_id: u32,
+    buffer_time: f64,
+    audio_context: Arc<RefCell<FlufflAudioContext>>,
+) -> bool {
+    let difference =
+        get_thread_state(thread_id).unwrap().play_time - audio_context.borrow().ctx.current_time();
+    difference < buffer_time
 }
 
 pub struct FlufflAudioContext {
@@ -58,6 +86,7 @@ pub struct FlufflAudioDeviceContext<F, S> {
     glue_callback: F,
     state: Rc<RefCell<S>>,
     thread_id: u32,
+    audio_context: Arc<RefCell<FlufflAudioContext>>,
 }
 
 impl<F, S> Clone for FlufflAudioDeviceContext<F, S>
@@ -69,7 +98,61 @@ where
             glue_callback: self.glue_callback,
             state: self.state.clone(),
             thread_id: self.thread_id,
+            audio_context: self.audio_context.clone(),
         }
+    }
+}
+
+pub struct AudioBufferPool {
+    buffer_pool: Vec<AudioBuffer>,
+    free_buffers: Vec<u64>,
+}
+impl AudioBufferPool {
+    fn new(
+        audio_context: &AudioContext,
+        channels: u32,
+        buffer_size: u32,
+        sample_rate: f32,
+    ) -> Self {
+        Self {
+            buffer_pool: (0..32)
+                .map(|_| {
+                    audio_context
+                        .create_buffer(channels, buffer_size, sample_rate)
+                        .unwrap()
+                })
+                .collect(),
+            free_buffers: (0..32).collect(),
+        }
+    }
+
+    fn get_unused_audio_buffer(
+        &mut self,
+        audio_context: &AudioContext,
+        channels: u32,
+        buffer_size: u32,
+        sample_rate: f32,
+    ) -> u64 {
+        if self.free_buffers.is_empty() {
+            let new_buffer = audio_context
+                .create_buffer(channels, buffer_size, sample_rate)
+                .unwrap();
+            self.buffer_pool.push(new_buffer);
+            (self.buffer_pool.len() - 1) as u64
+        } else {
+            self.free_buffers.pop().unwrap()
+        }
+    }
+
+    fn free_audio_buffer(&mut self, buffer_index: u64) {
+        self.free_buffers.push(buffer_index);
+    }
+}
+
+impl std::ops::Index<u64> for AudioBufferPool {
+    type Output = AudioBuffer;
+    fn index(&self, index: u64) -> &Self::Output {
+        &self.buffer_pool[index as usize]
     }
 }
 
@@ -83,10 +166,7 @@ where
         audio_context: Arc<RefCell<FlufflAudioContext>>,
     ) -> Self {
         // the time (in seconds) to buffer ahead to avoid choppy playback
-        const BUFFER_TIME: f64 = 0.05;
-
-        let pump_list: Rc<RefCell<VecDeque<js_sys::Function>>> =
-            Rc::new(RefCell::new(VecDeque::new()));
+        const BUFFER_TIME: f64 = 0.3;
 
         let state = core.state.take().unwrap_or_else(|| {
             panic!("Error: Failed to create GlueAudioDevice!\n .with_state(..) not initalized!\n")
@@ -95,13 +175,11 @@ where
         let mut glue_callback = core.callback();
         let state = Rc::new(RefCell::new(state));
         let (sample_rate, channels, buffer_size) = core.desired_specs.get_specs();
-        let mut play_time = audio_context.borrow().ctx.current_time();
+
+        let audio_context_dup = audio_context.clone();
 
         let get_state_ptr = |state: Rc<RefCell<S>>| (&mut *state.borrow_mut()) as *mut S;
-
         let state_ptr = get_state_ptr(state.clone());
-
-        // console_log!("[{},{},{}]", sample_rate, channels, buffer_size);
 
         //this buffer contains INTERLEAVED pcm in 32-bit IEEE-754 floating point precision
         //however the webaudio api demanands each channel be submitted seperately,so this routine will have
@@ -120,30 +198,37 @@ where
         // get pointer to the front
         let thread_id = get_audio_thread_list().get_front();
 
-        let mut warmup_count = 0; 
+        // allocate a bunch of empty buffers upfront before playing any music
+        // buffer pool should let us recycle buffers to some degree
+        let buffer_pool: Rc<RefCell<AudioBufferPool>> =
+            Rc::new(RefCell::new(AudioBufferPool::new(
+                &audio_context.borrow().ctx,
+                channels as u32,
+                buffer_size as u32,
+                sample_rate as f32,
+            )));
 
         let process_raw_pcm = move || {
             //buffer for one second into the future
-            while play_time - audio_context.borrow().ctx.current_time() < BUFFER_TIME {
+            while can_buffer(thread_id, BUFFER_TIME, audio_context.clone()) {
+                // // console_log!("blocks counted = {}\n", audio_blocks_pushed);
+                let buffer_count = buffer_pool.borrow().buffer_pool.len();
+                console_log!("pool size ={}", buffer_count);
 
-                let web_audio_buffer = audio_context
-                    .borrow()
-                    .ctx
-                    .create_buffer(channels as u32, buffer_size as u32, sample_rate as f32)
-                    .unwrap();
-
-                // let channels = web_audio_buffer.get_channel_data(0).unwrap();
+                let web_audio_buffer_ptr = buffer_pool.borrow_mut().get_unused_audio_buffer(
+                    &audio_context.borrow().ctx,
+                    channels as u32,
+                    buffer_size as u32,
+                    sample_rate as f32,
+                );
 
                 //clear buffers before calling the callback
                 sample_callback_buffer.resize(buffer_size * channels, 0f32);
 
                 //call the callback provided by the user
-                if warmup_count >= 10{
-                    let state_ref = unsafe { &mut *state_ptr };
-                    glue_callback(state_ref, &mut sample_callback_buffer[..]);
-                }else{
-                    warmup_count+=1; 
-                }
+                let state_ref = unsafe { &mut *state_ptr };
+                glue_callback(state_ref, &mut sample_callback_buffer[..]);
+
                 //de-interleave samples into a buffer with samples associated with just a single channel
                 for channel_index in 0..channels {
                     //clear the buffer holding PCM for a specific channel
@@ -156,7 +241,7 @@ where
                     }
 
                     //copy the callback buffer to the web_audio_buffer
-                    web_audio_buffer
+                    buffer_pool.borrow()[web_audio_buffer_ptr]
                         .copy_to_channel(&mut sample_buffer_for_channel[..], channel_index as i32)
                         .unwrap();
                 }
@@ -164,24 +249,24 @@ where
                 let web_audio_buffer_source_node =
                     audio_context.borrow().ctx.create_buffer_source().unwrap();
 
-                web_audio_buffer_source_node.set_buffer(Some(&web_audio_buffer));
-
-                let pump_list_ptr = pump_list.clone();
+                {
+                    let web_audio_buffer = &buffer_pool.borrow()[web_audio_buffer_ptr];
+                    web_audio_buffer_source_node.set_buffer(Some(web_audio_buffer));
+                }
 
                 // This function is fired whenever 'onended' event is fired
                 // continue_buffering() literally just resumes the 'thread'
+                let buffer_pool_ptr = buffer_pool.clone();
                 let continue_buffering = move || {
-                    let pump_list = pump_list_ptr;
+                    buffer_pool_ptr
+                        .borrow_mut()
+                        .free_audio_buffer(web_audio_buffer_ptr);
 
                     get_audio_thread_list()[thread_id].get_data().map(|data| {
-                        data.as_ref().map(|thread: &js_sys::Function| {
-                            let _ = thread.call0(&JsValue::null());
+                        data.as_ref().map(|ThreadState { audio_thread, .. }| {
+                            let _ = audio_thread.call0(&JsValue::null());
                         });
                     });
-
-                    // because we know 'onended' had to have fired  we can remove the oldest buffer
-                    // this buffer is likely to be garbage collected by the JS runtime enviroment
-                    pump_list.borrow_mut().pop_front();
                 };
 
                 //wrap continue_buffering in boxed closure and convert to a Js Function
@@ -189,19 +274,15 @@ where
                     .dyn_into::<js_sys::Function>()
                     .unwrap();
 
-                //push the continue_buffering callback into a queue so JS doesn't collect it as garbage
-                pump_list.borrow_mut().push_back(cb);
-
                 // when this buffer finished playing resume buffering
-                web_audio_buffer_source_node.set_onended(pump_list.borrow().back());
+                // web_audio_buffer_source_node.set_onended(pump_list.borrow().back());
+                web_audio_buffer_source_node.set_onended(Some(&cb));
 
                 // prepare to connect audio node to destination (MUST be done before playing sound)
                 // by casting down to &AudioNode
-                let node: &AudioNode = web_audio_buffer_source_node
-                    .dyn_ref::<AudioNode>()
-                    .unwrap();
+                let node: &AudioNode = web_audio_buffer_source_node.dyn_ref::<AudioNode>().unwrap();
 
-                // Connecting source to destination happens here. I don't bother 
+                // Connecting source to destination happens here. I don't bother
                 // checking the connection results. don't care about it right now,
                 // this could go wrong in the future.
                 let _connect_result = node.connect_with_audio_node(
@@ -210,12 +291,14 @@ where
 
                 // play the buffer at time t=play_time
                 web_audio_buffer_source_node
-                    .start_with_when(play_time)
+                    .start_with_when(get_thread_state(thread_id).unwrap().play_time)
                     .unwrap();
-                
-                //because each chunk of samples takes some time,DT,to play  I have to 
-                //increment play_time by that amount. DT in this case is equal to : buffer_size/sample_rate  
-                play_time += buffer_size as f64 / sample_rate as f64;
+
+                //because each chunk of samples takes some time,DT,to play  I have to
+                //increment play_time by that amount. DT in this case is equal to : buffer_size/sample_rate
+                get_thread_state_mut(thread_id).map(|thread_state| {
+                    thread_state.play_time += buffer_size as f64 / sample_rate as f64;
+                });
             }
         };
 
@@ -229,13 +312,17 @@ where
         get_audio_thread_list_mut()[thread_id]
             .get_data_mut()
             .map(|data| {
-                *data = Some(process_raw_pcm_closure);
+                *data = Some(ThreadState {
+                    play_time: 0.0,
+                    audio_thread: process_raw_pcm_closure,
+                });
             });
 
         Self {
             state,
             glue_callback,
             thread_id,
+            audio_context: audio_context_dup,
         }
     }
 
@@ -253,9 +340,19 @@ where
         let thread_id = self.thread_id;
         //begin 'audio thread'
         get_audio_thread_list_mut()[thread_id]
-            .get_data()
+            .get_data_mut()
             .map(|data| {
-                data.as_ref().map(|thread| thread.call0(&JsValue::null()));
+                data.as_mut().map(
+                    |ThreadState {
+                         play_time,
+                         audio_thread,
+                         ..
+                     }| {
+                        // really need to make sure that play_time is updated before playing
+                        *play_time = self.audio_context.borrow().ctx.current_time();
+                        audio_thread.call0(&JsValue::null())
+                    },
+                );
             });
     }
 
@@ -269,8 +366,7 @@ impl<F, S> Drop for FlufflAudioDeviceContext<F, S> {
         let thread_id = self.thread_id;
 
         //release audio 'thread' from list Option<js_function> gets dropped
-        let result: Option<Option<js_sys::Function>> =
-            get_audio_thread_list_mut().remove(thread_id);
+        let result: Option<Option<ThreadState>> = get_audio_thread_list_mut().remove(thread_id);
         if let Some(Some(func)) = result {
             console_log!("drop func\n");
             std::mem::drop(func);

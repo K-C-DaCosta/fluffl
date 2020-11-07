@@ -157,7 +157,7 @@ pub async fn core_loop(
                         state_opt.map(|s| {
                             if let PlayState::Paused = s.state {
                                 s.ticks = 0;
-                                s.state = PlayState::RampUp(12000);
+                                s.state = PlayState::RampUp(32000);
                             }
                         });
                     });
@@ -177,7 +177,7 @@ pub async fn core_loop(
                 console_log!("char = {}\n",code.key_val().unwrap());
             }
             EventKind::MouseMove { x, y, dx, dy } => {
-                console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
+                // console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
                 ms.pos_x = x as f32;
                 ms.pos_y = y as f32;
             }
@@ -202,7 +202,7 @@ pub async fn core_loop(
     let y = main_state.borrow().pos_y;
 
     //draw text here 
-    let caption_list = ["fluffl!_3"];
+    let caption_list = ["fluffl!4"];
 
     caption_list.iter().enumerate().for_each(|(k, caption)| {
         main_state.borrow_mut().writer.draw_text_line(
