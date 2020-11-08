@@ -1,6 +1,6 @@
 [package]
 name = "fluffl"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
 edition = "2018"
 description = "A cross-platform multimedia layer that exposes opengl,sockets,and audio utilities for desktop and broswer"
