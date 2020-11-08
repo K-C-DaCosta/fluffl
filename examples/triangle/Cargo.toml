@@ -14,12 +14,10 @@ default = ["web"]
 
 web = [ 
     'console_error_panic_hook',
-    'fluffr_util/web',
-    'fluffr/web'
+    'fluffl/web'
 ]
 
 [dependencies]
 console_error_panic_hook = { version = "0.1.6" , optional=true } 
-fluffr_util = { path="../../fluffr_util", default-features = false, optional = true }
-fluffr = { path = "../fluffr" , default-features = false, optional=true}
+fluffl = { path = "../../../fluffl" , default-features = false, optional=true}
 

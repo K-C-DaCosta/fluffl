@@ -43,7 +43,7 @@ pub struct MainState {
 pub async fn fluffl_main() -> Result<(), FlufflError> {
     let ogg = {
         //load_file!("../../wasm_bins/resources/HipHopNoir_1.ogg")
-        let file_bytes: Vec<u8> = load_file!("../../wasm_bins/resources/trem.ogg").expect("ogg failed to load");
+        let file_bytes: Vec<u8> = load_file!("../../wasm_bins/resources/HipHopNoir_1.ogg").expect("ogg failed to load");
         ogg::OggFile::new()
             .with_data(file_bytes)
             .parse()
