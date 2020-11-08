@@ -103,14 +103,17 @@ impl AudioBuffer<f32> for OggBuffer {
                 self.cur_samples = samples;
             }
         }
+
         const NORMALIZATION_FACTOR: f32 = 32767.0;
         let channels = self.header.audio_channels as usize;
         let mut out_index = 0;
+        
         while out_index < out.len() * channels && self.cur_index < self.cur_samples.len() {
             out[out_index / channels].channel[1 - out_index % channels] =
                 self.cur_samples[self.cur_index] as f32 / NORMALIZATION_FACTOR;
             out_index += 1;
             self.cur_index += 1;
+            
             //if true we ran out of samples to push, so I pull in the next vector of samples.
             if self.cur_index >= self.cur_samples.len() {
                 if let Ok(Some(samples)) = self.ogg_reader.as_mut().unwrap().read_dec_packet_itl() {

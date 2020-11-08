@@ -10,10 +10,6 @@ keywords=["multimedia","graphics","audio","wasm"]
 categories=["graphics","gui","game-development","multimedia","wasm"]
 license = "MIT OR Apache-2.0"
 
-
-[lib]
-crate-type = ["cdylib", "rlib"]
-
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
 glow = { version = "0.6.1"  , default-features = false }

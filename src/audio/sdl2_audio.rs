@@ -7,9 +7,24 @@ use std::sync::{Arc, Mutex};
 pub struct FlufflAudioContext {
     pub audio_ss: sdl2::AudioSubsystem,
 }
-
-/// A pointer to SDL2's audio device (which is uses some multithreading) 
-/// This is where we can actually start playing music(on desktop )
+/// # Description 
+/// You use this to actually start playing the sound.
+/// This struct is just a generic 'handler'/'pointer' to the audio backend, and to the state that 
+/// was defined in the core
+/// # Desktop Comments
+/// A pointer to SDL2's audio device (which is uses some multithreading). Nothing really interesting happens on this side. 
+/// Its literally just a wrapper, for sdl2's interface.
+/// # Wasm/Web Comments
+/// The implementation for this side of things was much more complicated than I could've
+/// imagined. With a lot of help from these sources: 
+/// - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
+/// - https://blog.mecheye.net/2017/09/i-dont-know-who-the-web-audio-api-is-designed-for/
+/// - https://rustwasm.github.io/docs/wasm-bindgen/" \
+/// I was able to cobble  something together that actually seems to work okay , well, for now anyway.
+/// A new google or firefox update could break this code further.
+/// As of writing this Chrome appearently reduced timer resolutions which slightly break the wasm implemention 
+/// causing noticable pops and cracks in the audio playback(Firefox works great though).
+/// Look is the `web_audio.rs` module for a peek at the  wasm implementation
 pub struct FlufflAudioDeviceContext<Callback, State>
 where
     Callback: FnMut(&mut State, &mut [f32]) + std::marker::Copy + Send + 'static,
@@ -42,18 +57,18 @@ where
         core: AudioDeviceCore<Callback, State>,
         audio_context: Arc<RefCell<FlufflAudioContext>>,
     ) -> FlufflAudioDeviceContext<Callback, State> {
-        println!("new music context");
+        // println!("new music context");
         let desired_spec = sdl2::audio::AudioSpecDesired {
             freq: core.desired_specs.sample_rate.clone().map(|a| {
-                println!("freq = {}", a);
+                // println!("freq = {}", a);
                 a as i32
             }),
             channels: core.desired_specs.channels.clone().map(|a| {
-                println!("channels = {}", a);
+                // println!("channels = {}", a);
                 a as u8
             }),
             samples: core.desired_specs.buffer_size.clone().map(|a| {
-                println!("buffer_size = {}", a);
+                // println!("buffer_size = {}", a);
                 a as u16
             }),
         };

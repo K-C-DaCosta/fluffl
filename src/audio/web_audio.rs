@@ -209,11 +209,11 @@ where
             )));
 
         let process_raw_pcm = move || {
-            //buffer for one second into the future
+            //buffer for BUFFER_TIME into the future
             while can_buffer(thread_id, BUFFER_TIME, audio_context.clone()) {
                 // // console_log!("blocks counted = {}\n", audio_blocks_pushed);
-                let buffer_count = buffer_pool.borrow().buffer_pool.len();
-                console_log!("pool size ={}", buffer_count);
+                // let buffer_count = buffer_pool.borrow().buffer_pool.len();
+                // console_log!("pool size ={}", buffer_count);
 
                 let web_audio_buffer_ptr = buffer_pool.borrow_mut().get_unused_audio_buffer(
                     &audio_context.borrow().ctx,
@@ -346,10 +346,10 @@ where
                     |ThreadState {
                          play_time,
                          audio_thread,
-                         ..
                      }| {
                         // really need to make sure that play_time is updated before playing
                         *play_time = self.audio_context.borrow().ctx.current_time();
+                        // this line,once executed, actually starts the thread
                         audio_thread.call0(&JsValue::null())
                     },
                 );

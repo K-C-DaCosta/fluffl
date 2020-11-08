@@ -1,4 +1,3 @@
-
 use fluffl::{
     audio::*,
     console::*,
@@ -18,18 +17,6 @@ use fluffl::extras::{
     ogl::text_writer::*,
     // ogl::{array::*, buffer::*, program::*, texture::*, *},
 };
-
-
-
-//This is the entry point for the web target (not default )
-#[cfg(feature="web")]
-#[wasm_bindgen(start)]
-pub fn wasm_entry_point() {
-    std::panic::set_hook(Box::new(console_error_panic_hook::hook));
-    spawn_local(async move {
-        let _ = fluffl_main().await;
-    });
-}
 
 // use glue_core:
 #[derive(Default)]
@@ -54,9 +41,9 @@ pub struct MainState {
 }
 
 pub async fn fluffl_main() -> Result<(), FlufflError> {
-    
     let ogg = {
-        let file_bytes: Vec<u8> = load_file!("../../wasm_bins/resources/st2.ogg").expect("ogg failed to load");
+        //load_file!("../../wasm_bins/resources/HipHopNoir_1.ogg")
+        let file_bytes: Vec<u8> = load_file!("../../wasm_bins/resources/trem.ogg").expect("ogg failed to load");
         ogg::OggFile::new()
             .with_data(file_bytes)
             .parse()
@@ -75,8 +62,9 @@ pub async fn fluffl_main() -> Result<(), FlufflError> {
             .gl()
             .viewport(0, 0, window.width() as i32, window.height() as i32);
     }
-    console_log!("width = {}, height = {}\n", window.width(), window.height());
 
+    // setting up a device core doesn't actually do anything (no system calls)
+    // think of it like filling out a form.
     let device_core: AudioDeviceCore<ShortDeviceCB, ShortMusicPlayer> = AudioDeviceCore::new()
         .with_specs(DesiredSpecs {
             sample_rate: ogg.sample_rate().map(|a| a as u32),
@@ -85,12 +73,14 @@ pub async fn fluffl_main() -> Result<(), FlufflError> {
         })
         .with_state(MusicPlayer {
             ticks: 0,
-            state: PlayState::Paused,
+            state: PlayState::Paused, //
             volume: 0.5,
             music_src: ogg.into(),
+            repeat_track:true,
         })
         .with_callback(music_callback);
 
+    // Creating a device context is where things really start to happen (new threads and memory are allocated for processing audio)
     let device = FlufflAudioDeviceContext::new(device_core, window.audio_context());
 
     let atlas_bytes = load_file!("../../wasm_bins/resources/font.bcode").expect("file not found");
@@ -202,7 +192,7 @@ pub async fn core_loop(
     let y = main_state.borrow().pos_y;
 
     //draw text here 
-    let caption_list = ["fluffl!4"];
+    let caption_list = ["fluffl"];
 
     caption_list.iter().enumerate().for_each(|(k, caption)| {
         main_state.borrow_mut().writer.draw_text_line(

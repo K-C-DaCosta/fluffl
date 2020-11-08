@@ -1,3 +1,6 @@
+// / Module common crates that you'll probably need access to
+pub mod prelude; 
+
 /// Module for playing sounds
 pub mod audio;
 /// Module for writing text to consoles 
@@ -8,6 +11,7 @@ pub mod io;
 pub mod net;
 /// Module for creating a an opengl window
 pub mod window;
+
 
 /// private custom datastructures
 mod collections;

@@ -1,16 +1,25 @@
 use audio_ex1::*;
+#[allow(unused_imports)]
+use fluffl::prelude::*;
 
-// Using fluffl on desktop will require to to setup an entry point in main.rs.
-// Obviously, because you will want to target wasm, we need to do a little bit of conditional 
-// compilation. Fluffl tries not to impose an async runtime on the user,in all examples we just use tokio. 
-fn main() {
-    //if desktop feature is selected compile code (lines 11-15)
+pub fn main() {
+    // This is the wasm entry point
+    #[cfg(feature = "web")]{
+        //this is optional, but gives you better error in the browser
+        std::panic::set_hook(Box::new(console_error_panic_hook::hook));
+        //this actually gets the ball rolling
+        spawn_local(async move {
+            let _ = fluffl_main().await;
+        });
+    }
+    
+    // This is the desktop entry point
+    // Fluffl tries not to impose an async runtime on the user,in all examples we just use tokio.
     #[cfg(feature = "desktop")]
     {
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(async {
-            let _x = fluffl_main().await;
-            println!("ERROR: {:?}", _x);
+            let _ = fluffl_main().await;
         });
     }
 }
