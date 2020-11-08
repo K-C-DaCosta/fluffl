@@ -7,4 +7,4 @@ Think of it like SDL but more primitive.
 
 ## an example
 Check the `examples` folder for runnable demos.
-Wasm version of the examples are here: https://k-c-dacosta.github.io/fluffl/
+Wasm version of the examples are here: https://k-c-dacosta.github.io/wasm_bins/examples/audio_ex_1/

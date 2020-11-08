@@ -1,5 +1,5 @@
 # Notes
-This package mostly just demos the music, for the web
+This example is broken for now.
 
 # Instructions
 On linux to compile for the web just do:

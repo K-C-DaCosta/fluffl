@@ -46,13 +46,25 @@ Before opening the browser you have to place a simple .html document called: `in
 `index.html` should look something like this: 
 ```
 <html>
+    <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+    </head>
     <body>
-
+        <canvas id="fluffl" width="800" height="600"></canvas>
+        <script type="module">
+            import init from "./audio_ex1.js";
+            // import {set_xml_config} from './snippets/glue_core-513a7bde24bf152f/js/aux_util.js';
+            // push_xml_config("<window><config_path>um hello based department</config_path></window>");
+            async function run() {
+                var demo = await init();
+            }
+            run();
+        </script>
     </body>
 </html>
 ```  
-# Useage
-An  oragnge window should appear. 
+
+# On useage
 `spacebar` and music should play.
 `Page up` to increase volume
 `Page down` to decrease volume
