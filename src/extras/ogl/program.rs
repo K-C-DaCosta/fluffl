@@ -2,17 +2,18 @@ use super::*;
 use crate::{*,window::*};
 pub struct OglProg {
     pub prog: glow::Program,
-    pub gl: GlState,
+    pub gl: GlowGL,
 }
 
 impl OglProg {
     pub fn prog(&self) -> glow::Program {
         self.prog.clone()
     }
-    ///  This function does some preprocessing to seperate the concatenated shaders into individual shaders before compilation.\
-    ///  Shaders are seperated with special preprocessor if statements. Example of `raw_source` format:\
+    /// # Description
+    /// This function does some preprocessing to seperate concatenated shaders into individual shaders before compilation.\
+    /// Shaders are seperated with preprocessor if statements. Example of `raw_source` format:\
     ///  \
-    ///  ```
+    ///  ```c
     ///  #ifndef HEADER
     ///  --code here is concatenated to both vertex shader and fragment shader--
     ///  #endif
@@ -23,8 +24,8 @@ impl OglProg {
     ///   --shader source--
     ///  #endif
     ///  ```
-    /// `raw_source` is just ONE block of text with multiple shaders jammed in one file.
-    pub fn compile_program(gl:&GlState, raw_source: &str) -> Result<OglProg, CompilationError> {
+    /// so again `raw_source` is just ONE block of text with multiple shaders jammed in one file.
+    pub fn compile_program(gl:&GlowGL, raw_source: &str) -> Result<OglProg, CompilationError> {
         let tokens = tokensize_source(raw_source);
         let header = get_source_block(&tokens, "HEADER");
         let uniforms = get_source_block(&tokens, "UNIFORMS");
@@ -126,7 +127,7 @@ impl Bindable for OglProg{
         }
     }
 }
-
+#[derive(Debug)]
 pub enum CompilationError {
     ShaderError {
         ogl_error: String,

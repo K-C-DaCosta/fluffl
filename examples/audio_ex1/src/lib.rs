@@ -5,18 +5,18 @@ use fluffl::{
     // net::*,
     window::{event_util::*, glow::*, *},
     *,
+    //playing music requires more than what the base library provides 
+    //so here is my implementation of certain things like "text rendering" and music playing
+    extras::{
+        audio::{AudioBuffer}, 
+        audio::music_player::*,
+        audio::{ogg::*, *},
+        hiero_pack::*,
+        text_writer::*,
+    }
 };
 
-//playing music requires more than what the base library provides 
-//so here is my implementation of certain things like "text rendering" and music playign
-use fluffl::extras::{
-    audio::{AudioBuffer}, 
-    audio::music_player::*,
-    audio::{ogg::*, *},
-    hiero_pack::*,
-    ogl::text_writer::*,
-    // ogl::{array::*, buffer::*, program::*, texture::*, *},
-};
+
 
 // use glue_core:
 #[derive(Default)]

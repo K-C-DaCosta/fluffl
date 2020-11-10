@@ -25,7 +25,7 @@ impl Default for BufferInfo {
 pub struct OglBuf<T> {
     data: T,
     gl_buf: Option<glow::Buffer>,
-    gl: GlState,
+    gl: GlowGL,
     info: BufferInfo,
 }
 
@@ -95,7 +95,7 @@ where
     T: Default + Copy + Sized,
     Vec<T>: HasData,
 {
-    pub fn new(gl: &GlState) -> OglIncomplete<Self> {
+    pub fn new(gl: &GlowGL) -> OglIncomplete<Self> {
         OglIncomplete::new(Self {
             data: Vec::new(),
             gl_buf: None,

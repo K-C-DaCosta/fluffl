@@ -77,8 +77,8 @@ pub trait WindowManager: Sized {
     /// returns current height of window
     fn height(&self) -> u32;
 }
-
-pub trait HasEventCollection {
+/// This should NOT be PUBLIC
+trait HasEventCollection {
     /// Populates the event queue. This is a platform specific operation
     fn collect_events(&mut self);
 }

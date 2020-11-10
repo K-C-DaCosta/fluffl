@@ -155,7 +155,7 @@ impl Default for TextureInfo {
 }
 
 pub struct TextureObj<T> {
-    gl: GlState,
+    gl: GlowGL,
     obj_id: Option<glow::Texture>,
     info: TextureInfo,
     pixel_vec: Vec<T>,
@@ -170,7 +170,7 @@ impl<T> Drop for TextureObj<T> {
 }
 
 impl<'a, T> TextureObj<T> {
-    pub fn new(gl: &GlState) -> OglIncomplete<TextureBuilder<'a, T>> {
+    pub fn new(gl: &GlowGL) -> OglIncomplete<TextureBuilder<'a, T>> {
         let tex_obj = Self {
             gl: gl.clone(),
             obj_id: None,

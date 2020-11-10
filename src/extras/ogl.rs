@@ -9,9 +9,9 @@ use crate::{
 pub mod array;
 pub mod buffer;
 pub mod program;
-pub mod text_writer;
 pub mod texture;
-mod math_util; 
+
+
 
 
 type FixedString = ArrayString<[u8; 32]>;
@@ -19,7 +19,7 @@ use arrayvec::{ArrayString, ArrayVec};
 use std::collections::HashMap;
 
 pub struct OglIncomplete<T> {
-    inner: T,
+   pub inner: T,
 }
 
 impl<T> OglIncomplete<T> {

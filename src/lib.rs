@@ -27,7 +27,7 @@ use glow::Context;
 use std::sync::Arc;
 
 /// A pointer to GLOW state. All variables with this type should be named: `gl`
-pub type GlState = Arc<Box<Context>>;
+pub type GlowGL = Arc<Box<Context>>;
 
 #[derive(Debug)]
 /// A collection of Common errors that possibly could arise

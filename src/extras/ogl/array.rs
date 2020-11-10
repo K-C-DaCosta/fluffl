@@ -65,13 +65,13 @@ impl ArrayBuilder for OglIncomplete<OglArray> {
 }
 
 pub struct OglArray {
-    gl: GlState,
+    gl: GlowGL,
     gl_array: Option<glow::VertexArray>,
     buf_table: HashMap<FixedString, Box<dyn HasBufferObj>>,
 }
 
 impl OglArray {
-    pub fn new(gl: &GlState) -> OglIncomplete<Self> {
+    pub fn new(gl: &GlowGL) -> OglIncomplete<Self> {
         OglIncomplete::new(Self {
             gl: gl.clone(),
             gl_array: None,
