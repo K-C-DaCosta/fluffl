@@ -99,7 +99,6 @@ pub struct ShapePainter2D {
     rectangle_roundness_loc: Option<glow::UniformLocation>,
     rectangle_glow_str_loc: Option<glow::UniformLocation>,
     shape_morph_loc: Option<glow::UniformLocation>,
-
     gl: GlowGL,
     window_width: f32,
     window_height: f32,
@@ -312,6 +311,8 @@ impl ShapePainter2D {
 
             self.gl
                 .uniform_1_f32(self.rectangle_glow_str_loc.as_ref(), glow_strength.max(0.));
+
+            self.gl.uniform_1_f32(self.circle_radius_loc.as_ref(), radius);
 
             self.gl
                 .uniform_2_f32(self.circle_center_loc.as_ref(), center[0], center[1]);
