@@ -76,6 +76,10 @@ pub trait WindowManager: Sized {
     fn width(&self) -> u32;
     /// returns current height of window
     fn height(&self) -> u32;
+
+    fn get_bounds(&self)->(u32,u32){
+        (self.width(),self.height())
+    }
 }
 /// This should NOT be PUBLIC
 trait HasEventCollection {

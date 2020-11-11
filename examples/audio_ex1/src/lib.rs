@@ -200,7 +200,7 @@ pub async fn core_loop(
             x,
             y + 64. * k as f32,
             (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.,
-            Some((win_ptr.window().width(), win_ptr.window().height())),
+            Some(win_ptr.window().get_bounds()),
         );
     });
 

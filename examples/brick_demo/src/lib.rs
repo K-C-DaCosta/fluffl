@@ -9,6 +9,8 @@ use std::{
     rc::Rc,
 };
 
+static mut RAND_STATE: f32 = 1.0;
+
 static FLUFFL_CONFIG: &'static str = "
     <window>
         <width>800</width>
@@ -20,17 +22,111 @@ static FLUFFL_CONFIG: &'static str = "
     </window>
 ";
 
+pub struct Ball {
+    pos: [f32; 2],
+    vel: [f32; 2],
+    rad: f32,
+    color: [f32; 4],
+}
+
+impl Ball {
+    pub fn new(pos: [f32; 2], rad: f32) -> Self {
+        Self {
+            color: [0.2, 0.1, 0.1, 1.],
+            vel: [0., 0.],
+            pos,
+            rad,
+        }
+    }
+
+    // velocity is constant most of the time so this is good
+    // enough
+    pub fn step(&mut self, dt: f32) {
+        self.pos[0] += self.vel[0] * dt;
+        self.pos[1] += self.vel[1] * dt;
+    }
+}
+
+pub struct Brick {
+    color: [f32; 4],
+    pos: [f32; 2],
+    dims: [f32; 2],
+    glow_weight: f32,
+}
+
+impl Brick {
+    pub fn new(pos: [f32; 2], dims: [f32; 2]) -> Self {
+        Self {
+            pos,
+            dims,
+            color: [0.5, 0.5, 0.5, 1.],
+            glow_weight: 0.0,
+        }
+    }
+
+    pub fn render(&self, painter: &mut ShapePainter2D, ticks: f32) {
+        let a = [self.pos[0], self.pos[1] + self.dims[1] * 0.5];
+        let b = [self.pos[0] + self.dims[0], self.pos[1] + self.dims[1] * 0.5];
+
+        painter.draw_rectangle(
+            &a[..],
+            &b[..],
+            &self.color[..],
+            self.dims[1] * 0.5,
+            5.,
+            (ticks.sin() + 1.0) * 0.5 * self.glow_weight,
+            0.,
+        );
+    }
+}
+
 pub struct BrickAppState {
-    mouse_pos: [f32; 2],
+    //game shit
+    player_paddle: Brick,
+    ball_list: Vec<Ball>,
+    brick_list: Vec<Brick>,
+    //graphics stuff
     painter: ShapePainter2D,
-    time:f32,
+    //other
+    mouse_pos: [f32; 2],
+    time: f32,
 }
 impl BrickAppState {
     fn new(gl: &GlowGL) -> Self {
+        const BRICK_WIDTH: f32 = 55.;
+        const BRICK_HEIGHT: f32 = 16.;
+
+        let mut player_paddle = Brick::new([400. - 256. / 2., 600. - 10. - 16.], [256., 16.]);
+        player_paddle.glow_weight = 0.3;
+
+        let mut brick_list = Vec::new();
+
+        let color_palette = [
+            convert_color(0x364f6Bff),
+            convert_color(0x3fc1c9ff),
+            convert_color(0xf5f5f5ff),
+            convert_color(0xfc5185ff),
+        ];
+
+        for j in 0..7 {
+            for i in 0..10 {
+                let x = (BRICK_WIDTH + 20.) * (i as f32) + 30.;
+                let y = (BRICK_HEIGHT + 20.) * (j as f32) + 10.;
+                let mut brick = Brick::new([x, y], [BRICK_WIDTH, BRICK_HEIGHT]);
+                let rand_palette_index = (hacky_rand()*4.0) as usize ;
+                brick.color = color_palette[rand_palette_index] ;
+                brick.glow_weight = 0.0;
+                brick_list.push(brick);
+            }
+        }
+
         Self {
+            ball_list: Vec::new(),
+            brick_list,
             mouse_pos: [0.; 2],
             painter: ShapePainter2D::new(gl),
-            time:0.0, 
+            player_paddle: player_paddle,
+            time: 0.0,
         }
     }
 }
@@ -60,18 +156,26 @@ pub async fn core_loop(
     let gl = window_ptr.window().gl();
     unsafe {
         gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
+
         let brick_state = &mut *app_state.borrow_mut();
         let mouse_pos = brick_state.mouse_pos;
-    
-        let roundness = 32.*(brick_state.time.sin()+1.0)*0.5 ; 
-        brick_state.painter.draw_rectangle(
-            &mouse_pos[..],
-            &[mouse_pos[0] + 128., mouse_pos[1] -0.][..],
-            &[1.,0.,0.,1.][..],
-            16.0,
-            4.0,
-        );
-        brick_state.time+=0.05;
+        let t = brick_state.time;
+
+        gl.enable(glow::BLEND);
+        gl.blend_func(glow::ONE, glow::ONE);
+
+        for brick in brick_state.brick_list.iter_mut() {
+            brick.render(&mut brick_state.painter, 0.0);
+        }
+
+        brick_state.player_paddle.pos[0] = mouse_pos[0] - 256. / 2.;
+        brick_state
+            .player_paddle
+            .render(&mut brick_state.painter, t);
+
+        gl.disable(glow::BLEND);
+
+        brick_state.time += 0.05;
     }
 }
 
@@ -90,4 +194,24 @@ pub async fn handle_events(
             _ => (),
         }
     }
+}
+/// A hacky rand() function thats good enough for some breakout clone
+pub fn hacky_rand() -> f32 {
+    unsafe {
+        RAND_STATE += 2.0;
+        if RAND_STATE > 1E9f32 {
+            RAND_STATE = 0.0;
+        }
+
+        ((RAND_STATE * 500.0).sin()*5647.0).fract()
+    }
+}
+
+pub fn convert_color(mut rgba: u32) -> [f32; 4] {
+    let mut colors = [1.; 4];
+    for k in 0..4 {
+        colors[4 - k - 1] = (rgba & 0xff) as f32 / 255.;
+        rgba >>= 8;
+    }
+    colors
 }
