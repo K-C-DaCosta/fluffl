@@ -113,6 +113,7 @@ where
             mp.state = PlayState::RampUp(2048);
             mp.ticks = 0; 
         }
+        mp.state = PlayState::Paused;
         return;
     }
 

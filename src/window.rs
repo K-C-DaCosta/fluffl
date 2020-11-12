@@ -80,6 +80,9 @@ pub trait WindowManager: Sized {
     fn get_bounds(&self)->(u32,u32){
         (self.width(),self.height())
     }
+    fn get_bounds_f32(&self)->(f32,f32){
+        (self.width() as f32, self.height() as f32)
+    }
 }
 /// This should NOT be PUBLIC
 trait HasEventCollection {

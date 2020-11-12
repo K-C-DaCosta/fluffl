@@ -7,6 +7,9 @@ decent support for low-level audio programming, on both desktop and web.
 If you need a *simple* layer that provides audio,graphics, and maybe networking then this is the crate for you. 
 Think of it like SDL but more primitive. 
 
-## an example
+## a simple example
 Check the `examples` folder for runnable demos.
 Wasm version of the examples are here: https://k-c-dacosta.github.io/wasm_bins/examples/audio_ex_1/
+
+## A breakout clone (more complicated)
+https://k-c-dacosta.github.io/wasm_bins/examples/brick_demo/

@@ -5,10 +5,10 @@ use fluffl::prelude::*;
 pub fn main() {
     // This is the wasm entry point
     #[cfg(feature = "web")]{
-        //this is optional, but gives you better error in the browser
+        //this is optional, but gives you better error messages in the browser
         std::panic::set_hook(Box::new(console_error_panic_hook::hook));
         //this actually gets the ball rolling
-        spawn_local(async move {
+        spawn_local(async {
             let _ = fluffl_main().await;
         });
     }
@@ -18,7 +18,7 @@ pub fn main() {
     #[cfg(feature = "desktop")]
     {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async {
+        rt.block_on(async  {
             let _ = fluffl_main().await;
         });
     }
