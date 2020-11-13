@@ -27,7 +27,7 @@ cargo run
 
 ## Browser:
 
-Unfortunately you have to host the files in `./generated` on a webserver in order for the browser to run the wasm module. 
+Unfortunately you have to host the files in `../../wasm_bins/examples/audio_ex_1` on a webserver in order for the browser to run the wasm module. 
 Something like `simple-http-server` should do for this task but you could use a python webserver, or your own custom server it really doesn't matter.  
 
 If you want to use `simple-http-server` just do:
@@ -41,7 +41,8 @@ to start the webserver just:
 simple-http-server --ip 127.0.0.1  -p 8080 ../../wasm_bins
 ```
 
-Before opening the browser you have to place a simple .html document called: `index.html` in the `generated` directory.
+
+Before opening the browser you have to place a simple .html document called: `index.html` in the `../../wasm_bins/examples/audio_ex_1` directory.
 
 `index.html` should look something like this: 
 ```
@@ -53,8 +54,6 @@ Before opening the browser you have to place a simple .html document called: `in
         <canvas id="fluffl" width="800" height="600"></canvas>
         <script type="module">
             import init from "./audio_ex1.js";
-            // import {set_xml_config} from './snippets/glue_core-513a7bde24bf152f/js/aux_util.js';
-            // push_xml_config("<window><config_path>um hello based department</config_path></window>");
             async function run() {
                 var demo = await init();
             }
