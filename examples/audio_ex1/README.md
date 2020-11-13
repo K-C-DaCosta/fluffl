@@ -63,7 +63,7 @@ Before opening the browser you have to place a simple .html document called: `in
 </html>
 ```  
 
-# On useage
+# On usage
 `spacebar` and music should play.
 `Page up` to increase volume
 `Page down` to decrease volume

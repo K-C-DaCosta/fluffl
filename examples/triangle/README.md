@@ -9,7 +9,7 @@ On linux to compile for the web just do:
 This script needs python3's http server so make sure you have both python and the server package. 
 Next open any modern browser and go to: localhost:8080
 
-# Useage
+# Usage
 An  oragnge window should appear. 
 `spacebar` and music should play.
 `Page up` to increase volume
