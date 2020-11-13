@@ -110,11 +110,20 @@ where
         if mp.repeat_track{
             mp.music_src.seek_to_start();
             // RampUp(..) required to avoid popping. 
-            mp.state = PlayState::RampUp(2048);
+            mp.state = PlayState::RampUp(100);
             mp.ticks = 0; 
+
+            //appearently i gotta jumpstart again here( wtf!? )
+            for _ in 0..MAX_RETRIES {
+                samples_read = mp.music_src.read(&mut input_samples[..]);
+                if samples_read > 0 {
+                    break;
+                }
+            }
+        }else{
+            mp.state = PlayState::Paused;
+            return;
         }
-        mp.state = PlayState::Paused;
-        return;
     }
 
     for k in (0..out.len()).step_by(num_channels) {
