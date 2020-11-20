@@ -85,7 +85,7 @@ features=[
 
 
 [features]
-default=["web","extras"]
+default=["desktop"]
 
 desktop = [
     "sdl2",
