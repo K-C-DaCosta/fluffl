@@ -1,4 +1,5 @@
 use std::cell::{Ref, RefCell, RefMut};
+use std::collections::HashMap;
 use std::fmt;
 use std::sync::Arc;
 
@@ -20,6 +21,10 @@ pub mod window_util;
 #[cfg(feature = "web")]
 #[path = "./window/web_window.rs"]
 pub mod window_util;
+
+
+///Global for touch tracker
+static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker> = None;
 
 #[derive(Clone)]
 pub struct FlufflWindowPtr {
@@ -77,10 +82,10 @@ pub trait WindowManager: Sized {
     /// returns current height of window
     fn height(&self) -> u32;
 
-    fn get_bounds(&self)->(u32,u32){
-        (self.width(),self.height())
+    fn get_bounds(&self) -> (u32, u32) {
+        (self.width(), self.height())
     }
-    fn get_bounds_f32(&self)->(f32,f32){
+    fn get_bounds_f32(&self) -> (f32, f32) {
         (self.width() as f32, self.height() as f32)
     }
 }
@@ -138,7 +143,7 @@ impl FlufflWindowConfigs {
             fullscreen: false,
         }
     }
-    
+
     /// parses config text setting the struct to values specified in thext
     pub fn parser_config_file(mut self, config: &str) -> Self {
         let parser = XMLParser::new().parse(&String::from(config)).unwrap();
@@ -217,5 +222,74 @@ impl FlufflWindowConfigs {
                     };
                 }
             });
+    }
+}
+
+#[derive(Copy,Clone)]
+struct TouchStats{
+    prev_pos:[f32;2],
+    displacement:[f32;2],
+}
+
+struct TouchTracker {
+    table: HashMap<i32, TouchStats>,
+}
+
+impl std::ops::Deref for TouchTracker {
+    type Target = HashMap<i32, TouchStats>;
+    fn deref(&self) -> &Self::Target {
+        &self.table
+    }
+}
+impl std::ops::DerefMut for TouchTracker {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.table
+    }
+}
+
+impl TouchTracker {
+    
+    /// # Description 
+    /// Initalizes tracker. Tracker routines will panic if this function isn't called.
+    fn init() {
+        unsafe {
+            GLOBAL_TOUCH_TRACKER = Some(TouchTracker {
+                table: HashMap::new(),
+            });
+        }
+    }
+
+    /// # Description 
+    /// Returns a reference to a global tracker
+    fn get_tracker_mut() -> &'static mut Self {
+        unsafe {
+            GLOBAL_TOUCH_TRACKER
+                .as_mut()
+                .expect("tracker table not implemented")
+        }
+    }
+
+    /// # Description
+    /// Tracks a position displacement
+    /// # returns
+    /// - touch displacement of `id`
+    fn get_touch_displacement(id: i32, new_pos: [f32; 2]) -> [f32; 2] {
+        let touch_table = Self::get_tracker_mut();
+
+        let old_pos = touch_table.get(&id).map(|&x| x.prev_pos).unwrap_or([0., 0.]);
+        let disp = [new_pos[0] - old_pos[0], new_pos[1] - old_pos[1]];
+        
+        touch_table.get_mut(&id).map(|touch_stats| {
+            touch_stats.prev_pos = new_pos;
+            touch_stats.displacement = disp; 
+        });
+
+        let norm = disp[0].abs() + disp[1].abs();
+
+        if norm > 4.0 {
+            [0.; 2]
+        } else {
+            disp
+        }
     }
 }

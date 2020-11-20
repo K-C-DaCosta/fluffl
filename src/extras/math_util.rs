@@ -102,27 +102,18 @@ pub fn compute_world_to_local(p: Vec2, q: Vec2, o: Vec2) -> [f32; 9] {
     [p[0], q[0], 0., p[1], q[1], 0., -dot(p, o), -dot(q, o), 1.0]
 }
 
-///computes a matrix that resizes a region of `src` space  to `dst` space
+/// # Description 
+/// Computes a 4x4 matrix that resizes a region of `src` space  to `dst` space
+/// # Comments 
+/// - this matrix is in row-major format so a `transpose` is needed to pass into opengl
 pub fn resize_region(src: AABB, dst: AABB) -> [f32; 16] {
     let scale_x = dst.w / src.w;
     let scale_y = dst.h / src.h;
     [
-        scale_x,
-        0.,
-        0.,
-        -src.x * scale_x + dst.x,
-        0.,
-        scale_y,
-        0.,
-        -src.y * scale_y + dst.y,
-        0.,
-        0.,
-        1.,
-        0.,
-        0.,
-        0.,
-        0.,
-        1.,
+        scale_x,0.,0.,-src.x * scale_x + dst.x,
+        0.,scale_y,0.,-src.y * scale_y + dst.y,
+        0.,0.,1.,0.,
+        0.,0.,0.,1.,
     ]
 }
 

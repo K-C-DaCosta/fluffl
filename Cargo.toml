@@ -78,11 +78,14 @@ features=[
     'BinaryType',
     'MessageEvent',
     'CloseEvent',
+    'TouchEvent',
+    'TouchList',
+    'Touch',
 ]
 
 
 [features]
-default=["desktop"]
+default=["web","extras"]
 
 desktop = [
     "sdl2",

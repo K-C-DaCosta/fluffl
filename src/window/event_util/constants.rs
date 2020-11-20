@@ -7,60 +7,81 @@ pub const KP_OFFSET: isize = 1000;
 //Every target needs to map its native events to these.
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum EventKind {
+    
+    /// # Description
+    /// This event fires only when the user clicks on the "x" button on desktop.
+    /// This event doesn't really apply in the browser environment, unless I do my own virtual window thingy, which im
+    /// not going to do
     Quit,
+
+    /// # Description
+    /// Whenever the window resizes this is called
     Resize {
         width: i32,
         height: i32,
     },
+
+    /// # Description
+    /// If the user moves the mouse, this event gets enqueued
     MouseMove {
         x: i32,
         y: i32,
         dx: i32,
         dy: i32,
     },
+
+    /// # Description
+    /// If the user pushes a mouse button, this event gets enqueued
     MouseDown {
         button_code: MouseCode,
         x: i32,
         y: i32,
     },
+
+    /// # Description
+    /// if the user releases a mouse button, this event gets enqueues
+    /// # Members
+    /// - `x` and `y` are absolute coordinates in standard screen space,
+    /// so (0,0) is top-left corner and (width,height) is botton right corner of the window
     MouseUp {
         button_code: MouseCode,
         x: i32,
         y: i32,
     },
+
+    /// # Description
+    /// This event will appear in the event queue when something happens with the mouse wheel
     MouseWheel {
         button_code: MouseCode,
     },
+
+    /// # Description
+    /// This event should fire when a the underlying backend detects finger movement
+    /// # Members
+    /// - `finger_id` - a unique id given to each finger moving
+    /// - `x`/`y` - the normalized absolute postions  
     TouchMove {
-        x: i32,
-        y: i32,
-        dx: i32,
-        dy: i32,
-    },
-    TouchDown {
-        x: i32,
-        y: i32,
-    },
-    TouchUp {
-        x: i32,
-        y: i32,
-    },
-    PinchMove {
-        pos_a: (i32, i32),
-        pos_b: (i32, i32),
-        vel_a: (i32, i32),
-        vel_b: (i32, i32),
-    },
-    PinchDown {
-        a: (i32, i32),
-        b: (i32, i32),
+        finger_id: i32,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
     },
 
-    PinchUp {
-        dx0: i32,
-        dy0: i32,
-        dx1: i32,
-        dy1: i32,
+    TouchDown {
+        finger_id: i32,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
+    },
+
+    TouchUp {
+        finger_id: i32,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
     },
 
     KeyDown {
@@ -199,12 +220,12 @@ pub enum KeyCode {
 }
 
 impl KeyCode {
-    pub fn key_val(self)->Option<char>{
+    pub fn key_val(self) -> Option<char> {
         let code: i128 = self.into();
         if (code > KeyCode::KEY_A.into()) || (code < KeyCode::KEY_Z.into()) {
-            let c = code as u8 as char; 
+            let c = code as u8 as char;
             Some(c)
-        }else{
+        } else {
             None
         }
     }
