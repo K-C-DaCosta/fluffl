@@ -89,7 +89,7 @@ async fn main_loop(
                 state.touch_positions.insert(finger_id , [x,y]);
             }
             EventKind::TouchUp { x,y,dx,dy,finger_id}=>{
-                state.touch_positions.insert(finger_id , [x,y]);
+                state.touch_positions.remove(&finger_id);
             }
             _ => (),
         }
@@ -101,5 +101,4 @@ async fn main_loop(
         writer.draw_text_line(id_str.as_str(), x-aabb.w/2., y-aabb.h/2., 32., Some(bounds));
     } 
 
-    state.touch_positions.clear();
 }
