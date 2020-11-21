@@ -100,4 +100,6 @@ async fn main_loop(
         let aabb = writer.calc_text_aabb(id_str.as_str(), x, y, 32.);
         writer.draw_text_line(id_str.as_str(), x-aabb.w/2., y-aabb.h/2., 32., Some(bounds));
     } 
+
+    state.touch_positions.clear();
 }
