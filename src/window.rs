@@ -67,9 +67,58 @@ impl FlufflWindowPtr {
 }
 
 pub trait WindowManager: Sized {
-    /// initalizes window\
+    
+    /// # Description
+    /// initalizes window to `config`'s specifications
+    /// # Parameters
     /// `config` - xml text that contains config paramaters
+    /// # Returns
     /// returns an error if init fails
+    /// # Comments
+    /// `config` is of the format:
+    /// ```xml
+    /// <window>
+    ///     <width>800</width> 
+    ///     <height>600</height>
+    ///     <fullscreen>false</fullscreen> 
+    ///     ... 
+    ///     <canvas_id>fluffl</canvas_id>
+    /// </window>
+    /// ```
+    /// Tags include: 
+    /// - `width`/`height`
+    ///     - description: 
+    ///         - The desired window dimesnsions
+    ///         - by default its assumed to be `800x600` 
+    ///     - value type: `u32` 
+    /// - `fullscreen`
+    ///     - description:
+    ///         - The desired windowing mode fluffl window 
+    ///         - By default this is assumed to be `false`
+    ///     - value type: `bool` 
+    ///     - valid values are: 
+    ///         - `true`
+    ///         - `false`
+    /// - `context_major`/`context_minor`  
+    ///     - description:
+    ///         - The desired opengl version for desktop build
+    ///         - By default we use opengl major=3 minor=0
+    ///     - value type: `u32`
+    ///     - possible values are:
+    ///         - `0`,`2`,...,`100`,... 
+    /// - `wgl_version`
+    ///     - description:
+    ///         - The desired webgl version for browser build
+    ///         - By default `webgl2` is assumed
+    ///     - value type: `String` 
+    ///     - valid values are:
+    ///         - `webgl1`
+    ///         - `webgl2`
+    /// - `resizeable`
+    ///     - description:
+    ///         - configures window to be resizable if `true` else the window stays fixed 
+    ///         - by default this setting is assumed to be false
+    ///     - value type: `bool` 
     fn init(config: &str) -> Result<Self, FlufflError>;
     /// returns the window event queue
     fn get_events(&mut self) -> &mut FlufflEvent;
