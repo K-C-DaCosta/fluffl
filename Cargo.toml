@@ -81,6 +81,12 @@ features=[
     'TouchEvent',
     'TouchList',
     'Touch',
+    'UiEvent',
+    'DomRect',
+    'Navigator',
+    'Permissions',
+    'Screen',
+    'MediaQueryList'
 ]
 
 

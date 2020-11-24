@@ -217,6 +217,7 @@ pub enum KeyCode {
     KP_DEL,
     KP_DASH,
     KP_FORWARD_SLASH,
+    UNKNOWN,
 }
 
 impl KeyCode {

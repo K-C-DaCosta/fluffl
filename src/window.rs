@@ -22,7 +22,6 @@ pub mod window_util;
 #[path = "./window/web_window.rs"]
 pub mod window_util;
 
-
 ///Global for touch tracker
 static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker> = None;
 
@@ -67,7 +66,6 @@ impl FlufflWindowPtr {
 }
 
 pub trait WindowManager: Sized {
-    
     /// # Description
     /// initalizes window to `config`'s specifications
     /// # Parameters
@@ -78,25 +76,25 @@ pub trait WindowManager: Sized {
     /// `config` is of the format:
     /// ```xml
     /// <window>
-    ///     <width>800</width> 
+    ///     <width>800</width>
     ///     <height>600</height>
-    ///     <fullscreen>false</fullscreen> 
-    ///     ... 
+    ///     <fullscreen>false</fullscreen>
+    ///     ...
     ///     <canvas_id>fluffl</canvas_id>
     /// </window>
     /// ```
-    /// Tags include: 
+    /// Tags include:
     /// - `width`/`height`
-    ///     - description: 
+    ///     - description:
     ///         - The desired window dimesnsions
-    ///         - by default its assumed to be `800x600` 
-    ///     - value type: `u32` 
+    ///         - by default its assumed to be `800x600`
+    ///     - value type: `u32`
     /// - `fullscreen`
     ///     - description:
-    ///         - The desired windowing mode fluffl window 
+    ///         - The desired windowing mode fluffl window
     ///         - By default this is assumed to be `false`
-    ///     - value type: `bool` 
-    ///     - valid values are: 
+    ///     - value type: `bool`
+    ///     - valid values are:
     ///         - `true`
     ///         - `false`
     /// - `context_major`/`context_minor`  
@@ -105,31 +103,48 @@ pub trait WindowManager: Sized {
     ///         - By default we use opengl major=3 minor=0
     ///     - value type: `u32`
     ///     - possible values are:
-    ///         - `0`,`2`,...,`100`,... 
+    ///         - `0`,`2`,...,`100`,...
     /// - `wgl_version`
     ///     - description:
     ///         - The desired webgl version for browser build
     ///         - By default `webgl2` is assumed
-    ///     - value type: `String` 
+    ///     - value type: `String`
     ///     - valid values are:
     ///         - `webgl1`
     ///         - `webgl2`
     /// - `resizeable`
     ///     - description:
-    ///         - configures window to be resizable if `true` else the window stays fixed 
+    ///         - configures window to be resizable if `true` else the window stays fixed
     ///         - by default this setting is assumed to be false
-    ///     - value type: `bool` 
+    ///     - value type: `bool`
     fn init(config: &str) -> Result<Self, FlufflError>;
     /// returns the window event queue
     fn get_events(&mut self) -> &mut FlufflEvent;
+    
+    /// # Description 
     /// Exposes the glow api to user
+    /// # Comments
+    /// - make sure you `use fluffl::{window::{ ... , glow::*, ... }};` in order to actually get access to the interface functions
     fn gl(&self) -> Arc<Box<Context>>;
+    
     /// Returns a hook to audio functions
     fn audio_context(&self) -> Arc<RefCell<FlufflAudioContext>>;
+    
     /// returns current width of window
     fn width(&self) -> u32;
+
     /// returns current height of window
     fn height(&self) -> u32;
+
+    /// # Description 
+    /// Used to enter/exit fullscreen mode
+    /// # Parameters 
+    /// - `go_fullscreen` 
+    ///     - if set to `true` the window will enter fullscreen mode
+    ///     - if set to `false` the window will exit fullscreen mode
+    /// # Comments 
+    /// - If the window is already in the desired state the function will do nothing
+    fn set_fullscreen(&mut self,go_fullscreen:bool);
 
     fn get_bounds(&self) -> (u32, u32) {
         (self.width(), self.height())
@@ -274,10 +289,10 @@ impl FlufflWindowConfigs {
     }
 }
 
-#[derive(Copy,Clone)]
-struct TouchStats{
-    prev_pos:[f32;2],
-    displacement:[f32;2],
+#[derive(Copy, Clone)]
+struct TouchStats {
+    prev_pos: [f32; 2],
+    displacement: [f32; 2],
 }
 
 struct TouchTracker {
@@ -297,8 +312,7 @@ impl std::ops::DerefMut for TouchTracker {
 }
 
 impl TouchTracker {
-    
-    /// # Description 
+    /// # Description
     /// Initalizes tracker. Tracker routines will panic if this function isn't called.
     fn init() {
         unsafe {
@@ -308,7 +322,7 @@ impl TouchTracker {
         }
     }
 
-    /// # Description 
+    /// # Description
     /// Returns a reference to a global tracker
     fn get_tracker_mut() -> &'static mut Self {
         unsafe {
@@ -325,20 +339,17 @@ impl TouchTracker {
     fn get_touch_displacement(id: i32, new_pos: [f32; 2]) -> [f32; 2] {
         let touch_table = Self::get_tracker_mut();
 
-        let old_pos = touch_table.get(&id).map(|&x| x.prev_pos).unwrap_or([0., 0.]);
+        let old_pos = touch_table
+            .get(&id)
+            .map(|&x| x.prev_pos)
+            .unwrap_or([0., 0.]);
         let disp = [new_pos[0] - old_pos[0], new_pos[1] - old_pos[1]];
-        
+
         touch_table.get_mut(&id).map(|touch_stats| {
             touch_stats.prev_pos = new_pos;
-            touch_stats.displacement = disp; 
+            touch_stats.displacement = disp;
         });
 
-        let norm = disp[0].abs() + disp[1].abs();
-
-        if norm > 4.0 {
-            [0.; 2]
-        } else {
-            disp
-        }
+        disp
     }
 }
