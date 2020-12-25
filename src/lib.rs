@@ -17,6 +17,8 @@ pub mod window;
 mod collections;
 /// private custom parsers
 mod parsers;
+/// private decodes 
+mod decoders; 
 
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library

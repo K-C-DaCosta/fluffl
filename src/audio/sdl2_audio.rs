@@ -21,7 +21,7 @@ pub struct FlufflAudioContext {
 /// - https://blog.mecheye.net/2017/09/i-dont-know-who-the-web-audio-api-is-designed-for/
 /// - https://rustwasm.github.io/docs/wasm-bindgen/" \
 /// I was able to cobble  something together that actually seems to work okay , well, for now anyway.
-/// A new google or firefox update could break this code further.
+/// A new chrome or firefox update could break this code further.
 /// As of writing this Chrome appearently reduced timer resolutions which slightly break the wasm implemention 
 /// causing noticable pops and cracks in the audio playback(Firefox works great though).
 /// Look is the `web_audio.rs` module for a peek at the  wasm implementation

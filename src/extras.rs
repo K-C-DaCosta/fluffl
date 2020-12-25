@@ -2,10 +2,6 @@
 /// This module is completely optional an I encourage users to come up with their 
 /// own utilities.
 
-
-
-
-
 /// This module basically a bunch of helper code to make dealing with opengl easier.
 /// It was not inteneded to be used by others.
 pub mod ogl; 
