@@ -12,6 +12,8 @@ pub mod net;
 /// Module for creating a an opengl window
 pub mod window;
 
+/// Module for timing functions
+pub mod time;
 
 
 /// private custom datastructures

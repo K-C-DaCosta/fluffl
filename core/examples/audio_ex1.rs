@@ -12,6 +12,7 @@ use fluffl::{
     },
     io::*,
     prelude::*,
+    time::{Duration, Instant},
     // net::*,
     window::{event_util::*, glow::*, *},
     *,
@@ -43,11 +44,13 @@ pub async fn main() {
     };
 
     //GlueWindow is configured with XML, the format is self-explanitory
-    let raw_bytes =
-        load_file!("./wasm_bins/resources/config.xml").expect("config failed to load");
+    let raw_bytes = load_file!("./wasm_bins/resources/config.xml").expect("config failed to load");
     let config_text = String::from_utf8(raw_bytes).expect("config file currupted");
     let window = FlufflWindow::init(config_text.as_str()).expect("failed to init window");
     let gl = window.gl();
+
+    // let now = Instant::now();
+    // let elapsed = now.elapsed().as_millis();
 
     unsafe {
         window.gl().clear_color(0.1, 0.1, 0.1, 1.);

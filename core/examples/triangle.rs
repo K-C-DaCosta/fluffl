@@ -52,7 +52,7 @@ pub async fn main() {
         <window>
             <width>512</width>
             <height>512</height>
-            <title>my_app</title>
+            <title>triangle</title>
         </window>";
     let window = FlufflWindow::init(config_text).unwrap();
 

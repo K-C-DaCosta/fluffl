@@ -7,18 +7,16 @@ use fluffl::{
     *,
 };
 use std::{
-    cell::{Cell, RefCell},
     collections::HashMap,
-    rc::Rc,
 };
 
 static CONFIG: &'static str = "
-<window>
-<width>800</width> 
-<height>600</height>
-<resizable>true</resizable> 
-<canvas_id>fluffl</canvas_id>
-</window>
+    <window>
+        <width>800</width> 
+        <height>600</height>
+        <resizable>true</resizable> 
+        <canvas_id>fluffl</canvas_id>
+    </window>
 ";
 
 struct AppState {
@@ -42,7 +40,7 @@ impl AppState {
 }
 
 #[fluffl(Debug)]
-pub async fn main() -> Result<(), FlufflError> {
+pub async fn main() {
     let window = FlufflWindow::init(CONFIG).expect("init failed");
     let gl = window.gl();
     let mut app_state = AppState::new();
@@ -176,5 +174,4 @@ pub async fn main() -> Result<(), FlufflError> {
             }
         },
     );
-    Ok(())
 }
