@@ -11,7 +11,7 @@ pub mod audio_util;
 #[path = "./audio/web_audio.rs"]
 pub mod audio_util;
 
-
+pub mod mixer; 
 
 
 /// When playing/generating sound a callback will be required and it will need to be of this format.
