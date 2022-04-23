@@ -187,6 +187,7 @@ dependencies = [
  "macros",
  "native-tls",
  "puremp3",
+ "rand",
  "sdl2",
  "serde",
  "tokio",
