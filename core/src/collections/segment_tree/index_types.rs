@@ -17,7 +17,7 @@ impl Default for GlobalIndex {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone,Debug)]
 pub struct BucketIndex {
     pub idx: usize,
 }

@@ -8,6 +8,7 @@ pub struct GlobalIntervalPool<V> {
 }
 
 impl<V> GlobalIntervalPool<V> {
+
     pub fn new() -> Self {
         Self {
             pool: Vec::new(),
@@ -29,6 +30,13 @@ impl<V> GlobalIntervalPool<V> {
         self.free_slots.push(idx);
         self[idx].take()
     }
+
+    pub fn free_slots(&self)->&[GlobalIndex]{
+        self.free_slots.as_slice()
+    }
+    pub fn pool(&self)->&[Option<GlobalInterval<V>>]{
+        self.pool.as_slice()
+    }
 }
 impl<V> Index<GlobalIndex> for GlobalIntervalPool<V> {
     type Output = Option<GlobalInterval<V>>;
@@ -44,7 +52,7 @@ impl<V> IndexMut<GlobalIndex> for GlobalIntervalPool<V> {
 
 
 pub struct BucketPool {
-    /// a list of interval pools
+    /// a list of interval buckets
     pool_list: Vec<Vec<TreeInterval>>,
     /// a list of unused pools
     free_pools: Vec<BucketIndex>,
@@ -66,6 +74,14 @@ impl BucketPool {
             self.pool_list.push(Vec::with_capacity(16));
             BucketIndex::from_usize(self.pool_list.len() - 1)
         }
+    }
+    
+    pub fn pool(&self)->&[Vec<TreeInterval>]{
+        self.pool_list.as_slice()
+    } 
+
+    pub fn free_pools(&self)->&[BucketIndex]{
+        self.free_pools.as_slice()
     }
 
     #[allow(dead_code)]

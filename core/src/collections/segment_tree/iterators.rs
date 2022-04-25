@@ -5,7 +5,6 @@ pub struct ScalarSearchIter<'a, V> {
     tree: &'a SparseCircularSegmentTree<V>,
     node: Ptr,
     node_interval: Interval,
-    depth: u32,
     t: u128,
 }
 impl<'a, V> ScalarSearchIter<'a, V> {
@@ -13,7 +12,6 @@ impl<'a, V> ScalarSearchIter<'a, V> {
         Self {
             tree,
             node: tree.linear_tree.root(),
-            depth: 0,
             node_interval: Interval::from((0, tree.width)),
             t,
         }
@@ -23,8 +21,6 @@ impl<'a, V> ScalarSearchIter<'a, V> {
 impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
     type Item = Ptr;
     fn next(&mut self) -> Option<Self::Item> {
-        let depth = self.depth;
-        let max_depth = self.tree.max_depth;
         let width = self.tree.width;
         let remainder_mask = width - 1;
         let node = self.node;
@@ -32,8 +28,11 @@ impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
         let node_interval = self.node_interval;
 
         let child_intervals = [node_interval.chunk(2, 0), node_interval.chunk(2, 1)];
+        // if node != Ptr::null(){
+        //     println!("t = {} int =>{:?} vals:{:?}",t & remainder_mask, node_interval, self.tree.bucket_pool[ self.tree.linear_tree[node].data.unwrap()] );
+        // }
 
-        (depth < max_depth && node != Ptr::null()).then(|| {
+        (node != Ptr::null()).then(|| {
             let node_info = &self.tree.linear_tree[node];
             if child_intervals[0].is_within(t & remainder_mask) {
                 self.node = node_info.children[0];
@@ -42,7 +41,7 @@ impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
                 self.node = node_info.children[1];
                 self.node_interval = child_intervals[1];
             }
-            self.depth += 1;
+           
             node
         })
     }

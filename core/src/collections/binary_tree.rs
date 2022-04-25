@@ -62,12 +62,16 @@ pub struct BinaryTree<T> {
 }
 
 impl<T> BinaryTree<T> {
+
     pub fn new() -> Self {
         Self {
             root: Ptr::null(),
             node: Vec::new(),
             pool: Ptr::null(),
         }
+    }
+    pub fn nodes(&self)->&[BinNode<T>]{
+        self.node.as_slice()
     }
 
     pub fn root(&self) -> Ptr {
@@ -100,7 +104,7 @@ impl<T> BinaryTree<T> {
     pub fn free(&mut self, ptr: Ptr) -> Option<T> {
         let data = self[ptr].data.take();
         self[ptr].parent = Ptr::null();
-        self[ptr].children = [ptr, Ptr::null()];
+        self[ptr].children = [self.pool, Ptr::null()];
         self.pool = ptr;
         data
     }

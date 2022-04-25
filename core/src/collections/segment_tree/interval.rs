@@ -14,6 +14,10 @@ impl Debug for Interval {
 }
 
 impl Interval {
+    pub fn inverted(&self)->bool{
+        self.lo > self.hi
+    }
+    
     pub fn is_seperating(&self, other_interval: &Self) -> bool {
         let &Self { lo: lo_a, hi: hi_a } = self;
 
