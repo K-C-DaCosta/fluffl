@@ -12,7 +12,6 @@ use fluffl::{
     },
     io::*,
     prelude::*,
-    time::{Duration, Instant},
     // net::*,
     window::{event_util::*, glow::*, *},
     *,
@@ -154,7 +153,7 @@ pub async fn main() {
                         }
                         console_log!("char = {}\n", code.key_val().unwrap());
                     }
-                    EventKind::MouseMove { x, y, dx, dy } => {
+                    EventKind::MouseMove { x, y,.. } => {
                         // console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
                         ms.pos_x = x as f32;
                         ms.pos_y = y as f32;
@@ -178,10 +177,9 @@ pub async fn main() {
             let t = main_state.inner.borrow().t;
             let x = main_state.inner.borrow().pos_x;
             let y = main_state.inner.borrow().pos_y;
-
+            
             //draw text here
             let caption_list = ["fluffl"];
-
             caption_list.iter().enumerate().for_each(|(k, caption)| {
                 main_state.inner.borrow_mut().writer.draw_text_line(
                     caption,
@@ -191,8 +189,6 @@ pub async fn main() {
                     Some(win_ptr.window().get_bounds()),
                 );
             });
-
-            // main_state.borrow_mut().client_socket.listen();
         },
     );
 }

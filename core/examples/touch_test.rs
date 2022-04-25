@@ -6,9 +6,7 @@ use fluffl::{
     window::{event_util::*, glow::*, *},
     *,
 };
-use std::{
-    collections::HashMap,
-};
+use std::collections::HashMap;
 
 static CONFIG: &'static str = "
     <window>
@@ -78,13 +76,13 @@ pub async fn main() {
                     EventKind::Quit => {
                         running.set(false);
                     }
-                    EventKind::MouseDown { x, y, button_code } => {
+                    EventKind::MouseDown { x, y, .. } => {
                         // console_log!("pos:[{},{}]\n",x,y);
                         state.mouse_pos = [x as f32, y as f32];
                         state.mouse_disp = [0, 0];
                         state.mouse_down = true;
                     }
-                    EventKind::MouseUp { x, y, button_code } => {
+                    EventKind::MouseUp { x, y, .. } => {
                         state.mouse_pos = [x as f32, y as f32];
                         state.mouse_disp = [0, 0];
                         state.mouse_down = false;
@@ -101,30 +99,16 @@ pub async fn main() {
                         // console_log!("pos:[{},{}]\n",x,y);
                     }
                     EventKind::TouchDown {
-                        x,
-                        y,
-                        dx,
-                        dy,
-                        finger_id,
+                        x, y, finger_id, ..
                     } => {
                         state.touch_positions.insert(finger_id, [x, y]);
                     }
                     EventKind::TouchMove {
-                        x,
-                        y,
-                        dx,
-                        dy,
-                        finger_id,
+                        x, y, finger_id, ..
                     } => {
                         state.touch_positions.insert(finger_id, [x, y]);
                     }
-                    EventKind::TouchUp {
-                        x,
-                        y,
-                        dx,
-                        dy,
-                        finger_id,
-                    } => {
+                    EventKind::TouchUp { finger_id, .. } => {
                         state.touch_positions.remove(&finger_id);
                     }
                     EventKind::Resize { width, height } => {

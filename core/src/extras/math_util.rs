@@ -1,5 +1,3 @@
-use std::ops;
-
 pub type Vec2 = [f32; 2];
 
 /// # Description
