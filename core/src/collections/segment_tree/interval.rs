@@ -30,7 +30,7 @@ impl Interval {
         self.hi - self.lo
     }
 
-    /// divide the interval into equal chunks then get `chunk_idx`
+    /// divide the interval into equal chunks of count `num_chunks`. returns the `chunk_idx`-th chunk
     pub fn chunk(&self, num_chunks: u128, chunk_idx: usize) -> Self {
         let chunk_idx = chunk_idx as u128;
         let length = self.distance();

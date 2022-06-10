@@ -2,13 +2,13 @@
 pub use super::*;
 
 pub struct ScalarSearchIter<'a, V> {
-    tree: &'a SparseCircularSegmentTree<V>,
+    tree: &'a CircularSegmentTree<V>,
     node: Ptr,
     node_interval: Interval,
     t: u128,
 }
 impl<'a, V> ScalarSearchIter<'a, V> {
-    pub fn new(tree: &'a SparseCircularSegmentTree<V>, t: u128) -> Self {
+    pub fn new(tree: &'a CircularSegmentTree<V>, t: u128) -> Self {
         Self {
             tree,
             node: tree.linear_tree.root(),
@@ -56,12 +56,12 @@ pub struct SearchIterFrame {
 }
 
 pub struct IntervalSearchIter<'a, V> {
-    tree: &'a SparseCircularSegmentTree<V>,
+    tree: &'a CircularSegmentTree<V>,
     stack: FixedStack<64, SearchIterFrame>,
     query_interval: Interval,
 }
 impl<'a, V> IntervalSearchIter<'a, V> {
-    pub fn new(tree: &'a SparseCircularSegmentTree<V>, query_interval: Interval) -> Self {
+    pub fn new(tree: &'a CircularSegmentTree<V>, query_interval: Interval) -> Self {
         let mut stack = FixedStack::new();
         stack.push(SearchIterFrame {
             root: tree.linear_tree.root(),
@@ -82,7 +82,6 @@ impl<'a, V> Iterator for IntervalSearchIter<'a, V> {
         self.stack.pop().map(|mut sf| {
             let root = sf.root;
             let cursor = sf.child_cursor;
-            let child = self.tree.linear_tree[root].children[sf.child_cursor];
             let interval = sf.interval;
 
             let root_has_no_entries = self.tree.linear_tree[root]
@@ -96,7 +95,9 @@ impl<'a, V> Iterator for IntervalSearchIter<'a, V> {
 
             if cursor < 2 {
                 self.stack.push(sf);
+                let child = self.tree.linear_tree[root].children[cursor];
                 let child_interval = interval.chunk(2, cursor);
+                
                 if child != Ptr::null() && child_interval.is_overlapping(&self.query_interval) {
                     self.stack.push(SearchIterFrame {
                         root: child,
@@ -106,7 +107,6 @@ impl<'a, V> Iterator for IntervalSearchIter<'a, V> {
                     });
                 }
             }
-
             yield_res
         })
     }

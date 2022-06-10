@@ -23,6 +23,9 @@ mod decoders;
 /// private custom parsers
 mod parsers;
 
+/// private custom iterators
+mod iterators;
+
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library
 #[cfg(feature ="extras")]

@@ -1,30 +1,99 @@
-use crate::collections::segment_tree::Interval;
+use crate::collections::{
+    linked_list::LinkedList,
+    segment_tree::{index_types::GlobalIndex, CircularSegmentTree, GlobalInterval, Interval},
+};
 use std::ops::Index;
 
-// eventually i will use this to feed mixed audio to the audio backend
-pub struct RingBuffer<const N: usize, T> {
-    memory: [T; N],
-    front: u32,
-    rear: u32,
-    len: u32,
+pub mod streams;
+
+#[derive(Clone, Copy)]
+pub struct PCMBuffer<'a> {
+    pub planar_samples: &'a [f32],
+    /// samples per second
+    pub frequency: u32,
+    pub channels: u32,
+}
+impl<'a> PCMBuffer<'a> {
+    pub fn new(samples: &'a mut [f32], frequency: u32, channels: u32) -> Self {
+        Self {
+            planar_samples: samples,
+            frequency,
+            channels,
+        }
+    }
+    pub fn samples_mut(&'a self) -> &'a mut [f32]
+    {
+        let ptr = self.planar_samples as *const [f32] as *mut [f32];
+        unsafe { &mut *ptr }
+    }
+    pub fn duration_in_ms(&self) -> u32 {
+        let samples_per_ms = self.frequency / 1000;
+        (self.planar_samples.len() as u32 / self.channels) / samples_per_ms
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct StreamState {
+    /// in milliseconds
+    pub local_time: u128,
+    /// interval is in milliseconds
+    pub global_interval: Interval,
+    /// attack time is in milliseconds
+    pub attack_time: u32,
+    /// in milliseconds
+    pub release_time: u32,
+
+    /// in samples per seconds
+    pub frequency: u32,
+    pub channels: u32,
+}
+impl StreamState {
+    pub fn is_dead(&self) -> bool {
+        self.global_interval.distance() >= self.local_time
+    }
 }
 
 pub trait HasAudioStream {
-    fn frequency(&self) -> u64;
-    fn channels(&self) -> u64;
-    fn interval(&self) -> Interval;
-    fn attack_time(&self) -> u128;
-    fn release_time(&self) -> u128;
-    fn is_dead(&self) -> bool;
-    fn output_buffer(&self) -> &RingBuffer<512, f32>;
-    fn output_buffer_mut(&mut self) -> &mut RingBuffer<512, f32>;
+    fn stream_state(&self) -> &StreamState;
+    fn stream_state_mut(&mut self) -> &mut StreamState;
+    /// will advance local time
+    fn pull_samples(&mut self, samples: &mut [f32]);
 }
 
 /// mixes sounds together
 pub struct Mixer {
-    sound_track: Vec<Interval>,
+    global_t: u128,
+    sample_pull_in: Vec<f32>,
+    track_list: CircularSegmentTree<Box<dyn HasAudioStream>>,
+    current_streams: LinkedList<GlobalIndex>,
 }
 impl Mixer {
+    pub fn new() -> Self {
+        Self {
+            global_t: 0,
+            sample_pull_in: Vec::with_capacity(4096),
+            current_streams: LinkedList::new(),
+            track_list: CircularSegmentTree::new(14, 65536),
+        }
+    }
+
+    pub fn mix_audio<'a>(&mut self, mut output_buffer: PCMBuffer<'a>)
+    {
+        let duration = output_buffer.duration_in_ms();
+        let buffer = output_buffer.samples_mut();
+
+
+
+
+        //update t
+        self.global_t += duration as u128;
+    }
+}
+
+pub struct TrackList {
+    sound_track: Vec<Interval>,
+}
+impl TrackList {
     pub fn with_track(mut sound_track: Vec<Interval>) -> Self {
         sound_track.sort_by_key(|&i| i.lo);
         Self { sound_track }
@@ -95,7 +164,7 @@ impl Mixer {
         left_most_interval
     }
 }
-impl Index<usize> for Mixer {
+impl Index<usize> for TrackList {
     type Output = Interval;
     fn index(&self, index: usize) -> &Self::Output {
         &self.sound_track[index]
