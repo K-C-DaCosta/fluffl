@@ -1,7 +1,8 @@
-pub use super::*;
+use crate::collections::segment_tree::index_types::GlobalIndex;
+use std::{fmt::Debug, ops::Deref};
 
 /// Represents an interval
-#[derive(Copy, Clone, PartialEq, Default)]
+#[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub struct Interval {
     pub lo: u128,
     pub hi: u128,
@@ -14,10 +15,28 @@ impl Debug for Interval {
 }
 
 impl Interval {
-    pub fn inverted(&self)->bool{
+    pub fn from_point_and_length(t0: u128, dt: u128) -> Self {
+        Self {
+            lo: t0,
+            hi: t0 + dt,
+        }
+    }
+
+    /// returns an interval that is within `bounds` parts of interval outside of `bounds` gets clipped away
+    pub fn clip_interval(mut self, bounds: Self) -> Self {
+        if self.hi > bounds.hi {
+            self.hi = bounds.hi;
+        }
+        if self.lo < bounds.lo {
+            self.lo = bounds.lo;
+        }
+        self
+    }
+
+    pub fn inverted(&self) -> bool {
         self.lo > self.hi
     }
-    
+
     pub fn is_seperating(&self, other_interval: &Self) -> bool {
         let &Self { lo: lo_a, hi: hi_a } = self;
 
@@ -55,14 +74,37 @@ impl Interval {
     pub fn midpoint(&self) -> u128 {
         self.lo + (self.hi - self.lo) / 2
     }
+
+    pub fn to_tuple(&self) -> (u128, u128) {
+        (self.lo, self.hi)
+    }
+    pub fn to_tuple_f32(&self) -> (f32, f32) {
+        (self.lo as f32, self.hi as f32)
+    }
+}
+
+impl<T> std::ops::Add<T> for Interval
+where
+    T: Into<u128> + Copy,
+{
+    type Output = Self;
+    fn add(self, rhs: T) -> Self::Output {
+        let rhs = T::into(rhs);
+        Self {
+            lo: self.lo + rhs,
+            hi: self.hi + rhs,
+        }
+    }
 }
 
 impl From<(u128, u128)> for Interval {
-    fn from((start_time, stop_time): (u128, u128)) -> Self {
-        Self {
-            lo: start_time,
-            hi: stop_time,
-        }
+    fn from((lo, hi): (u128, u128)) -> Self {
+        debug_assert_eq!(
+            lo < hi,
+            true,
+            "invalid interval: condiditon lo < hi && lo != hi  must be met"
+        );
+        Self { lo, hi }
     }
 }
 

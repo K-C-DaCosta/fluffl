@@ -1,13 +1,11 @@
 #![allow(dead_code)]
 
 use crate::{
-    collections::{
-        binary_tree::{BinaryTree, Ptr},
-        fixed_stack::FixedStack,
-    },
+    collections::{binary_tree::BinaryTree, fixed_stack::FixedStack, Ptr},
     console::*,
     console_log,
     iterators::GroupIterator,
+    audio::interval::*,
 };
 use std::{
     fmt::Debug,
@@ -15,23 +13,20 @@ use std::{
 };
 
 pub mod index_types;
-mod interval;
 mod iterators;
 mod pools;
 mod tests;
 
 use index_types::*;
-use interval::*;
 use iterators::*;
 use pools::*;
 
-pub use interval::{GlobalInterval, Interval};
 
-pub struct CircularIterState {
+pub struct TreeIterState {
     pub intervals: [Interval; 2],
     pub aux_intervals: [Interval; 2],
 }
-impl CircularIterState {
+impl TreeIterState {
     pub fn new() -> Self {
         Self {
             intervals: [Interval::default(); 2],
@@ -102,7 +97,7 @@ impl<V: 'static> CircularSegmentTree<V> {
 
     pub fn search_interval<'a, 'b>(
         &'a self,
-        state: &'b mut CircularIterState,
+        state: &'b mut TreeIterState,
         unclipped_interval: Interval,
     ) -> impl Iterator<Item = (GlobalIndex, &'a GlobalInterval<V>)> + 'b
     where
@@ -133,9 +128,10 @@ impl<V: 'static> CircularSegmentTree<V> {
                 tree_interval.is_overlapping(clipped_query_interval)
             })
             .map(move |(tree_interval, _)| {
+                let global_idx = tree_interval.global_idx;
                 (
-                    tree_interval.global_idx,
-                    self.global_pool[tree_interval.global_idx]
+                    global_idx,
+                    self.global_pool[global_idx]
                         .as_ref()
                         .expect("global interval should exist"),
                 )
@@ -228,7 +224,7 @@ impl<V: 'static> CircularSegmentTree<V> {
 
     pub fn remove<'a, 'b>(
         &'a mut self,
-        state: &'b mut CircularIterState,
+        state: &'b mut TreeIterState,
         query_interval: Interval,
     ) -> impl Iterator<Item = GlobalInterval<V>> + 'b
     where
@@ -269,7 +265,7 @@ impl<V: 'static> CircularSegmentTree<V> {
 
         GroupIterator::new(
             nodes_to_delete,
-            move |(a, b, _)| b.global_idx,
+            move |(_bucket_ptr, b, _)| b.global_idx,
             move |&(ptr, tree_interval, _)| {
                 let mut_self = unsafe {
                     &mut *(seg_tree_ptr as *const CircularSegmentTree<V>
@@ -420,6 +416,25 @@ impl<V: 'static> CircularSegmentTree<V> {
     }
 }
 
+impl<V> Index<GlobalIndex> for CircularSegmentTree<V> {
+    type Output = V;
+    fn index(&self, index: GlobalIndex) -> &Self::Output {
+        &self.global_pool[index]
+            .as_ref()
+            .expect("global index is invalid")
+            .data
+    }
+}
+
+impl<V> IndexMut<GlobalIndex> for CircularSegmentTree<V> {
+    fn index_mut(&mut self, index: GlobalIndex) -> &mut Self::Output {
+        &mut self.global_pool[index]
+            .as_mut()
+            .expect("global index is invalid")
+            .data
+    }
+}
+
 pub fn rand_lehmer64(state: &mut u128) -> u64 {
     *state = state.wrapping_mul(0xda942042e4dd58b5);
     (*state >> 64) as u64
@@ -430,4 +445,17 @@ unsafe fn force_static<'a, T>(reference: &'a T) -> &'static T {
 }
 unsafe fn force_static_mut<'a, T>(reference: &'a T) -> &'static mut T {
     &mut *(reference as *const T as *mut T)
+}
+
+#[test]
+fn asdasdasd() {
+    let a = 99;
+
+    let a_ref_0 = unsafe { force_static_mut(&a) };
+    let a_ref_1 = unsafe { force_static_mut(&a) };
+    println!("ref 0 = {}", a_ref_0);
+    println!("ref 1 = {}", a_ref_1);
+    *a_ref_0 += 1;
+    println!("ref 0 = {}", a_ref_0);
+    println!("ref 1 = {}", a_ref_1);
 }

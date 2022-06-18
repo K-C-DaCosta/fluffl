@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::super::collections::nary_forest::*;
+use super::super::collections::{nary_forest::*,Ptr};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -288,8 +288,8 @@ impl XMLParser {
         self.print_tree_helper(self.ast.root_list[0], &mut char_stack, ".");
     }
 
-    fn print_tree_helper(&self, node_ptr: u32, char_stack: &mut String, c_kind: &'static str) {
-        if node_ptr == !0 {
+    fn print_tree_helper(&self, node_ptr: Ptr, char_stack: &mut String, c_kind: &'static str) {
+        if node_ptr == Ptr::null() {
             return;
         }
 
@@ -324,8 +324,8 @@ impl XMLParser {
     /// `note_ptr` the subtre\
     ///  I wrote this a while back but if I recall it does a depth first traversal over the tree\
     ///  converting all tokens into text form.
-    fn to_xml_helper(&self, node_ptr: u32, xml_stream: &mut String) {
-        if node_ptr == !0 {
+    fn to_xml_helper(&self, node_ptr: Ptr, xml_stream: &mut String) {
+        if node_ptr == Ptr::null() {
             return;
         }
         match self.ast[node_ptr].data.as_ref() {
@@ -368,8 +368,8 @@ impl XMLParser {
 
     /// Pretty much a clone of to_xml_helper(...) but with formatting and trimming in the mix/
     /// Maybe write one helper function that does both?
-    fn to_xml_helper_trim(&self, node_ptr: u32, xml_stream: &mut String) {
-        if node_ptr == !0 {
+    fn to_xml_helper_trim(&self, node_ptr: Ptr, xml_stream: &mut String) {
+        if node_ptr == Ptr::null() {
             return;
         }
         match self.ast[node_ptr].data.as_ref() {
@@ -403,8 +403,8 @@ impl XMLParser {
 
     /// finds first occurrence of tag matching "content"
     /// returns !0  if search fails
-    pub fn search(&self, content: &str, node_ptr: u32) -> Option<u32> {
-        if node_ptr == !0 {
+    pub fn search(&self, content: &str, node_ptr: Ptr) -> Option<Ptr> {
+        if node_ptr == Ptr::null() {
             return None;
         }
         if self.ast[node_ptr].data.as_ref().unwrap().content == content {
@@ -423,7 +423,7 @@ impl XMLParser {
     /// Returns an iterator that walks through child tokens in xml ast
     pub fn get_child_tokens(
         &self,
-        node_ptr: u32,
+        node_ptr: Ptr,
     ) -> impl Iterator<Item = ( usize, Option<&XMLToken> )>
     {
         //without get_child_tokens(...) I would have to do something like this EVERY time i wanted to iterate through

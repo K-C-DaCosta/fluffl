@@ -12,6 +12,12 @@ pub mod audio_util;
 pub mod audio_util;
 
 pub mod mixer; 
+pub mod interval; 
+pub mod pcm_util;
+
+//expose these from audio itself
+pub use interval::Interval;
+pub use pcm_util::PCMSlice;
 
 
 /// When playing/generating sound a callback will be required and it will need to be of this format.

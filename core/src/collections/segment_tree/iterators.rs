@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-pub use super::*;
+pub use super::{super::Ptr, *};
 
 pub struct ScalarSearchIter<'a, V> {
     tree: &'a CircularSegmentTree<V>,
@@ -41,7 +41,7 @@ impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
                 self.node = node_info.children[1];
                 self.node_interval = child_intervals[1];
             }
-           
+
             node
         })
     }
@@ -97,7 +97,7 @@ impl<'a, V> Iterator for IntervalSearchIter<'a, V> {
                 self.stack.push(sf);
                 let child = self.tree.linear_tree[root].children[cursor];
                 let child_interval = interval.chunk(2, cursor);
-                
+
                 if child != Ptr::null() && child_interval.is_overlapping(&self.query_interval) {
                     self.stack.push(SearchIterFrame {
                         root: child,

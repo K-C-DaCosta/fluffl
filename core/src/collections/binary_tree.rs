@@ -1,26 +1,8 @@
 #![allow(dead_code)]
 
 use std::ops::{Index, IndexMut};
+use super::Ptr; 
 
-#[derive(Copy, Clone, PartialEq, Debug)]
-pub struct Ptr {
-    idx: u64,
-}
-impl Default for Ptr {
-    fn default() -> Self {
-        Self::null()
-    }
-}
-impl Ptr {
-    pub const fn null() -> Self {
-        Self { idx: !0 }
-    }
-}
-impl From<usize> for Ptr {
-    fn from(idx: usize) -> Self {
-        Self { idx: idx as u64 }
-    }
-}
 
 #[derive(Copy, Clone)]
 pub struct BinNode<T> {

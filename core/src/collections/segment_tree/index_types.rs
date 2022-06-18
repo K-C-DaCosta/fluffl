@@ -1,6 +1,6 @@
 use super::*; 
 
-#[derive(Copy, Clone, Debug,PartialEq)]
+#[derive(Copy, Clone, Debug,PartialEq,Eq,Hash)]
 pub struct GlobalIndex {
     pub idx: usize,
 }

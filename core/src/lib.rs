@@ -26,6 +26,9 @@ mod parsers;
 /// private custom iterators
 mod iterators;
 
+/// math utilities
+mod math;
+
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library
 #[cfg(feature ="extras")]
@@ -47,8 +50,6 @@ impl<T> Clone for FlufflState<T> {
         }
     }
 }
-
-
 
 impl<T> FlufflState<T> {
     pub fn new(state: Rc<RefCell<T>>) -> Self {

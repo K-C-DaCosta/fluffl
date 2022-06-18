@@ -1,5 +1,5 @@
 use super::*;
-
+use std::time::{Duration, Instant};
 #[test]
 fn delete_sanity() {
     let mut tree = CircularSegmentTree::<usize>::new(4, 1024);
@@ -19,7 +19,7 @@ fn delete_sanity() {
 
     println!("");
     for (_, &int) in intervals.iter().enumerate() {
-        tree.remove(&mut CircularIterState::new(), int)
+        tree.remove(&mut TreeIterState::new(), int)
             .for_each(|item| {
                 println!("removed item {:?}", item);
             });
@@ -83,7 +83,7 @@ fn delete_overlapping_segments() {
 
     // remove items from tree and collect removed items
     let mut removed_items = tree
-        .remove(&mut CircularIterState::new(), interval)
+        .remove(&mut TreeIterState::new(), interval)
         .map(|removed_interval| removed_interval.data)
         .collect::<Vec<_>>();
     removed_items.sort();
@@ -103,15 +103,12 @@ fn delete_overlapping_segments() {
 fn delete_shotgun_0() {
     let mut tree = CircularSegmentTree::<usize>::new(4, 1024);
 
-    let intervals = [
+    let intervals = to_intervals(vec![
         (0, 64),
         (128 * 7, 128 * 8 - 1),
         (128 * 8, 128 * 10),
         (900, 1050),
-    ]
-    .iter()
-    .map(|&a| Interval::from(a))
-    .collect::<Vec<_>>();
+    ]);
 
     // let mut total_clipped_intervals = 0;
     // for &x in &intervals {
@@ -129,7 +126,7 @@ fn delete_shotgun_0() {
 
     println!("");
     for (_, &int) in intervals.iter().enumerate() {
-        tree.remove(&mut CircularIterState::new(), int)
+        tree.remove(&mut TreeIterState::new(), int)
             .for_each(|item| {
                 println!("removed item {:?}", item);
             });
@@ -148,8 +145,8 @@ fn delete_shotgun_0() {
         }
         //delete intervals
         for (_, &int) in intervals.iter().enumerate() {
-            tree.remove(&mut CircularIterState::new(), int)
-                .for_each(|a| ());
+            tree.remove(&mut TreeIterState::new(), int)
+                .for_each(|_a| ());
         }
     }
 
@@ -181,6 +178,112 @@ fn delete_shotgun_0() {
         tree.linear_tree.nodes().len(),
         total_nodes_before_remove,
         "pooling failed: this must contain the original node count before remove() gets called"
+    );
+}
+
+#[test]
+fn insert_search_by_interval_sanity() {
+    let intervals = to_intervals(vec![(0, 17), (15, 18), (55, 64), (65, 102)]);
+
+    let mut tree = CircularSegmentTree::<u32>::new(29, 1 << 31);
+    for (k, &interval) in intervals.iter().enumerate() {
+        tree.insert(interval, k as u32);
+    }
+
+    let search_interval_collect_sorted =
+        |tree: &CircularSegmentTree<_>, interval: (_, _)| -> Vec<_> {
+            let mut search_results = tree
+                .search_interval(&mut TreeIterState::new(), Interval::from(interval))
+                .map(|(_gi, val)| val.interval)
+                .collect::<Vec<_>>();
+            search_results.sort_by(sort_scheme);
+            search_results
+        };
+
+    let search_results = search_interval_collect_sorted(&tree, (0, 55));
+    assert_eq!(
+        to_intervals(vec![(0, 17), (15, 18), (55, 64)]),
+        search_results
+    );
+
+    let search_results = search_interval_collect_sorted(&tree, (65, 1200));
+    assert_eq!(to_intervals(vec![(65, 102)]), search_results);
+}
+
+#[test]
+fn insert_search_by_interval_shotgun_0() {
+    let mut tree = CircularSegmentTree::<u32>::new(40, 1 << 40);
+
+    let (intervals, range) = generate_sorted_test_intervals();
+
+    intervals.iter().enumerate().for_each(|(k, &interval)| {
+        tree.insert(interval, k as u32);
+    });
+
+    let search_interval_collect_sorted =
+        |tree: &CircularSegmentTree<_>, interval: (_, _)| -> Vec<_> {
+            let mut search_results = tree
+                .search_interval(&mut TreeIterState::new(), Interval::from(interval))
+                .map(|(_gi, val)| val.interval)
+                .collect::<Vec<_>>();
+            // search_results.sort_by(sort_scheme);
+            search_results
+        };
+
+    const MAX_INTERVALS: u128 = 4096;
+    let mut total_tree_search_dt = 0;
+    let mut total_linear_search_dt = 0;
+    let mut t0 = Instant::now();
+
+    (0..MAX_INTERVALS)
+        .map(|k| range.chunk(MAX_INTERVALS, k as usize))
+        .for_each(|test_interval| {
+            //preform and time tree search
+            t0 = Instant::now();
+            let tree_query = search_interval_collect_sorted(&tree, test_interval.to_tuple());
+            total_tree_search_dt += t0.elapsed().as_micros();
+
+            //preform and time linear search
+            t0 = Instant::now();
+            let mut linear_search_query = intervals
+                .iter()
+                .map(|&a| a)
+                .filter(|interval| interval.is_overlapping(&test_interval))
+                .collect::<Vec<_>>();
+            // linear_search_query.sort_by(sort_scheme);
+            total_linear_search_dt += t0.elapsed().as_micros();
+
+            //compare segment tree search linear search (should always be equal)
+            // assert_eq!(tree_query, linear_search_query);
+        });
+
+    println!(
+        "linear search avg ={} micros\nTree search avg ={} micros",
+        total_linear_search_dt / MAX_INTERVALS,
+        total_tree_search_dt / MAX_INTERVALS
+    );
+
+    let mut total = 0;
+    let single_query_range = Interval::from((0, 26));
+
+    t0 = Instant::now();
+    tree.search_interval(&mut TreeIterState::new(), single_query_range)
+        .for_each(|_| total += 1);
+    total_tree_search_dt = t0.elapsed().as_micros();
+
+    // tree.print_tree("+-");
+
+    t0 = Instant::now();
+    intervals
+        .iter()
+        .map(|&a| a)
+        .filter(|interval| interval.is_overlapping(&single_query_range))
+        .for_each(|_| total += 1);
+    total_linear_search_dt = t0.elapsed().as_micros();
+
+    println!(
+        "linear search = {} micros  ||  tree search = {} micros",
+        total_linear_search_dt, total_tree_search_dt
     );
 }
 
@@ -269,26 +372,30 @@ fn insert_search_by_scalar_shotgun_0() {
     );
 }
 
-#[test]
-fn insert_search_by_interval_shotgun_0() {
-    let (intervals,_range) = generate_sorted_test_intervals();//to_intervals(vec![(0, 17), (15, 18), (55, 102)]);
-
-    let mut tree = CircularSegmentTree::<u32>::new(29, 1 << 31);
-    for (k, &interval) in intervals.iter().enumerate() {
-        tree.insert(interval, k as u32);
-    }
-    // println!("{:?}", &intervals[0..16]);
-
-    tree.search_interval(&mut CircularIterState::new(), Interval::from((0, 209)))
-        .for_each(|(a, b)| {
-            println!("{}", b.data);
-        });
-}
-
 fn generate_sorted_test_intervals() -> (Vec<Interval>, Interval) {
     let mut state = 0xaaabbu128;
     //generate lots of intervals
     let mut intervals = (0..60_000)
+        .map(|_| {
+            let l = rand_lehmer64(&mut state) as u128 % 3_600_000;
+            let u = 1 + l + rand_lehmer64(&mut state) as u128 % 60_000;
+            (l, u)
+        })
+        .map(|a| Interval::from(a))
+        .collect::<Vec<_>>();
+
+    intervals.sort_by(sort_scheme);
+    // println!("{:?}",intervals);
+    let lbound = intervals.iter().min_by_key(|a| a.lo).unwrap().lo;
+    let ubound = intervals.iter().max_by_key(|a| a.hi).unwrap().hi;
+
+    (intervals, Interval::from((lbound, ubound)))
+}
+
+fn generate_sorted_test_intervals_with_len(len: usize) -> (Vec<Interval>, Interval) {
+    let mut state = 0xaaabbu128;
+    //generate lots of intervals
+    let mut intervals = (0..len)
         .map(|_| {
             let l = rand_lehmer64(&mut state) as u128 % 3_600_000;
             let u = 1 + l + rand_lehmer64(&mut state) as u128 % 60_000;

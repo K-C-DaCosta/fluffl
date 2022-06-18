@@ -1,8 +1,8 @@
-static NULL: u32 = !0;
-type Ptr = u32;
-use std::ops::{Index, IndexMut};
+use super::Ptr; 
 
+use std::ops::{Index, IndexMut};
 use serde::{Deserialize, Serialize};
+
 
 
 #[derive(Serialize, Deserialize)]
@@ -15,7 +15,7 @@ pub struct NaryNode<T> {
 impl<T> NaryNode<T> {
     pub fn new() -> NaryNode<T> {
         NaryNode {
-            parent: NULL,
+            parent: Ptr::null(),
             data: None,
             children: Vec::new(),
         }
@@ -36,19 +36,19 @@ pub struct NaryForest<T> {
 
 impl<T> NaryForest<T>
 where
-    Self: Index<u32, Output = NaryNode<T>> + IndexMut<u32>,
+    Self: Index<Ptr, Output = NaryNode<T>> + IndexMut<Ptr>,
 {
     pub fn new() -> NaryForest<T> {
         NaryForest {
             root_list: Vec::new(),
-            pool: NULL,
+            pool: Ptr::null(),
             memory: Vec::new(),
         }
     }
     pub fn allocate(&mut self, val: T) -> Ptr {
-        if self.pool == NULL {
+        if self.pool == Ptr::null() {
             self.memory.push(NaryNode::new().with_data(val));
-            (self.memory.len() - 1) as u32
+            Ptr::from(self.memory.len() - 1)
         } else {
             let pool_node = self.pool;
             self.pool = self[pool_node].children[0];
@@ -59,10 +59,10 @@ where
     
     #[allow(dead_code)]
     pub fn free(&mut self, node: Ptr) {
-        if node == NULL {
+        if node == Ptr::null() {
             return;
         }
-        if self.pool != NULL {
+        if self.pool != Ptr::null() {
             let old_pool = self.pool;
             self[node].children.clear();
             self[node].children.push(old_pool);
@@ -72,9 +72,9 @@ where
 
     #[allow(dead_code)]
     pub fn allocate_node(&mut self, node: NaryNode<T>) -> Ptr {
-        if self.pool == NULL {
+        if self.pool == Ptr::null() {
             self.memory.push(node);
-            (self.memory.len() - 1) as u32
+            Ptr::from(self.memory.len() - 1)
         } else {
             let pool_node = self.pool;
             self.pool = self[pool_node].children[0];
@@ -88,16 +88,16 @@ where
     }
 }
 
-impl<T> Index<u32> for NaryForest<T> {
+impl<T> Index<Ptr> for NaryForest<T> {
     type Output = NaryNode<T>;
 
-    fn index(&self, ptr: u32) -> &Self::Output {
-        self.memory.get(ptr as usize).unwrap()
+    fn index(&self, ptr: Ptr) -> &Self::Output {
+        self.memory.get(ptr.as_usize()).unwrap()
     }
 }
 
-impl<T> IndexMut<u32> for NaryForest<T> {
-    fn index_mut(&mut self, ptr: u32) -> &mut Self::Output {
-        self.memory.get_mut(ptr as usize).unwrap()
+impl<T> IndexMut<Ptr> for NaryForest<T> {
+    fn index_mut(&mut self, ptr: Ptr) -> &mut Self::Output {
+        self.memory.get_mut(ptr.as_usize()).unwrap()
     }
 }

@@ -380,7 +380,7 @@ impl<F, S> Drop for FlufflAudioDeviceContext<F, S> {
 
         let state_count = Rc::strong_count(&self.state);
         console_log!(
-            "CONTEXT[ id={} ] IS ABOUT TO BE DROPPED UH OH!, state_count = {}\n",
+            "CONTEXT[ id={} ] IS ABOUT TO BE DROPPED, state_count = {}\n",
             thread_id,
             state_count
         );

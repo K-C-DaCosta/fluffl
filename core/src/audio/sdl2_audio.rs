@@ -27,7 +27,7 @@ pub struct FlufflAudioContext {
 /// Look is the `web_audio.rs` module for a peek at the  wasm implementation
 pub struct FlufflAudioDeviceContext<Callback, State>
 where
-    Callback: FnMut(&mut State, &mut [f32]) + std::marker::Copy + Send + 'static,
+    Callback: FnMut(&mut State, &mut [f32]) + Copy + Send + 'static,
     State: Send + 'static,
 {
     fluffl_audio_device: Arc<Mutex<RefCell<FlufflAudioDevice<Callback, State>>>>,
@@ -36,7 +36,7 @@ where
 
 impl<Callback, State> Clone for FlufflAudioDeviceContext<Callback, State>
 where
-    Callback: FnMut(&mut State, &mut [f32]) + std::marker::Copy + Send,
+    Callback: FnMut(&mut State, &mut [f32]) + Copy + Send,
     State: Send,
 {
     fn clone(&self) -> Self {
@@ -93,7 +93,12 @@ where
             sdl2_device: Arc::new(sdl2_device),
         }
     }
+    
+    /// ## Description
     /// Allows the user to modify state through a callback
+    /// ### Comments
+    /// If I can't easily return the value to code higher up in the stack, 
+    /// the next best thing is pass a callback to the value  
     pub fn modify_state<ModifyCallback>(&self, mut cb: ModifyCallback)
     where
         ModifyCallback: FnMut(Option<&mut State>),
