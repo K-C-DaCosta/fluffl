@@ -131,7 +131,7 @@ impl Mixer {
             running_streams_on_intersection: Vec::new(),
             running_streams: LinkedList::new(),
             running_streams_table: HashMap::new(),
-            track_chart: CircularSegmentTree::new(40, 1 << 40),
+            track_chart: CircularSegmentTree::new(30, 1 << 30),
             track_removal_stack: vec![],
             clip_avoidance_dampening_coef: 1.0,
         }

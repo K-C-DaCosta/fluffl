@@ -5,7 +5,7 @@ use std::{
 
 const FRACTIONAL_BITS: i64 = 16;
 const FRACTIONAL_MASK: i64 = (1i64 << FRACTIONAL_BITS) - 1;
-const FIXED_POINT_FACTOR: f64 = (1i64 << 32) as f64;
+const FIXED_POINT_FACTOR: f64 = (1i64 << FRACTIONAL_BITS) as f64;
 const INV_FIXED_PONT_FACTOR_F64: f64 = 1.0 / FIXED_POINT_FACTOR;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
@@ -90,7 +90,7 @@ impl Mul for FixedPoint {
 
 impl MulAssign for FixedPoint {
     fn mul_assign(&mut self, rhs: Self) {
-        self.data = (self.data >> 7) * (rhs.data >> 9)
+        self.data = (self.data >> 8) * (rhs.data >> 8)
     }
 }
 
