@@ -3,14 +3,14 @@ use std::{
     ops::*,
 };
 
-const FRACTIONAL_BITS: i64 = 32;
-const FRACTIONAL_MASK: i128 = (1i128 << FRACTIONAL_BITS) - 1;
+const FRACTIONAL_BITS: i64 = 16;
+const FRACTIONAL_MASK: i64 = (1i64 << FRACTIONAL_BITS) - 1;
 const FIXED_POINT_FACTOR: f64 = (1i64 << 32) as f64;
 const INV_FIXED_PONT_FACTOR_F64: f64 = 1.0 / FIXED_POINT_FACTOR;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
 pub struct FixedPoint {
-    data: i128,
+    data: i64,
 }
 impl FixedPoint {
     pub const fn zero() -> Self {
@@ -18,7 +18,7 @@ impl FixedPoint {
     }
 
     /// does no conversion at all,use From trait for that
-    pub fn from_bits<T: Into<i128>>(bits: T) -> Self {
+    pub fn from_bits<T: Into<i64>>(bits: T) -> Self {
         let data = bits.into();
         Self { data }
     }
@@ -41,7 +41,7 @@ impl FixedPoint {
     }
 
     pub fn as_int_i128(&self) -> i128 {
-        self.data >> FRACTIONAL_BITS
+        (self.data >> FRACTIONAL_BITS) as i128
     }
 
     pub fn as_f64(&self) -> f64 {
@@ -84,13 +84,13 @@ impl SubAssign for FixedPoint {
 impl Mul for FixedPoint {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
-        Self::from_bits((self.data >> 16) * (rhs.data >> 16))
+        Self::from_bits((self.data >> 8) * (rhs.data >> 8))
     }
 }
 
 impl MulAssign for FixedPoint {
     fn mul_assign(&mut self, rhs: Self) {
-        self.data = (self.data >> 10) * (rhs.data >> 22)
+        self.data = (self.data >> 7) * (rhs.data >> 9)
     }
 }
 
@@ -104,12 +104,12 @@ impl Mul<i32> for FixedPoint {
 impl Div for FixedPoint {
     type Output = Self;
     fn div(self, rhs: Self) -> Self::Output {
-        Self::from_bits(((self.data << 16) / rhs.data) << 16)
+        Self::from_bits(((self.data << 8) / rhs.data) << 8)
     }
 }
 impl DivAssign for FixedPoint {
     fn div_assign(&mut self, rhs: Self) {
-        self.data = (self.data << 16 / rhs.data) << 16;
+        self.data = (self.data << 8 / rhs.data) << 8;
     }
 }
 
@@ -142,7 +142,7 @@ impl Debug for FixedPoint {
 */
 impl From<i32> for FixedPoint {
     fn from(num: i32) -> Self {
-        let num: i128 = num as i128;
+        let num = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -150,7 +150,7 @@ impl From<i32> for FixedPoint {
 }
 impl From<i64> for FixedPoint {
     fn from(num: i64) -> Self {
-        let num: i128 = num as i128;
+        let num = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -158,7 +158,7 @@ impl From<i64> for FixedPoint {
 }
 impl From<i128> for FixedPoint {
     fn from(num: i128) -> Self {
-        let num: i128 = num as i128;
+        let num = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -167,7 +167,7 @@ impl From<i128> for FixedPoint {
 
 impl From<u32> for FixedPoint {
     fn from(num: u32) -> Self {
-        let num: i128 = num as i128;
+        let num  = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -175,29 +175,22 @@ impl From<u32> for FixedPoint {
 }
 impl From<u64> for FixedPoint {
     fn from(num: u64) -> Self {
-        let num: i128 = num as i128;
-        Self {
-            data: num << FRACTIONAL_BITS,
-        }
-    }
-}
-impl From<u128> for FixedPoint {
-    fn from(num: u128) -> Self {
-        let num: i128 = num as i128;
+        let num = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
     }
 }
 
+
 impl From<f32> for FixedPoint {
     fn from(num: f32) -> Self {
-        FixedPoint::from_bits((num * FIXED_POINT_FACTOR as f32) as i128)
+        FixedPoint::from_bits((num * FIXED_POINT_FACTOR as f32) as i64)
     }
 }
 impl From<f64> for FixedPoint {
     fn from(num: f64) -> Self {
-        FixedPoint::from_bits((num * FIXED_POINT_FACTOR) as i128)
+        FixedPoint::from_bits((num * FIXED_POINT_FACTOR) as i64)
     }
 }
 

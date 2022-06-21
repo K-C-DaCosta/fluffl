@@ -3,7 +3,7 @@ use crate::math::FixedPoint;
 /// tracks time by counting samples processed, and using frequency to calculate time to arbitrary precisions
 #[derive(Copy, Clone,Debug)]
 pub struct SampleTime {
-    samples_count: u128,
+    samples_count: u64,
     sample_rate: u32,
 }
 
@@ -14,7 +14,7 @@ impl SampleTime {
             sample_rate: 44_100,
         }
     }
-    pub fn with_sample_count(mut self, sample_count: u128) -> Self {
+    pub fn with_sample_count(mut self, sample_count: u64) -> Self {
         self.samples_count = sample_count;
         self
     }
@@ -29,8 +29,8 @@ impl SampleTime {
         (self.samples_count as f32 * 1000.0) / self.sample_rate as f32
     }
 
-    pub fn elapsed_in_ms_u128(&self) -> u128 {
-        (self.samples_count * 1000) / self.sample_rate as u128
+    pub fn elapsed_in_ms_u64(&self) -> u64 {
+        (self.samples_count * 1000) / self.sample_rate as u64
     }
 
     pub fn elapsed_in_sec_f64(&self) -> f64 {
@@ -45,12 +45,12 @@ impl SampleTime {
     
     
 
-    pub fn increment(&mut self, num_samples: u128) {
+    pub fn increment(&mut self, num_samples: u64) {
         self.samples_count += num_samples;
     }
     
     /// creates a new time with samples decremented 
-    pub fn sub(mut self,offset:u128)->Self{
+    pub fn sub(mut self,offset:u64)->Self{
         self.samples_count-=offset;
         self        
     }

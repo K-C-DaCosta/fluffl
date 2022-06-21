@@ -237,7 +237,7 @@ fn insert_search_by_interval_shotgun_0() {
     let mut t0 = Instant::now();
 
     (0..MAX_INTERVALS)
-        .map(|k| range.chunk(MAX_INTERVALS, k as usize))
+        .map(|k| range.chunk(MAX_INTERVALS as u64, k as usize))
         .for_each(|test_interval| {
             //preform and time tree search
             t0 = Instant::now();
@@ -384,8 +384,8 @@ fn generate_sorted_test_intervals() -> (Vec<Interval>, Interval) {
     //generate lots of intervals
     let mut intervals = (0..60_000)
         .map(|_| {
-            let l = rand_lehmer64(&mut state) as u128 % 3_600_000;
-            let u = 1 + l + rand_lehmer64(&mut state) as u128 % 60_000;
+            let l = rand_lehmer64(&mut state) % 3_600_000;
+            let u = 1 + l + rand_lehmer64(&mut state) % 60_000;
             (l, u)
         })
         .map(|a| Interval::from(a))
@@ -403,8 +403,8 @@ fn generate_sorted_test_intervals_with_len(len: usize) -> (Vec<Interval>, Interv
     //generate lots of intervals
     let mut intervals = (0..len)
         .map(|_| {
-            let l = rand_lehmer64(&mut state) as u128 % 3_600_000;
-            let u = 1 + l + rand_lehmer64(&mut state) as u128 % 60_000;
+            let l = rand_lehmer64(&mut state) % 3_600_000;
+            let u = 1 + l + rand_lehmer64(&mut state) % 60_000;
             (l, u)
         })
         .map(|a| Interval::from(a))
@@ -424,7 +424,7 @@ fn sort_scheme(a: &Interval, b: &Interval) -> std::cmp::Ordering {
         a.lo.cmp(&b.lo)
     }
 }
-fn to_intervals(tuples: Vec<(u128, u128)>) -> Vec<Interval> {
+fn to_intervals(tuples: Vec<(u64, u64)>) -> Vec<Interval> {
     tuples
         .into_iter()
         .map(|a| Interval::from(a))

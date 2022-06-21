@@ -53,7 +53,7 @@ impl Interval {
     }
 
     /// divide the interval into equal chunks of count `num_chunks`. returns the `chunk_idx`-th chunk
-    pub fn chunk(&self, num_chunks: u128, chunk_idx: usize) -> Self {
+    pub fn chunk(&self, num_chunks: u64, chunk_idx: usize) -> Self {
         let num_chunks = FixedPoint::from(num_chunks);
         let chunk_idx = FixedPoint::from(chunk_idx as u32);
         let length = self.distance();
@@ -89,7 +89,7 @@ impl Interval {
 
 impl<T> std::ops::Add<T> for Interval
 where
-    T: Into<u128> + Copy,
+    T: Into<u64> + Copy,
 {
     type Output = Self;
     fn add(self, rhs: T) -> Self::Output {
@@ -101,16 +101,16 @@ where
     }
 }
 
-impl From<(u128, u128)> for Interval {
-    fn from((lo, hi): (u128, u128)) -> Self {
+impl From<(u64, u64)> for Interval {
+    fn from((lo, hi): (u64, u64)) -> Self {
         Self {
             lo: FixedPoint::from(lo),
             hi: FixedPoint::from(hi),
         }
     }
 }
-impl From<(i128, i128)> for Interval {
-    fn from((lo, hi): (i128, i128)) -> Self {
+impl From<(i64, i64)> for Interval {
+    fn from((lo, hi): (i64, i64)) -> Self {
         Self {
             lo: FixedPoint::from(lo),
             hi: FixedPoint::from(hi),

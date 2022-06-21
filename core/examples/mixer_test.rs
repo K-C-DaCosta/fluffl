@@ -305,7 +305,7 @@ pub async fn main() {
                             device.modify_state(|state_opt| {
                                 let state = state_opt.unwrap();
                                 let time = state.get_time();
-                                let lo = time.elapsed_in_ms_u128();
+                                let lo = time.elapsed_in_ms_u64();
                                 state.add_track(Box::new(ImplicitWave::new(
                                     wave_sin::<330>,
                                     Interval::from((lo, lo + 1000)),

@@ -279,7 +279,7 @@ impl Mixer {
         //shrinks the cursor delta so i dont read samples too quickly
         //it should okay to be behind by a few milliseconds,
         //i speculate that if I read too quickly, I'll get popping
-        const CURSOR_SHINK_DELTA: u128 = 2;
+        const CURSOR_SHINK_DELTA: u64 = 2;
 
         let cursor_elapsed = cursor.delta.sub(CURSOR_SHINK_DELTA).elapsed_in_ms_fp();
         // println!("elapsed = {}",cursor_elapsed);

@@ -37,8 +37,8 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         self.channels
     }
 
-    pub fn num_samples(&self) -> u128 {
-        (self.planar_pcm.len() as u32 / self.channels as u32) as u128
+    pub fn num_samples(&self) -> u64 {
+        (self.planar_pcm.len() as u32 / self.channels as u32) as u64
     }
 
     fn planar_pcm_mut<'b>(&'a self) -> &'b mut [T]
@@ -58,7 +58,7 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         (self.planar_pcm.len() as u32 * NUM_MILLISECONDS_IN_ONE_SECOND)
             / (self.channels * self.frequency)
     }
-    
+
     pub fn duration_in_ms_f32(&self) -> f32 {
         const NUM_MILLISECONDS_IN_ONE_SECOND: f32 = 1000.0;
         (self.planar_pcm.len() as f32 * NUM_MILLISECONDS_IN_ONE_SECOND)

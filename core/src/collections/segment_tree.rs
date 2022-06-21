@@ -41,16 +41,16 @@ impl TreeIterState {
 pub struct CircularSegmentTree<V> {
     max_depth: u32,
     /// `width` = 2^`exponent`
-    width: u128,
+    width: u64,
     /// `exponent` is between 0-127
-    exponent: u128,
+    exponent: u64,
     linear_tree: BinaryTree<BucketIndex>,
     global_pool: GlobalIntervalPool<V>,
     bucket_pool: BucketPool,
 }
 
 impl<V: 'static> CircularSegmentTree<V> {
-    pub fn new(max_depth: u32, width: u128) -> Self {
+    pub fn new(max_depth: u32, width: u64) -> Self {
         assert_eq!(width.count_ones(), 1, "width needs to be a power of two");
 
         let mut bucket_pool = BucketPool::new();
@@ -62,7 +62,7 @@ impl<V: 'static> CircularSegmentTree<V> {
         Self {
             max_depth,
             width,
-            exponent: (width - 1).count_ones() as u128,
+            exponent: (width - 1).count_ones() as u64,
             linear_tree,
             bucket_pool,
             global_pool: GlobalIntervalPool::new(),
@@ -175,8 +175,8 @@ impl<V: 'static> CircularSegmentTree<V> {
         alias: GlobalIndex,
         mut root: Ptr,
         mut depth: u32,
-        mut lo: u128,
-        mut hi: u128,
+        mut lo: u64,
+        mut hi: u64,
     ) {
         let bucket_pool = &mut self.bucket_pool;
         let linear_tree = &mut self.linear_tree;
