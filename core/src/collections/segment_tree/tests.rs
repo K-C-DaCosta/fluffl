@@ -109,6 +109,7 @@ fn delete_shotgun_0() {
         (128 * 8, 128 * 10),
         (900, 1050),
     ]);
+    println!("intervals : {:?}", intervals);
 
     // let mut total_clipped_intervals = 0;
     // for &x in &intervals {
@@ -221,12 +222,12 @@ fn insert_search_by_interval_shotgun_0() {
     });
 
     let search_interval_collect_sorted =
-        |tree: &CircularSegmentTree<_>, interval: (_, _)| -> Vec<_> {
+        |tree: &CircularSegmentTree<_>, interval: Interval| -> Vec<_> {
             let mut search_results = tree
-                .search_interval(&mut TreeIterState::new(), Interval::from(interval))
+                .search_interval(&mut TreeIterState::new(), interval)
                 .map(|(_gi, val)| val.interval)
                 .collect::<Vec<_>>();
-            // search_results.sort_by(sort_scheme);
+            search_results.sort_by(sort_scheme);
             search_results
         };
 
@@ -240,7 +241,7 @@ fn insert_search_by_interval_shotgun_0() {
         .for_each(|test_interval| {
             //preform and time tree search
             t0 = Instant::now();
-            let tree_query = search_interval_collect_sorted(&tree, test_interval.to_tuple());
+            let tree_query = search_interval_collect_sorted(&tree, test_interval);
             total_tree_search_dt += t0.elapsed().as_micros();
 
             //preform and time linear search
@@ -250,11 +251,17 @@ fn insert_search_by_interval_shotgun_0() {
                 .map(|&a| a)
                 .filter(|interval| interval.is_overlapping(&test_interval))
                 .collect::<Vec<_>>();
-            // linear_search_query.sort_by(sort_scheme);
+            linear_search_query.sort_by(sort_scheme);
             total_linear_search_dt += t0.elapsed().as_micros();
 
             //compare segment tree search linear search (should always be equal)
-            // assert_eq!(tree_query, linear_search_query);
+            assert_eq!(
+                tree_query,
+                linear_search_query,
+                "tree query len = {}  , linear search len = {}",
+                tree_query.len(),
+                linear_search_query.len()
+            );
         });
 
     println!(
@@ -300,7 +307,7 @@ fn insert_search_by_scalar_shotgun_0() {
     }
 
     let mut time = lo;
-    let step_size = ((hi - lo) / 2000).max(1);
+    let step_size = ((hi - lo) / FixedPoint::from(2000)).max(From::from(1));
     let mut tree_search_results: Vec<Interval> = Vec::with_capacity(500);
     let mut linear_search_results: Vec<Interval> = Vec::with_capacity(500);
 
@@ -391,7 +398,6 @@ fn generate_sorted_test_intervals() -> (Vec<Interval>, Interval) {
 
     (intervals, Interval::from((lbound, ubound)))
 }
-
 fn generate_sorted_test_intervals_with_len(len: usize) -> (Vec<Interval>, Interval) {
     let mut state = 0xaaabbu128;
     //generate lots of intervals
@@ -411,7 +417,6 @@ fn generate_sorted_test_intervals_with_len(len: usize) -> (Vec<Interval>, Interv
 
     (intervals, Interval::from((lbound, ubound)))
 }
-
 fn sort_scheme(a: &Interval, b: &Interval) -> std::cmp::Ordering {
     if a.lo == b.lo {
         a.hi.cmp(&b.hi)

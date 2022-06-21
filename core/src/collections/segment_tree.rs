@@ -1,11 +1,13 @@
 #![allow(dead_code)]
 
 use crate::{
+    audio::interval::*,
     collections::{binary_tree::BinaryTree, fixed_stack::FixedStack, Ptr},
     console::*,
     console_log,
     iterators::GroupIterator,
-    audio::interval::*,
+    math::FixedPoint,
+    mem::*,
 };
 use std::{
     fmt::Debug,
@@ -20,7 +22,6 @@ mod tests;
 use index_types::*;
 use iterators::*;
 use pools::*;
-
 
 pub struct TreeIterState {
     pub intervals: [Interval; 2],
@@ -39,8 +40,9 @@ impl TreeIterState {
 /// all segments are interpreted to be circular
 pub struct CircularSegmentTree<V> {
     max_depth: u32,
-    //needs to be a power of two
+    /// `width` = 2^`exponent`
     width: u128,
+    /// `exponent` is between 0-127
     exponent: u128,
     linear_tree: BinaryTree<BucketIndex>,
     global_pool: GlobalIntervalPool<V>,
@@ -69,12 +71,11 @@ impl<V: 'static> CircularSegmentTree<V> {
 
     pub fn search_scalar<'a>(
         &'a self,
-        t: u128,
+        time: FixedPoint,
     ) -> impl Iterator<Item = (GlobalIndex, &'a GlobalInterval<V>)> {
         let tree = self;
-        let time = t;
-        let remainder_mask = self.width - 1;
-        self.bucket_search_scalar(t)
+        let exponent = self.exponent as u8;
+        self.bucket_search_scalar(time)
             // .map(move |ptr| {
             //     let i = compute_interval(ptr, self.width);
             //     println!("{} => {:?}", ptr, i);
@@ -82,7 +83,7 @@ impl<V: 'static> CircularSegmentTree<V> {
             // })
             .flat_map(move |ptr| tree.linear_tree[ptr].data)
             .flat_map(move |bucket_idx| tree.bucket_pool[bucket_idx].iter())
-            .filter(move |interval| interval.is_within(time & remainder_mask))
+            .filter(move |interval| interval.is_within(time.fast_mod(exponent)))
             .filter_map(move |interval| {
                 Some(interval.global_idx).zip(tree.global_pool[interval.global_idx].as_ref())
             })
@@ -91,7 +92,7 @@ impl<V: 'static> CircularSegmentTree<V> {
 
     ///searches buckets that intersect `t`, where `t` is not assumed to be circular
     ///but gets converted to circular t internally
-    fn bucket_search_scalar<'a>(&'a self, t: u128) -> ScalarSearchIter<'a, V> {
+    fn bucket_search_scalar<'a>(&'a self, t: FixedPoint) -> ScalarSearchIter<'a, V> {
         ScalarSearchIter::new(self, t)
     }
 
@@ -349,25 +350,30 @@ impl<V: 'static> CircularSegmentTree<V> {
 
     /// returns number of clips
     fn clip_interval(&self, interval: Interval, clippings: &mut [Interval; 2]) -> usize {
-        let exponent = self.exponent;
-        let remainder_mask = (1 << exponent) - 1;
-
+        let exponent = self.exponent as u8;
         let Interval { lo, hi } = interval;
+
+        let zero = FixedPoint::from(0);
+        let width = FixedPoint::from(self.width);
+
+        // println!("interval = {:?}",interval);
 
         let lo_block = lo >> exponent;
         let hi_block = hi >> exponent;
-        let num_blocks_interval_spans = (hi_block - lo_block) + 1;
+        let num_blocks_interval_spans = (hi_block.floor() - lo_block.floor()) + FixedPoint::from(1);
 
-        let split_a = Interval::from((lo & remainder_mask, self.width));
-        let split_b = Interval::from((0, hi & remainder_mask));
-        let splic_c = Interval::from((lo & remainder_mask, hi & remainder_mask));
+        let split_a = Interval::from((lo.fast_mod(exponent),width));
+        let split_b = Interval::from((zero, hi.fast_mod(exponent)));
+        let splic_c = Interval::from((lo.fast_mod(exponent), hi.fast_mod(exponent)));
 
         //clip the intervals and make them circular
-        if num_blocks_interval_spans >= 3 {
+        if num_blocks_interval_spans >= FixedPoint::from(3) {
             //this case the interval spans multiple blocks so insert it at the root and stop there
-            clippings[0] = Interval::from((0, self.width));
+            clippings[0] = Interval::from((zero, width));
             1
-        } else if num_blocks_interval_spans >= 2 && split_a.distance() > 0 && split_b.distance() > 0
+        } else if num_blocks_interval_spans >= FixedPoint::from(2)
+            && split_a.distance() > FixedPoint::zero()
+            && split_b.distance() > FixedPoint::zero()
         {
             //this interval spans two blocks so it can be broken up more efficiently
             clippings[0] = split_a;
@@ -440,12 +446,7 @@ pub fn rand_lehmer64(state: &mut u128) -> u64 {
     (*state >> 64) as u64
 }
 
-unsafe fn force_static<'a, T>(reference: &'a T) -> &'static T {
-    &*(reference as *const T)
-}
-unsafe fn force_static_mut<'a, T>(reference: &'a T) -> &'static mut T {
-    &mut *(reference as *const T as *mut T)
-}
+
 
 #[test]
 fn asdasdasd() {
@@ -458,4 +459,13 @@ fn asdasdasd() {
     *a_ref_0 += 1;
     println!("ref 0 = {}", a_ref_0);
     println!("ref 1 = {}", a_ref_1);
+}
+
+
+
+#[test]
+fn clip_interval_bug(){
+    let mut tree = CircularSegmentTree::<u32>::new(4, 1024);
+    let mut clippings =  [Interval::default();2];
+    tree.clip_interval(Interval::from((900,1050)), &mut clippings);
 }

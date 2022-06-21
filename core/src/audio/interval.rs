@@ -1,11 +1,14 @@
-use crate::collections::segment_tree::index_types::GlobalIndex;
+use crate::{
+    collections::{fixed_stack::FixedStack, segment_tree::index_types::GlobalIndex},
+    math::FixedPoint,
+};
 use std::{fmt::Debug, ops::Deref};
 
 /// Represents an interval
 #[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub struct Interval {
-    pub lo: u128,
-    pub hi: u128,
+    pub lo: FixedPoint,
+    pub hi: FixedPoint,
 }
 
 impl Debug for Interval {
@@ -15,7 +18,7 @@ impl Debug for Interval {
 }
 
 impl Interval {
-    pub fn from_point_and_length(t0: u128, dt: u128) -> Self {
+    pub fn from_point_and_length(t0: FixedPoint, dt: FixedPoint) -> Self {
         Self {
             lo: t0,
             hi: t0 + dt,
@@ -45,19 +48,20 @@ impl Interval {
         lo_b > hi_a || lo_a > hi_b
     }
 
-    pub fn distance(&self) -> u128 {
+    pub fn distance(&self) -> FixedPoint {
         self.hi - self.lo
     }
 
     /// divide the interval into equal chunks of count `num_chunks`. returns the `chunk_idx`-th chunk
     pub fn chunk(&self, num_chunks: u128, chunk_idx: usize) -> Self {
-        let chunk_idx = chunk_idx as u128;
+        let num_chunks = FixedPoint::from(num_chunks);
+        let chunk_idx = FixedPoint::from(chunk_idx as u32);
         let length = self.distance();
-        let chunk_lenth = length / num_chunks;
-        let lo = self.lo + chunk_lenth * chunk_idx;
+        let chunk_length = length / num_chunks;
+        let lo = self.lo + chunk_length * chunk_idx;
         Self {
             lo,
-            hi: lo + chunk_lenth,
+            hi: lo + chunk_length ,
         }
     }
 
@@ -65,21 +69,21 @@ impl Interval {
         !self.is_seperating(other_interval)
     }
 
-    pub fn is_within(&self, t: u128) -> bool {
+    pub fn is_within(&self, t: FixedPoint) -> bool {
         let &Self { lo, hi } = self;
-
         t >= lo && t <= hi
     }
+
     #[allow(dead_code)]
-    pub fn midpoint(&self) -> u128 {
-        self.lo + (self.hi - self.lo) / 2
+    pub fn midpoint(&self) -> FixedPoint {
+        self.lo + (self.hi - self.lo) / FixedPoint::from(2)
     }
 
     pub fn to_tuple(&self) -> (u128, u128) {
-        (self.lo, self.hi)
+        (self.lo.as_int_i128() as u128, self.hi.as_int_i128() as u128)
     }
     pub fn to_tuple_f32(&self) -> (f32, f32) {
-        (self.lo as f32, self.hi as f32)
+        (self.lo.as_f64() as f32, self.hi.as_f64() as f32)
     }
 }
 
@@ -89,7 +93,7 @@ where
 {
     type Output = Self;
     fn add(self, rhs: T) -> Self::Output {
-        let rhs = T::into(rhs);
+        let rhs = FixedPoint::from(T::into(rhs));
         Self {
             lo: self.lo + rhs,
             hi: self.hi + rhs,
@@ -99,11 +103,30 @@ where
 
 impl From<(u128, u128)> for Interval {
     fn from((lo, hi): (u128, u128)) -> Self {
-        debug_assert_eq!(
-            lo < hi,
-            true,
-            "invalid interval: condiditon lo < hi && lo != hi  must be met"
-        );
+        Self {
+            lo: FixedPoint::from(lo),
+            hi: FixedPoint::from(hi),
+        }
+    }
+}
+impl From<(i128, i128)> for Interval {
+    fn from((lo, hi): (i128, i128)) -> Self {
+        Self {
+            lo: FixedPoint::from(lo),
+            hi: FixedPoint::from(hi),
+        }
+    }
+}
+impl From<(i32, i32)> for Interval {
+    fn from((lo, hi): (i32, i32)) -> Self {
+        Self {
+            lo: FixedPoint::from(lo),
+            hi: FixedPoint::from(hi),
+        }
+    }
+}
+impl From<(FixedPoint, FixedPoint)> for Interval {
+    fn from((lo, hi): (FixedPoint, FixedPoint)) -> Self {
         Self { lo, hi }
     }
 }

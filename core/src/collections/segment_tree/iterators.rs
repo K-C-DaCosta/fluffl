@@ -5,10 +5,10 @@ pub struct ScalarSearchIter<'a, V> {
     tree: &'a CircularSegmentTree<V>,
     node: Ptr,
     node_interval: Interval,
-    t: u128,
+    t: FixedPoint,
 }
 impl<'a, V> ScalarSearchIter<'a, V> {
-    pub fn new(tree: &'a CircularSegmentTree<V>, t: u128) -> Self {
+    pub fn new(tree: &'a CircularSegmentTree<V>, t: FixedPoint) -> Self {
         Self {
             tree,
             node: tree.linear_tree.root(),
@@ -22,6 +22,7 @@ impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
     type Item = Ptr;
     fn next(&mut self) -> Option<Self::Item> {
         let width = self.tree.width;
+        let exponent = self.tree.exponent;
         let remainder_mask = width - 1;
         let node = self.node;
         let t = self.t;
@@ -34,7 +35,7 @@ impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
 
         (node != Ptr::null()).then(|| {
             let node_info = &self.tree.linear_tree[node];
-            if child_intervals[0].is_within(t & remainder_mask) {
+            if child_intervals[0].is_within(t.fast_mod(exponent as u8)) {
                 self.node = node_info.children[0];
                 self.node_interval = child_intervals[0];
             } else {

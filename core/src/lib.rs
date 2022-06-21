@@ -15,7 +15,6 @@ pub mod window;
 /// Module for timing functions
 pub mod time;
 
-
 /// private custom datastructures
 mod collections;
 /// private decodes
@@ -23,11 +22,15 @@ mod decoders;
 /// private custom parsers
 mod parsers;
 
+/// unsafe memory stuff 
+pub mod mem;
+
+
 /// private custom iterators
 mod iterators;
 
 /// math utilities
-mod math;
+pub mod math;
 
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library
