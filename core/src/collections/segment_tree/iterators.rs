@@ -21,14 +21,12 @@ impl<'a, V> ScalarSearchIter<'a, V> {
 impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
     type Item = Ptr;
     fn next(&mut self) -> Option<Self::Item> {
-        let width = self.tree.width;
         let exponent = self.tree.exponent;
-        let remainder_mask = width - 1;
         let node = self.node;
         let t = self.t;
         let node_interval = self.node_interval;
-
         let child_intervals = [node_interval.chunk(2, 0), node_interval.chunk(2, 1)];
+        
         // if node != Ptr::null(){
         //     println!("t = {} int =>{:?} vals:{:?}",t & remainder_mask, node_interval, self.tree.bucket_pool[ self.tree.linear_tree[node].data.unwrap()] );
         // }
@@ -55,7 +53,6 @@ pub struct SearchIterFrame {
     interval: Interval,
     visited: bool,
 }
-
 
 /// Used to do a DFS
 pub struct IntervalSearchIter<'a, V> {

@@ -1,14 +1,14 @@
 use crate::{
     audio::{Interval, PCMSlice},
     collections::{
-        linked_list::{DoublyLinkedList, LLNodeOps, LLOps, LinkedList, OptionNode},
+        linked_list::{LLNodeOps, LLOps, LinkedList},
         segment_tree::{index_types::GlobalIndex, CircularSegmentTree, TreeIterState},
         Ptr,
     },
     math::FixedPoint,
     mem,
 };
-use std::{collections::HashMap, ops::Index};
+use std::collections::HashMap;
 
 pub mod streams;
 pub mod time;
@@ -78,8 +78,8 @@ pub trait HasAudioStream: Send {
     }
 
     fn calculate_samples_needed_fp(&self, dt: FixedPoint) -> FixedPoint {
-        let NUM_MILLISECONDS_IN_ONE_SECOND: FixedPoint = FixedPoint::from(1000);
-        (FixedPoint::from(self.frequency()) * dt) / NUM_MILLISECONDS_IN_ONE_SECOND
+        let milliseconds_in_one_seconds: FixedPoint = FixedPoint::from(1000);
+        (FixedPoint::from(self.frequency()) * dt) / milliseconds_in_one_seconds
     }
 
     fn calculate_samples_needed_f32(&self, dt: f32) -> f32 {
@@ -408,7 +408,7 @@ fn mix_resample_audio_both_2_channels(src: &[f32], dst: &mut [f32], _mix: &mut [
             //interpolated src
             let new_value = (nxt - cur) * lerp_t + cur;
             // let mixed_value = old_value + new_value;
-            let mixed_value = (old_value + new_value);
+            let mixed_value = old_value + new_value;
             dst[dst_index_sub_sample] = mixed_value;
         }
     }

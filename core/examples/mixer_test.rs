@@ -1,3 +1,5 @@
+#![allow(unused_variables)]
+
 use fluffl::{
     audio::{
         mixer::{streams::ImplicitWave, HasAudioStream, Mixer},

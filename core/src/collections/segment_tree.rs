@@ -7,7 +7,6 @@ use crate::{
     console_log,
     iterators::GroupIterator,
     math::FixedPoint,
-    mem::*,
 };
 use std::{
     fmt::Debug,
@@ -485,22 +484,10 @@ pub fn rand_lehmer64(state: &mut u128) -> u64 {
     (*state >> 64) as u64
 }
 
-#[test]
-fn asdasdasd() {
-    let a = 99;
-
-    let a_ref_0 = unsafe { force_static_mut(&a) };
-    let a_ref_1 = unsafe { force_static_mut(&a) };
-    println!("ref 0 = {}", a_ref_0);
-    println!("ref 1 = {}", a_ref_1);
-    *a_ref_0 += 1;
-    println!("ref 0 = {}", a_ref_0);
-    println!("ref 1 = {}", a_ref_1);
-}
 
 #[test]
 fn clip_interval_bug() {
-    let mut tree = CircularSegmentTree::<u32>::new(4, 1024);
+    let tree = CircularSegmentTree::<u32>::new(4, 1024);
     let mut clippings = [Interval::default(); 2];
     tree.clip_interval(Interval::from((900, 1050)), &mut clippings);
 }

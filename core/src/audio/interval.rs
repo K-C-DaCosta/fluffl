@@ -1,5 +1,5 @@
 use crate::{
-    collections::{fixed_stack::FixedStack, segment_tree::index_types::GlobalIndex},
+    collections::{segment_tree::index_types::GlobalIndex},
     math::FixedPoint,
 };
 use std::{fmt::Debug, ops::Deref};

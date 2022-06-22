@@ -1,5 +1,8 @@
 use super::*;
+
+#[allow(unused_imports)]
 use std::time::{Duration, Instant};
+
 #[test]
 fn delete_sanity() {
     let mut tree = CircularSegmentTree::<usize>::new(4, 1024);
