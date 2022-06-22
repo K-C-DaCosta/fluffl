@@ -239,8 +239,6 @@ fn insert_search_by_interval_shotgun_0() {
     (0..MAX_INTERVALS)
         .map(|k| range.chunk(MAX_INTERVALS as u64, k as usize))
         .for_each(|test_interval| {
-            println!("test interval ={:?}",test_interval);
-
             //preform and time tree search
             t0 = Instant::now();
             let tree_query = search_interval_collect_sorted(&tree, test_interval);

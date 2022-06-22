@@ -80,7 +80,7 @@ impl Interval {
     }
 
     pub fn to_tuple(&self) -> (u128, u128) {
-        (self.lo.as_int_i128() as u128, self.hi.as_int_i128() as u128)
+        (self.lo.as_int_i64() as u128, self.hi.as_int_i64() as u128)
     }
     pub fn to_tuple_f32(&self) -> (f32, f32) {
         (self.lo.as_f64() as f32, self.hi.as_f64() as f32)

@@ -56,6 +56,8 @@ pub struct SearchIterFrame {
     visited: bool,
 }
 
+
+/// Used to do a DFS
 pub struct IntervalSearchIter<'a, V> {
     tree: &'a CircularSegmentTree<V>,
     stack: FixedStack<64, SearchIterFrame>,

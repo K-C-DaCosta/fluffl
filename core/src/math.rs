@@ -8,6 +8,12 @@ const FRACTIONAL_MASK: i64 = (1i64 << FRACTIONAL_BITS) - 1;
 const FIXED_POINT_FACTOR: f64 = (1i64 << FRACTIONAL_BITS) as f64;
 const INV_FIXED_PONT_FACTOR_F64: f64 = 1.0 / FIXED_POINT_FACTOR;
 
+/// ## Description
+/// A Custom fixed point utility
+/// ### Specs
+/// - 64 bits with 16 fractional bits
+/// - has basic math functions, mod, floor, ceil, min,max,clamp and comparison
+/// - can convert from float to Fixedpoint and back  
 #[derive(PartialEq, Eq, PartialOrd, Ord, Copy, Clone, Default)]
 pub struct FixedPoint {
     data: i64,
@@ -40,8 +46,8 @@ impl FixedPoint {
         Self::from_bits(self.data & mask)
     }
 
-    pub fn as_int_i128(&self) -> i128 {
-        (self.data >> FRACTIONAL_BITS) as i128
+    pub fn as_int_i64(&self) -> i64 {
+        (self.data >> FRACTIONAL_BITS) as i64
     }
 
     pub fn as_f64(&self) -> f64 {
@@ -167,7 +173,7 @@ impl From<i128> for FixedPoint {
 
 impl From<u32> for FixedPoint {
     fn from(num: u32) -> Self {
-        let num  = num as i64;
+        let num = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -181,7 +187,6 @@ impl From<u64> for FixedPoint {
         }
     }
 }
-
 
 impl From<f32> for FixedPoint {
     fn from(num: f32) -> Self {
@@ -197,28 +202,28 @@ impl From<f64> for FixedPoint {
 #[test]
 fn consersion_tests() {
     let val = FixedPoint::from(25);
-    assert_eq!(25, val.as_int_i128());
+    assert_eq!(25, val.as_int_i64());
 
     let val = FixedPoint::from(-1);
-    assert_eq!(-1, val.as_int_i128());
+    assert_eq!(-1, val.as_int_i64());
 
     let val = FixedPoint::from(-10);
-    assert_eq!(-10, val.as_int_i128());
+    assert_eq!(-10, val.as_int_i64());
 
     //exhaustive test
     for k in -900_000_000..=900_000_000 {
         // println!("k ={}",k );
         let val = FixedPoint::from(k);
 
-        assert_eq!(k, val.as_int_i128(), "integer shotgun test failed");
+        assert_eq!(k, val.as_int_i64(), "integer shotgun test failed");
     }
 }
 
 #[test]
 fn fast_mod_tests() {
-    let normal_mod = (0..500_000i128).map(|k| k % 16).collect::<Vec<_>>();
-    let fixed_mod = (0..500_000i128)
-        .map(|k| FixedPoint::from(k).fast_mod(4).as_int_i128())
+    let normal_mod = (0..500_000i64).map(|k| k % 16).collect::<Vec<_>>();
+    let fixed_mod = (0..500_000i64)
+        .map(|k| FixedPoint::from(k).fast_mod(4).as_int_i64())
         .collect::<Vec<_>>();
 
     assert_eq!(&normal_mod, &fixed_mod);

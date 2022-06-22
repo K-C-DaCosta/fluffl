@@ -157,7 +157,11 @@ impl<V: 'static> CircularSegmentTree<V> {
             .flat_map(move |&i| IntervalSearchIter::new(&self, i).filter_map(|ptr| ptr))
     }
 
-    pub fn insert(&mut self, interval: Interval, data: V) {
+    /// ## Description
+    /// inserts interval and value associated with it
+    /// ## Returns
+    /// an Index referencing the (interval,data) pair, which you can then use to modify the data while its in the tree
+    pub fn insert(&mut self, interval: Interval, data: V) -> GlobalIndex {
         let alias = self.global_pool.allocate(GlobalInterval { interval, data });
 
         //clip the intervals and make them circular
@@ -167,6 +171,8 @@ impl<V: 'static> CircularSegmentTree<V> {
         for &interval in &clipping_results[0..num_clips] {
             self.insert_helper(interval, alias, self.linear_tree.root(), 0, 0, self.width);
         }
+
+        alias
     }
 
     fn insert_helper(
@@ -221,6 +227,32 @@ impl<V: 'static> CircularSegmentTree<V> {
         //insert
         let bucket_idx = linear_tree[root].data.unwrap();
         bucket_pool[bucket_idx].push(tree_interval);
+    }
+
+    /// ## Description
+    /// removes the value associated with the interval from the tree given an `idx`
+    /// ### Comments
+    /// - this traverses the entire tree, it's not fast.
+    /// - its an O(N) operation, where  N = 2^H, and H is the height of the tree  
+    pub fn remove_by_global_idx(&mut self, idx: GlobalIndex) -> Option<V> {
+        let global_root = self.linear_tree.root();
+        self.remove_by_global_idx_helper(global_root, idx);
+        self.global_pool.free(idx).map(|interval| interval.data)
+    }
+
+    fn remove_by_global_idx_helper(&mut self, root: Ptr, idx: GlobalIndex) {
+        if root == Ptr::null() {
+            return;
+        }
+
+        self.remove_buckets_by_predicate(root, |(_, clipped_interval)| {
+            clipped_interval.global_idx == idx
+        });
+
+        for k in 0..2 {
+            let child = self.linear_tree[root].children[k];
+            self.remove_by_global_idx_helper(child, idx);
+        }
     }
 
     pub fn remove<'a, 'b>(
@@ -292,59 +324,66 @@ impl<V: 'static> CircularSegmentTree<V> {
         })
     }
 
-    fn remove_helper(&mut self, mut root: Ptr, tree_interval: TreeInterval) {
+    fn remove_helper(&mut self, root: Ptr, tree_interval: TreeInterval) {
+        // traversing the tree  happens in the remove iterator
+        //simply remove
+        self.remove_buckets_by_predicate(root, |(_, e)| {
+            e.clipped_interval == tree_interval.clipped_interval
+        });
+    }
+
+    /// ## description
+    /// removes clipped intervals from a bucket, if nothing matches the predicate nothing will happen
+    /// ## comments
+    /// this doesnt traverse the tree, it simply removes clipped intervals from the bucket
+    fn remove_buckets_by_predicate<PRED>(&mut self, mut root: Ptr, predicate: PRED)
+    where
+        PRED: FnMut(&(usize, &TreeInterval)) -> bool,
+    {
         let global_root = self.linear_tree.root();
         let mut bucket_idx = self.linear_tree[root]
             .data
             .expect("Bucket index should always exist");
 
         //search for the tree interval index in the bucket in reverse
-        let tree_interval_index = self.bucket_pool[bucket_idx]
+        let tree_interval_index_opt = self.bucket_pool[bucket_idx]
             .iter()
             .enumerate()
             .rev()
-            .find(|(_, e)| e.clipped_interval == tree_interval.clipped_interval)
-            .map(|(i, _)| i)
-            .expect("item should exist");
+            .find(predicate)
+            .map(|(i, _)| i);
 
-        // println!("tree interval index = {}", tree_interval_index);
+        if let Some(tree_interval_index) = tree_interval_index_opt {
+            // method 2 - swap and pop:
+            // maybe this fixes the problem? edit( yup fixes it, because order in the bucket list not important to me
+            // also avoids shifting which keeps vec::iter() happy
 
-        //remove interval from bucket
+            self.bucket_pool[bucket_idx].swap_remove(tree_interval_index);
 
-        // method 1 - delete by shifting elements:
-        // this is causing problems deleting, shifting messes up iterator state
+            while root != Ptr::null()
+                && root != global_root
+                && self.bucket_pool[bucket_idx].is_empty()
+                && self.linear_tree[root].is_leaf()
+            {
+                let parent = self.linear_tree[root].parent;
+                bucket_idx = self.linear_tree[root].data.unwrap();
 
-        // self.bucket_pool[bucket_idx].remove(tree_interval_index); //<-- BUG
-
-        // method 2 - swap and pop:
-        // maybe this fixes the problem? edit( yup fixes it, because order in the bucket list not important to me
-        // also avoids shifting which keeps vec::iter() happy
-
-        self.bucket_pool[bucket_idx].swap_remove(tree_interval_index);
-
-        while root != Ptr::null()
-            && root != global_root
-            && self.bucket_pool[bucket_idx].is_empty()
-            && self.linear_tree[root].is_leaf()
-        {
-            let parent = self.linear_tree[root].parent;
-            bucket_idx = self.linear_tree[root].data.unwrap();
-
-            //remove node from parent
-            if parent != Ptr::null() {
-                if self.linear_tree[parent].children[0] == root {
-                    self.linear_tree[parent].children[0] = Ptr::null();
-                } else {
-                    self.linear_tree[parent].children[1] = Ptr::null();
+                //remove node from parent
+                if parent != Ptr::null() {
+                    if self.linear_tree[parent].children[0] == root {
+                        self.linear_tree[parent].children[0] = Ptr::null();
+                    } else {
+                        self.linear_tree[parent].children[1] = Ptr::null();
+                    }
                 }
+
+                self.linear_tree.free(root);
+                self.bucket_pool.free(bucket_idx);
+                root = parent;
+
+                //update bucket index
+                bucket_idx = self.linear_tree[root].data.unwrap();
             }
-
-            self.linear_tree.free(root);
-            self.bucket_pool.free(bucket_idx);
-            root = parent;
-
-            //update bucket index
-            bucket_idx = self.linear_tree[root].data.unwrap();
         }
     }
 
@@ -362,7 +401,7 @@ impl<V: 'static> CircularSegmentTree<V> {
         let hi_block = hi >> exponent;
         let num_blocks_interval_spans = (hi_block.floor() - lo_block.floor()) + FixedPoint::from(1);
 
-        let split_a = Interval::from((lo.fast_mod(exponent),width));
+        let split_a = Interval::from((lo.fast_mod(exponent), width));
         let split_b = Interval::from((zero, hi.fast_mod(exponent)));
         let splic_c = Interval::from((lo.fast_mod(exponent), hi.fast_mod(exponent)));
 
@@ -446,8 +485,6 @@ pub fn rand_lehmer64(state: &mut u128) -> u64 {
     (*state >> 64) as u64
 }
 
-
-
 #[test]
 fn asdasdasd() {
     let a = 99;
@@ -461,11 +498,9 @@ fn asdasdasd() {
     println!("ref 1 = {}", a_ref_1);
 }
 
-
-
 #[test]
-fn clip_interval_bug(){
+fn clip_interval_bug() {
     let mut tree = CircularSegmentTree::<u32>::new(4, 1024);
-    let mut clippings =  [Interval::default();2];
-    tree.clip_interval(Interval::from((900,1050)), &mut clippings);
+    let mut clippings = [Interval::default(); 2];
+    tree.clip_interval(Interval::from((900, 1050)), &mut clippings);
 }

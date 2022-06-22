@@ -296,8 +296,8 @@ impl Mixer {
 
                 let samples_required_truncated = samples_required
                     .ceil()
-                    .as_int_i128()
-                    .max((output_buffer.len()) as i128)
+                    .as_int_i64()
+                    .max((output_buffer.len()) as i64)
                     as usize;
 
                 let samples_read = current_track.pull_samples(
@@ -335,18 +335,22 @@ impl Mixer {
     fn normalize_audio(&mut self, mut output_buffer: PCMSlice<f32>) {
         let mut coef = self.clip_avoidance_dampening_coef;
 
-        let amplitude = output_buffer.iter().map(|&e|e.abs()).reduce(f32::max).unwrap_or(1.0);
-        let we_are_not_clipping = amplitude < 1.0; 
+        let amplitude = output_buffer
+            .iter()
+            .map(|&e| e.abs())
+            .reduce(f32::max)
+            .unwrap_or(1.0);
+        let we_are_not_clipping = amplitude < 1.0;
 
         if we_are_not_clipping {
-            coef += (1.0-coef)*0.0125;
-        }else{
-            let inv_amplitude = 1.0/amplitude;
-            coef += (inv_amplitude - coef)*0.9;
+            coef += (1.0 - coef) * 0.0125;
+        } else {
+            let inv_amplitude = 1.0 / amplitude;
+            coef += (inv_amplitude - coef) * 0.9;
         }
 
         for pcm in output_buffer.iter_mut() {
-            *pcm = (*pcm*coef).clamp(-1.0, 1.0);
+            *pcm = (*pcm * coef).clamp(-1.0, 1.0);
         }
 
         self.clip_avoidance_dampening_coef = coef;
@@ -404,7 +408,7 @@ fn mix_resample_audio_both_2_channels(src: &[f32], dst: &mut [f32], _mix: &mut [
             //interpolated src
             let new_value = (nxt - cur) * lerp_t + cur;
             // let mixed_value = old_value + new_value;
-            let mixed_value = (old_value + new_value) ;
+            let mixed_value = (old_value + new_value);
             dst[dst_index_sub_sample] = mixed_value;
         }
     }
