@@ -523,7 +523,7 @@ impl Mixer {
             }
             OffsetKind::Start { offset } => {
                 let offset = FixedPoint::from(offset);
-                global_t.from_time_in_ms_fp((global_t_in_ms + offset).max(FixedPoint::zero()))
+                global_t.from_time_in_ms_fp((offset).max(FixedPoint::zero()))
             }
         };
 
@@ -605,7 +605,6 @@ impl Mixer {
         }
     }
 
-    
     /// sets mixer `speed`.
     /// ## Comments
     /// - this should be obvious but it will affect the mixers internal timing

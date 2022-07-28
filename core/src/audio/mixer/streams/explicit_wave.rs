@@ -21,6 +21,7 @@ impl Default for ScaleMode {
 pub struct ExplicitWave {
     state: StreamState,
     explicit_wave: AdhocCodec,
+    /// the duration of the wave expessed as a rational number 
     explicit_wave_duration: SampleTime,
     scale_mode: ScaleMode,
 }
@@ -253,12 +254,40 @@ impl HasAudioStream for ExplicitWave {
     fn seek(&mut self, global_time: SampleTime) {
         let global_interval = self.state.global_interval;
         let elapsed_time_in_ms = global_interval.distance();
+        let frequency = self.frequency();
 
-        let new_local_time_in_ms = (global_time.elapsed_in_ms_fp() - global_interval.lo)
-            .clamp(FixedPoint::zero(), elapsed_time_in_ms);
+        match self.scale_mode {
+            ScaleMode::Repeat => {
+                //
+                let explicit_wave_duration_ms = self.explicit_wave_duration.elapsed_in_ms_u64();
 
-        self.explicit_wave
-            .seek(SeekFrom::Start(new_local_time_in_ms.as_int_i64() as u64))
+                let new_local_time_in_ms = (global_time.elapsed_in_ms_fp() - global_interval.lo)
+                    .clamp(FixedPoint::zero(), elapsed_time_in_ms)
+                    .as_int_i64();
+
+                // circular time because the track interval may over-extend the duration of the explicit wave
+                let new_local_time_in_ms_circular =
+                    new_local_time_in_ms as u64 % explicit_wave_duration_ms;
+
+                // seek to circular time
+                self.explicit_wave
+                    .seek(SeekFrom::Start(new_local_time_in_ms_circular));
+
+                // update local time cursor
+                self.state.local_time = audio::calculate_samples_needed_per_channel_st(
+                    frequency,
+                    FixedPoint::from(new_local_time_in_ms),
+                );
+            }
+            ScaleMode::Stretch => {
+                let new_local_time_in_ms = (global_time.elapsed_in_ms_fp() - global_interval.lo)
+                    .clamp(FixedPoint::zero(), elapsed_time_in_ms)
+                    .as_int_i64();
+
+                self.explicit_wave
+                    .seek(SeekFrom::Start(new_local_time_in_ms as u64))
+            }
+        };
     }
 }
 

@@ -95,6 +95,15 @@ async fn main_loop(
 
     mixer_device.send_request(MixerRequest::FetchMixerTime);
 
+    main_state.t += 0.01;
+    let t = main_state.t;
+    let x = main_state.pos_x;
+    let y = main_state.pos_y;
+
+    //draw seek time
+    let max_seek_time_ms = 300_000.0;
+    let seek_time = (x / 500.0) * max_seek_time_ms;
+
     for event in win_ptr.window_mut().get_events().flush_iter_mut() {
         match event {
             EventKind::Quit => running.set(false),
@@ -128,13 +137,13 @@ async fn main_loop(
                         .expect("failed to read music file");
 
                     let track_id = mixer_device.gen_id();
-                
+
                     mixer_device.send_request(MixerRequest::AddTrack(
                         track_id,
                         OffsetKind::current(),
                         Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
                     ));
-                    
+
                     mixer_device.send_request(MixerRequest::MutateMixer(track_id, |tid, mixer| {
                         let interval = mixer.track_get_interval(tid)?;
                         let new_interval_that_loops_10_times =
@@ -263,6 +272,18 @@ async fn main_loop(
                 main_state.pos_x = x as f32;
                 main_state.pos_y = y as f32;
             }
+            EventKind::MouseDown {
+                button_code: MouseCode::LEFT_BUTTON,
+                ..
+            } => {
+                // console_log!("mouse down at: [x:{},y:{}]\n", x, y);
+                // console_log!("{}\n", button_code);
+
+                println!("seeked at:{}", time_to_string(seek_time as i64));
+                mixer_device.send_request(MixerRequest::Seek(OffsetKind::Start {
+                    offset: seek_time as u64,
+                }));
+            }
             EventKind::MouseUp { button_code, x, y } => {
                 console_log!("mouse down at: [x:{},y:{}]\n", x, y);
                 console_log!("{}\n", button_code);
@@ -291,37 +312,40 @@ async fn main_loop(
         gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
     }
 
-    main_state.t += 0.01;
-    let t = main_state.t;
-    let x = main_state.pos_x;
-    let y = main_state.pos_y;
-
     let speed_t = ((FixedPoint::from(x) - 0) / 200).clamp(FixedPoint::from(0), FixedPoint::from(1));
     let speed = speed_t * 3;
 
     //draw text here
     let caption_list = [format!(
-        "{:.2}x[{:.2}]",
-        main_state.mixer_time.elapsed_in_ms_f32() / 1000.0,
-        speed.as_f64()
+        "{time:}x[{speed:.2}]",
+        time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_int_i64()),
+        speed = speed.as_f64()
     )];
     caption_list.iter().enumerate().for_each(|(k, caption)| {
         // let size = (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.;
         let size = 100.0;
         writer.draw_text_line(
             caption,
-            x,
-            y + 64. * k as f32,
+            0.,
+            0. + 64. * k as f32,
             size,
             Some(win_ptr.window().get_bounds()),
         );
     });
 
-    mixer_device.modify_state(|state| {
-        let mixer_state = state?;
-        mixer_state.set_mixer_speed(speed).ok()?;
-        Some(())
-    });
+    writer.draw_text_line(
+        &time_to_string(seek_time as i64),
+        x + 10.0,
+        y,
+        32.0,
+        Some(win_ptr.window().get_bounds()),
+    );
+
+    // mixer_device.modify_state(|state| {
+    //     let mixer_state = state?;
+    //     mixer_state.set_mixer_speed(speed).ok()?;
+    //     Some(())
+    // });
 
     let responses_iter = main_state.mixer_device.recieve_responses();
 
@@ -332,5 +356,23 @@ async fn main_loop(
             }
             _ => (),
         }
+    }
+}
+
+fn time_to_string(elapsed_time_ms: i64) -> String {
+    let total_seconds = elapsed_time_ms / 1000;
+    let total_minutes = total_seconds / 60;
+    let total_hours = total_minutes / 60;
+    if total_seconds < 60 {
+        format!("{}s", total_seconds % 60)
+    } else if total_seconds < 3600 {
+        format!("{}m:{}s", total_minutes % 60, total_seconds % 60)
+    } else {
+        format!(
+            "{}h:{}m:{}s",
+            total_hours,
+            total_minutes % 60,
+            total_seconds % 60
+        )
     }
 }

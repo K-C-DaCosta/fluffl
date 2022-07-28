@@ -23,6 +23,8 @@ pub type DeviceCB<State> = fn(&mut State, &mut [f32]);
 
 /// Platform specific code awaits
 pub use audio_util::*;
+
+use self::mixer::SampleTime;
 /// A trait used to define properties of the sound before playing
 pub trait GenericAudioSpecs {
     fn sample_rate(&self) -> Option<u32>;
@@ -97,23 +99,31 @@ where
 }
 
 /// given `frequency` (in sample/sec) and `dt`(in milliseconds), it can calculate samples required per channel
+pub fn calculate_samples_needed_per_channel_st(frequency: u32, dt: FixedPoint) -> SampleTime {
+    const MILLISECONDS_IN_ONE_SEC: i32 = 1000;
+    let sample_count = (FixedPoint::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
+    SampleTime::new()
+        .with_sample_rate(frequency)
+        .with_sample_count(sample_count.as_int_i64() as u64)
+}
+
+/// given `frequency` (in sample/sec) and `dt`(in milliseconds), it can calculate samples required per channel
 pub fn calculate_samples_needed_per_channel_fp(frequency: u32, dt: FixedPoint) -> FixedPoint {
-    let milliseconds_in_one_seconds: FixedPoint = FixedPoint::from(1000);
-    let result = (FixedPoint::from(frequency) * dt) / milliseconds_in_one_seconds;
-    let mut samps = result.as_f64();
-    samps += 1.0;
-    samps -= 1.0;
+    const MILLISECONDS_IN_ONE_SEC: i32 = 1000;
+    let result = (FixedPoint::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
+    // let mut samps = result.as_f64();
+    // samps += 1.0;
+    // samps -= 1.0;
     result
 }
 
-
-/// given a `num_samples` and `frequency` it returns the elapsed time in ms 
+/// given a `num_samples` and `frequency` it returns the elapsed time in ms
 /// ## Comments
 /// this is a single channel calculation
 pub fn calculate_elapsed_time_in_ms_fp(frequency: u32, num_samples: usize) -> FixedPoint {
     let result = FixedPoint::from(num_samples as u64 * 1000) / FixedPoint::from(frequency);
-    let mut samps = result.as_f64();
-    samps += 1.0;
-    samps -= 1.0;
+    // let mut samps = result.as_f64();
+    // samps += 1.0;
+    // samps -= 1.0;
     result
 }
