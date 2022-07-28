@@ -11,10 +11,10 @@
             "cargo": {
                 "args": [
                     "build",
-                    "--example=mixer_test"
+                    "--example=mixer_demo"
                 ],
                 "filter": {
-                    "name": "mixer_test",
+                    "name": "mixer_demo",
                     "kind": "example"
                 }
             },

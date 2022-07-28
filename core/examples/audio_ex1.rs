@@ -108,52 +108,52 @@ pub async fn main() {
                     }
                     EventKind::KeyDown { code } => {
                         if let KeyCode::KEY_R = code {
-                            device.modify_state(|state_opt| {
-                                state_opt.map(|mp| {
-                                    mp.state = PlayState::RampUp(1000);
-                                    mp.music_src.seek_to_start();
-                                });
+                            device.modify_state(|mp_opt| {
+                                let mp = mp_opt?;
+                                mp.state = PlayState::RampUp(1000);
+                                mp.music_src.seek_to_start();
+                                Some(())
                             })
                         }
                         if let KeyCode::PAGE_UP = code {
-                            device.modify_state(|state_opt| {
-                                state_opt.map(|mp| {
-                                    mp.volume = (mp.volume + 0.1).min(1.0).max(0.0);
-                                });
+                            device.modify_state(|mp_opt| {
+                                let mp = mp_opt?;
+                                mp.volume = (mp.volume + 0.1).min(1.0).max(0.0);
+                                Some(())
                             })
                         }
                         if let KeyCode::PAGE_DOWN = code {
                             device.modify_state(|state_opt| {
-                                state_opt.map(|mp| {
-                                    mp.volume = (mp.volume - 0.1).min(1.0).max(0.0);
-                                });
+                                let mp = state_opt?;
+                                mp.volume = (mp.volume - 0.1).min(1.0).max(0.0);
+                                Some(())
                             })
                         }
                         if let KeyCode::SPACE = code {
                             device.modify_state(|state_opt| {
-                                state_opt.map(|s| {
-                                    if let PlayState::Paused = s.state {
-                                        s.ticks = 0;
-                                        s.state = PlayState::RampUp(32000);
-                                    }
-                                });
+                                let s = state_opt?;
+                                if let PlayState::Paused = s.state {
+                                    s.ticks = 0;
+                                    s.state = PlayState::RampUp(32000);
+                                }
+                                Some(())
                             });
                             device.resume();
                         }
                         if let KeyCode::KEY_Y = code {
                             device.modify_state(|state_opt| {
-                                state_opt.map(|s| {
-                                    if let PlayState::Playing = s.state {
-                                        s.ticks = 0;
-                                        s.state = PlayState::Paused;
-                                    }
-                                });
+                                let s = state_opt?;
+                                if let PlayState::Playing = s.state {
+                                    s.ticks = 0;
+                                    s.state = PlayState::Paused;
+                                }
+                                Some(())
                             });
                             device.resume();
                         }
                         console_log!("char = {}\n", code.key_val().unwrap());
                     }
-                    EventKind::MouseMove { x, y,.. } => {
+                    EventKind::MouseMove { x, y, .. } => {
                         // console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
                         ms.pos_x = x as f32;
                         ms.pos_y = y as f32;
@@ -177,7 +177,7 @@ pub async fn main() {
             let t = main_state.inner.borrow().t;
             let x = main_state.inner.borrow().pos_x;
             let y = main_state.inner.borrow().pos_y;
-            
+
             //draw text here
             let caption_list = ["fluffl"];
             caption_list.iter().enumerate().for_each(|(k, caption)| {

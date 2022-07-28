@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::*; 
+use super::*;
 
 pub struct GlobalIntervalPool<V> {
     pool: Vec<Option<GlobalInterval<V>>>,
@@ -8,7 +8,6 @@ pub struct GlobalIntervalPool<V> {
 }
 
 impl<V> GlobalIntervalPool<V> {
-
     pub fn new() -> Self {
         Self {
             pool: Vec::new(),
@@ -26,15 +25,23 @@ impl<V> GlobalIntervalPool<V> {
         }
     }
 
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a Option<GlobalInterval<V>>> {
+        self.pool.iter()
+    }
+    
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Option<GlobalInterval<V>>> {
+        self.pool.iter_mut()
+    }
+
     pub fn free(&mut self, idx: GlobalIndex) -> Option<GlobalInterval<V>> {
         self.free_slots.push(idx);
         self[idx].take()
     }
 
-    pub fn free_slots(&self)->&[GlobalIndex]{
+    pub fn free_slots(&self) -> &[GlobalIndex] {
         self.free_slots.as_slice()
     }
-    pub fn pool(&self)->&[Option<GlobalInterval<V>>]{
+    pub fn pool(&self) -> &[Option<GlobalInterval<V>>] {
         self.pool.as_slice()
     }
 }
@@ -49,7 +56,6 @@ impl<V> IndexMut<GlobalIndex> for GlobalIntervalPool<V> {
         &mut self.pool[index.idx]
     }
 }
-
 
 pub struct BucketPool {
     /// a list of interval buckets
@@ -75,12 +81,12 @@ impl BucketPool {
             BucketIndex::from_usize(self.pool_list.len() - 1)
         }
     }
-    
-    pub fn pool(&self)->&[Vec<TreeInterval>]{
-        self.pool_list.as_slice()
-    } 
 
-    pub fn free_pools(&self)->&[BucketIndex]{
+    pub fn pool(&self) -> &[Vec<TreeInterval>] {
+        self.pool_list.as_slice()
+    }
+
+    pub fn free_pools(&self) -> &[BucketIndex] {
         self.free_pools.as_slice()
     }
 

@@ -26,14 +26,16 @@ impl<'a, V> Iterator for ScalarSearchIter<'a, V> {
         let t = self.t;
         let node_interval = self.node_interval;
         let child_intervals = [node_interval.chunk(2, 0), node_interval.chunk(2, 1)];
-        
+        let wrapped_t = t.fast_mod(exponent as u8);
+
         // if node != Ptr::null(){
         //     println!("t = {} int =>{:?} vals:{:?}",t & remainder_mask, node_interval, self.tree.bucket_pool[ self.tree.linear_tree[node].data.unwrap()] );
         // }
 
         (node != Ptr::null()).then(|| {
             let node_info = &self.tree.linear_tree[node];
-            if child_intervals[0].is_within(t.fast_mod(exponent as u8)) {
+
+            if child_intervals[0].is_within(wrapped_t) {
                 self.node = node_info.children[0];
                 self.node_interval = child_intervals[0];
             } else {

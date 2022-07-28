@@ -65,6 +65,26 @@ fn delete_sanity() {
 }
 
 #[test]
+fn delete_by_global_id_simpe_test() {
+    let mut tree = CircularSegmentTree::<i32>::new(3, 1024);
+    
+    let gid = tree.insert(Interval::from((0, 50)), 5);    
+    tree.insert(Interval::from((50, 100)), 6);
+    tree.insert(Interval::from((100, 110)), 7);
+
+    // println!("tree before:");
+    // tree.print_tree(".");
+
+    let item = tree.remove_by_global_idx(gid);
+
+    // println!("tree after:");
+    // tree.print_tree(".");
+
+
+    assert_eq!(item, Some(5));
+}
+
+#[test]
 fn delete_overlapping_segments() {
     let mut tree = CircularSegmentTree::<usize>::new(4, 1024);
     let interval = Interval::from((1, 100));

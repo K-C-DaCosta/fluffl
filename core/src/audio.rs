@@ -1,7 +1,6 @@
+use crate::math::FixedPoint;
 
-
-
-//the dektop implementation of sound is in the sdl2_audio module 
+//the dektop implementation of sound is in the sdl2_audio module
 #[cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))]
 #[path = "./audio/sdl2_audio.rs"]
 pub mod audio_util;
@@ -11,14 +10,13 @@ pub mod audio_util;
 #[path = "./audio/web_audio.rs"]
 pub mod audio_util;
 
-pub mod mixer; 
-pub mod interval; 
+pub mod interval;
+pub mod mixer;
 pub mod pcm_util;
 
 //expose these from audio itself
 pub use interval::Interval;
 pub use pcm_util::PCMSlice;
-
 
 /// When playing/generating sound a callback will be required and it will need to be of this format.
 pub type DeviceCB<State> = fn(&mut State, &mut [f32]);
@@ -29,7 +27,7 @@ pub use audio_util::*;
 pub trait GenericAudioSpecs {
     fn sample_rate(&self) -> Option<u32>;
     fn bits_per_sample(&self) -> Option<u32>;
-    fn channels(&self) ->Option<u32>;
+    fn channels(&self) -> Option<u32>;
 }
 
 /// A POD-ish struct for defining properties of the sound we with to play \
@@ -77,7 +75,7 @@ where
         }
     }
     ///A callback is needed to supply the audio backend with sound samples.
-    ///Sound samples are expected to be interleaved-pcm 
+    ///Sound samples are expected to be interleaved-pcm
     pub fn with_callback(mut self, cb: Callback) -> Self {
         self.cb = Some(cb);
         self
@@ -96,4 +94,26 @@ where
     pub fn callback(&self) -> Callback {
         self.cb.unwrap()
     }
+}
+
+/// given `frequency` (in sample/sec) and `dt`(in milliseconds), it can calculate samples required per channel
+pub fn calculate_samples_needed_per_channel_fp(frequency: u32, dt: FixedPoint) -> FixedPoint {
+    let milliseconds_in_one_seconds: FixedPoint = FixedPoint::from(1000);
+    let result = (FixedPoint::from(frequency) * dt) / milliseconds_in_one_seconds;
+    let mut samps = result.as_f64();
+    samps += 1.0;
+    samps -= 1.0;
+    result
+}
+
+
+/// given a `num_samples` and `frequency` it returns the elapsed time in ms 
+/// ## Comments
+/// this is a single channel calculation
+pub fn calculate_elapsed_time_in_ms_fp(frequency: u32, num_samples: usize) -> FixedPoint {
+    let result = FixedPoint::from(num_samples as u64 * 1000) / FixedPoint::from(frequency);
+    let mut samps = result.as_f64();
+    samps += 1.0;
+    samps -= 1.0;
+    result
 }

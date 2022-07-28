@@ -7,6 +7,7 @@ use crate::{
     console_log,
     iterators::GroupIterator,
     math::FixedPoint,
+    mem::force_static_mut,
 };
 use std::{
     fmt::Debug,
@@ -35,10 +36,10 @@ impl TreeIterState {
     }
 }
 
-/// A Special segment tree where root is segment: [0,width]
+/// A Special segment tree where root is segment: \[0,`width` \]
 /// all segments are interpreted to be circular
 pub struct CircularSegmentTree<V> {
-    max_depth: u32,
+    max_height: u32,
     /// `width` = 2^`exponent`
     width: u64,
     /// `exponent` is between 0-127
@@ -49,7 +50,7 @@ pub struct CircularSegmentTree<V> {
 }
 
 impl<V: 'static> CircularSegmentTree<V> {
-    pub fn new(max_depth: u32, width: u64) -> Self {
+    pub fn new(max_height: u32, width: u64) -> Self {
         assert_eq!(width.count_ones(), 1, "width needs to be a power of two");
 
         let mut bucket_pool = BucketPool::new();
@@ -59,7 +60,7 @@ impl<V: 'static> CircularSegmentTree<V> {
         linear_tree.set_root(root);
 
         Self {
-            max_depth,
+            max_height,
             width,
             exponent: (width - 1).count_ones() as u64,
             linear_tree,
@@ -89,8 +90,10 @@ impl<V: 'static> CircularSegmentTree<V> {
             .filter(move |(_gidx, gi)| gi.is_within(time))
     }
 
-    ///searches buckets that intersect `t`, where `t` is not assumed to be circular
-    ///but gets converted to circular t internally
+    /// searches buckets that intersect `t`, where `t` is not assumed to be circular
+    /// but gets converted to circular t internally
+    /// ## Comments
+    /// - For whatever reason, scalar searches are fastest kind of iterator
     fn bucket_search_scalar<'a>(&'a self, t: FixedPoint) -> ScalarSearchIter<'a, V> {
         ScalarSearchIter::new(self, t)
     }
@@ -179,7 +182,7 @@ impl<V: 'static> CircularSegmentTree<V> {
         interval: Interval,
         alias: GlobalIndex,
         mut root: Ptr,
-        mut depth: u32,
+        mut height: u32,
         mut lo: u64,
         mut hi: u64,
     ) {
@@ -191,7 +194,7 @@ impl<V: 'static> CircularSegmentTree<V> {
             global_idx: alias,
         };
 
-        while depth < self.max_depth {
+        while height < self.max_height {
             let mid = lo + (hi - lo) / 2;
             let overlapping_left = interval.is_overlapping(&Interval::from((lo, mid)));
             let overlapping_right = interval.is_overlapping(&Interval::from((mid, hi)));
@@ -215,10 +218,10 @@ impl<V: 'static> CircularSegmentTree<V> {
                 root = linear_tree[root].children[selected_subtree];
 
                 //increment depth counter
-                depth += 1;
+                height += 1;
             } else {
                 //cant go any further without splitting
-                //so stop and insert below
+                //so stop and insert 
                 break;
             }
         }
@@ -231,12 +234,37 @@ impl<V: 'static> CircularSegmentTree<V> {
     /// ## Description
     /// removes the value associated with the interval from the tree given an `idx`
     /// ### Comments
-    /// - this traverses the entire tree, it's not fast.
-    /// - its an O(N) operation, where  N = 2^H, and H is the height of the tree  
-    pub fn remove_by_global_idx(&mut self, idx: GlobalIndex) -> Option<V> {
-        let global_root = self.linear_tree.root();
-        self.remove_by_global_idx_helper(global_root, idx);
-        self.global_pool.free(idx).map(|interval| interval.data)
+    /// - works by binary searching the tree of buckets looking for anything that points to 'gid' and removing it
+    /// - its an O(H) = O(log(N)) operation, where  N = 2^H, and H is the height of the tree   
+    pub fn remove_by_global_idx(&mut self, gid: GlobalIndex) -> Option<V> {
+        // this is safe to do, but breaks rust aliasing rules so
+        let tree_ref = unsafe { force_static_mut(self) };
+
+        //fetch global interval
+        let global_interval = self.global_pool[gid]
+            .as_ref()
+            .expect("gidx should exist")
+            .interval;
+        //compute clipped intervals from global
+        let mut clipped_intervals = [Interval::default(); 2];
+        let num_clips = self.clip_interval(global_interval, &mut clipped_intervals);
+
+        //binary search through buckets and remove intervals that alias gid
+        clipped_intervals[0..num_clips]
+            .iter()
+            .flat_map(|clipped_interval| {
+                //use the midpoint of the clipped intervals as a lookup into the tree
+                let midpoint = clipped_interval.midpoint();
+                self.bucket_search_scalar(midpoint)
+            })
+            .for_each(|bucket_ptr| {
+                tree_ref
+                    .remove_item_from_bucket_by_predicate(bucket_ptr, |(_, clipped_interval)| {
+                        clipped_interval.global_idx == gid
+                    });
+            });
+
+        self.global_pool.free(gid).map(|interval| interval.data)
     }
 
     fn remove_by_global_idx_helper(&mut self, root: Ptr, idx: GlobalIndex) {
@@ -244,7 +272,7 @@ impl<V: 'static> CircularSegmentTree<V> {
             return;
         }
 
-        self.remove_buckets_by_predicate(root, |(_, clipped_interval)| {
+        self.remove_item_from_bucket_by_predicate(root, |(_, clipped_interval)| {
             clipped_interval.global_idx == idx
         });
 
@@ -254,6 +282,10 @@ impl<V: 'static> CircularSegmentTree<V> {
         }
     }
 
+    /// ## Description
+    /// Removes **ALL** values, `V`, that *exactly* match that `query_interval`
+    /// ### Returns
+    /// An iterator that when executed will remove an item that matches `query_interval`
     pub fn remove<'a, 'b>(
         &'a mut self,
         state: &'b mut TreeIterState,
@@ -326,16 +358,16 @@ impl<V: 'static> CircularSegmentTree<V> {
     fn remove_helper(&mut self, root: Ptr, tree_interval: TreeInterval) {
         // traversing the tree  happens in the remove iterator
         //simply remove
-        self.remove_buckets_by_predicate(root, |(_, e)| {
+        self.remove_item_from_bucket_by_predicate(root, |(_, e)| {
             e.clipped_interval == tree_interval.clipped_interval
         });
     }
 
     /// ## description
-    /// removes clipped intervals from a bucket, if nothing matches the predicate nothing will happen
-    /// ## comments
-    /// this doesnt traverse the tree, it simply removes clipped intervals from the bucket
-    fn remove_buckets_by_predicate<PRED>(&mut self, mut root: Ptr, predicate: PRED)
+    /// removes clipped intervals from a bucket. If nothing matches the predicate, nothing will happen
+    /// ### comments
+    /// this function **DOES NOT** traverse the tree, it simply removes clipped intervals from the bucket at `root`
+    fn remove_item_from_bucket_by_predicate<PRED>(&mut self, mut root: Ptr, predicate: PRED)
     where
         PRED: FnMut(&(usize, &TreeInterval)) -> bool,
     {
@@ -458,6 +490,20 @@ impl<V: 'static> CircularSegmentTree<V> {
             space_stack.pop();
         }
     }
+
+    pub fn values(&self) -> impl Iterator<Item = &V> {
+        self.global_pool
+            .iter()
+            .filter_map(|item| item.as_ref())
+            .map(|item| &item.data)
+    }
+
+    pub fn values_mut(&mut self) -> impl Iterator<Item = &mut V> {
+        self.global_pool
+            .iter_mut()
+            .filter_map(|item| item.as_mut())
+            .map(|item| &mut item.data)
+    }
 }
 
 impl<V> Index<GlobalIndex> for CircularSegmentTree<V> {
@@ -483,7 +529,6 @@ pub fn rand_lehmer64(state: &mut u128) -> u64 {
     *state = state.wrapping_mul(0xda942042e4dd58b5);
     (*state >> 64) as u64
 }
-
 
 #[test]
 fn clip_interval_bug() {

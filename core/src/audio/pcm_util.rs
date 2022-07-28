@@ -20,8 +20,8 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         }
     }
 
-    /// create a buffer with same `frequency` and `channels` but with a different buffer
-    pub fn with_buffer<'b>(mut self, pcm_buffer: &'b [T]) -> Self
+    /// creates new a buffer with same `frequency` and `channels` but with a different slice backing it
+    pub fn with_slice<'b>(mut self, pcm_buffer: &'b [T]) -> Self
     where
         'b: 'a,
     {
@@ -37,7 +37,10 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         self.channels
     }
 
-    pub fn num_samples(&self) -> u64 {
+    pub fn samples(&self)->usize{
+        self.planar_pcm.len()
+    }
+    pub fn samples_per_channel(&self) -> u64 {
         (self.planar_pcm.len() as u32 / self.channels as u32) as u64
     }
 
@@ -48,8 +51,8 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         let ptr = self.planar_pcm as *const [T] as *mut [T];
         unsafe { &mut *ptr }
     }
-
-    pub fn zero_slice(&mut self) {
+    /// sets everything in the slice to zero (when T is numeric)
+    pub fn set_zero(&mut self) {
         self.iter_mut().for_each(|e| *e = T::default())
     }
 

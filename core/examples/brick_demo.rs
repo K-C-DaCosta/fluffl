@@ -1,5 +1,4 @@
 use fluffl::{
-    prelude::*, 
     audio::*,
     extras::{
         audio::{music_player::*, ogg::*, *},
@@ -7,10 +6,10 @@ use fluffl::{
         text_writer::*,
     },
     io::*,
+    prelude::*,
     window::{event_util::*, glow, glow::*, *},
     GlowGL, *,
 };
-
 
 /// Audio types can get really long so this must be done
 type ShortState = MusicPlayer<OggBuffer>;
@@ -180,7 +179,7 @@ impl BrickAppState {
 }
 
 #[fluffl(Debug)]
-pub async fn main(){
+pub async fn main() {
     let window = FlufflWindow::init(FLUFFL_CONFIG).expect("init failed");
     let gl = window.gl();
 
@@ -327,10 +326,9 @@ pub fn draw_game_stage(
         .boss_intro_track
         .as_mut()
         .unwrap()
-        .modify_state(|state_opt| {
-            if state_opt.is_some() {
-                intro_state = state_opt.unwrap().state;
-            }
+        .modify_state(|music_state| {
+            intro_state = music_state?.state;
+            Some(())
         });
 
     //get main track's state
@@ -340,9 +338,8 @@ pub fn draw_game_stage(
         .as_mut()
         .unwrap()
         .modify_state(|state_opt| {
-            if state_opt.is_some() {
-                main_state = state_opt.unwrap().state;
-            }
+            main_state = state_opt?.state;
+            Some(())
         });
 
     // start main music track when intro is finished
@@ -350,10 +347,10 @@ pub fn draw_game_stage(
     if intro_state.is_paused() && main_state.is_paused() {
         let main_track = brick_state.boss_main_track.as_mut().unwrap();
         main_track.modify_state(|opt_state| {
-            opt_state.map(|mp| {
-                mp.ticks = 0;
-                mp.state = PlayState::RampUp(1);
-            });
+            let mp = opt_state?;
+            mp.ticks = 0;
+            mp.state = PlayState::RampUp(1);
+            Some(())
         });
         main_track.resume();
     }
@@ -469,10 +466,10 @@ pub fn handle_events(
                             .as_mut()
                             .map(|track| {
                                 track.modify_state(|state_opt| {
-                                    state_opt.map(|music_player| {
-                                        music_player.ticks = 0;
-                                        music_player.state = PlayState::RampUp(3600);
-                                    });
+                                    let music_player = state_opt?;
+                                    music_player.ticks = 0;
+                                    music_player.state = PlayState::RampUp(3600);
+                                    Some(())
                                 });
                                 track.resume();
                             });

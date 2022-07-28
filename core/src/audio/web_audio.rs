@@ -6,13 +6,13 @@ use wasm_bindgen::JsCast;
 // use wasm_bindgen_futures::*;
 use web_sys::*;
 
-use std::cell::RefCell;
-use std::rc::Rc;
-use std::sync::Arc;
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use crate::collections::linked_list::*;
-use crate::console::*;
-use crate::*;
+use crate::{
+    collections::{linked_list::*, Ptr},
+    console::*,
+    *,
+};
 
 struct ThreadState {
     play_time: f64,
@@ -39,7 +39,7 @@ fn get_audio_thread_list_mut() -> &'static mut LinkedList<Option<ThreadState>> {
     unsafe { AUDIO_THREADS.as_mut().unwrap() }
 }
 
-fn get_thread_state<'a>(thread_id: u32) -> Option<&'a ThreadState> {
+fn get_thread_state<'a>(thread_id: Ptr) -> Option<&'a ThreadState> {
     get_audio_thread_list()[thread_id]
         .get_data()
         .unwrap()
@@ -47,7 +47,7 @@ fn get_thread_state<'a>(thread_id: u32) -> Option<&'a ThreadState> {
         .map(|thread_state| thread_state)
 }
 
-fn get_thread_state_mut<'a>(thread_id: u32) -> Option<&'a mut ThreadState> {
+fn get_thread_state_mut<'a>(thread_id: Ptr) -> Option<&'a mut ThreadState> {
     get_audio_thread_list_mut()[thread_id]
         .get_data_mut()
         .unwrap()
@@ -56,7 +56,7 @@ fn get_thread_state_mut<'a>(thread_id: u32) -> Option<&'a mut ThreadState> {
 }
 
 fn can_buffer(
-    thread_id: u32,
+    thread_id: Ptr,
     buffer_time: f64,
     audio_context: Arc<RefCell<FlufflAudioContext>>,
 ) -> bool {
@@ -85,7 +85,7 @@ impl Drop for FlufflAudioContext {
 pub struct FlufflAudioDeviceContext<F, S> {
     glue_callback: F,
     state: Rc<RefCell<S>>,
-    thread_id: u32,
+    thread_id: Ptr,
     audio_context: Arc<RefCell<FlufflAudioContext>>,
 }
 

@@ -4,9 +4,11 @@ use std::sync::{Arc, Mutex};
 
 /// The platform specific  Audio context for the desktop
 /// Here I use sdl2 as the backend
+#[derive(Clone)]
 pub struct FlufflAudioContext {
-    pub audio_ss: sdl2::AudioSubsystem,
+    pub audio_ss: Arc<RefCell<sdl2::AudioSubsystem>>,
 }
+
 /// # Description 
 /// You use this to actually start playing the sound.
 /// This struct is just a generic 'handler'/'pointer' to the audio backend, and to the state that 
@@ -30,7 +32,7 @@ where
     Callback: FnMut(&mut State, &mut [f32]) + Copy + Send + 'static,
     State: Send + 'static,
 {
-    fluffl_audio_device: Arc<Mutex<RefCell<FlufflAudioDevice<Callback, State>>>>,
+    fluffl_audio_device: Arc<Mutex<FlufflAudioDevice<Callback, State>>>,
     sdl2_device: Arc<sdl2::audio::AudioDevice<FlufflCallback<Callback, State>>>,
 }
 
@@ -52,10 +54,10 @@ where
     Callback: FnMut(&mut State, &mut [f32]) + Copy + Send,
     State: Send,
 {
-    /// creates a platform-agnostic FlufflAudioDefice
+    /// creates a platform-agnostic FlufflAudioDevice
     pub fn new(
         core: AudioDeviceCore<Callback, State>,
-        audio_context: Arc<RefCell<FlufflAudioContext>>,
+        audio_context: FlufflAudioContext,
     ) -> FlufflAudioDeviceContext<Callback, State> {
         // println!("new music context");
         let desired_spec = sdl2::audio::AudioSpecDesired {
@@ -73,15 +75,15 @@ where
             }),
         };
 
-        let audio_device = Arc::new(Mutex::new(RefCell::new(FlufflAudioDevice { core })));
+        let audio_device = Arc::new(Mutex::new(FlufflAudioDevice { core }));
 
         let glue_callback = FlufflCallback {
             audio_device: audio_device.clone(),
         };
 
         let sdl2_device = audio_context
-            .borrow()
             .audio_ss
+            .borrow_mut()
             .open_playback(None, &desired_spec, |_spec| {
                 // initialize the audio callback
                 glue_callback
@@ -101,12 +103,12 @@ where
     /// the next best thing is pass a callback to the value  
     pub fn modify_state<ModifyCallback>(&self, mut cb: ModifyCallback)
     where
-        ModifyCallback: FnMut(Option<&mut State>),
+        ModifyCallback: FnMut(Option<&mut State>)->Option<()>,
     {
-        let lck = self.fluffl_audio_device.lock().unwrap();
-        let device = &mut *lck.borrow_mut();
+        let mut lck = self.fluffl_audio_device.lock().unwrap();
+        let device = &mut *lck;
         let s = device.core.state.as_mut();
-        cb(s)
+        let _ = cb(s);
     }
     /// resumes the device 
     pub fn resume(&self) {
@@ -141,12 +143,12 @@ where
     }
 }
 
-pub struct FlufflCallback<F, S>
+pub struct FlufflCallback<Callback, State>
 where
-    F: FnMut(&mut S, &mut [f32]) + Copy + Send + 'static,
-    S: Send,
+    Callback: FnMut(&mut State, &mut [f32]) + Copy + Send + 'static,
+    State: Send,
 {
-    audio_device: Arc<Mutex<RefCell<FlufflAudioDevice<F, S>>>>,
+    audio_device: Arc<Mutex<FlufflAudioDevice<Callback, State>>>,
 }
 
 impl<Callback, State> sdl2::audio::AudioCallback for FlufflCallback<Callback, State>
@@ -157,11 +159,11 @@ where
     type Channel = f32;
 
     fn callback(&mut self, out: &mut [f32]) {
-        let mut glue_cb = self.audio_device.lock().unwrap().borrow().callback();
-        let device_lock = self.audio_device.lock().unwrap();
-        let device = &mut *device_lock.borrow_mut();
+        let mut callback = self.audio_device.lock().unwrap().callback();
+        let mut device_lock = self.audio_device.lock().unwrap();
+        let device = &mut *device_lock;
         device.state().map(|state| {
-            glue_cb(state, out);
+            callback(state, out);
         });
     }
 }

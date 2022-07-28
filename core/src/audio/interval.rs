@@ -1,7 +1,4 @@
-use crate::{
-    collections::{segment_tree::index_types::GlobalIndex},
-    math::FixedPoint,
-};
+use crate::{collections::segment_tree::index_types::GlobalIndex, math::FixedPoint};
 use std::{fmt::Debug, ops::Deref};
 
 /// Represents an interval
@@ -18,10 +15,18 @@ impl Debug for Interval {
 }
 
 impl Interval {
+    /// creates and interval: \[`t0`,`t0`+`dt`\]
     pub fn from_point_and_length(t0: FixedPoint, dt: FixedPoint) -> Self {
         Self {
             lo: t0,
             hi: t0 + dt,
+        }
+    }
+    /// creates an interval: \[0,`dt`\]
+    pub fn from_length(dt: FixedPoint) -> Self {
+        Self {
+            lo: FixedPoint::zero(),
+            hi: dt,
         }
     }
 
@@ -61,7 +66,7 @@ impl Interval {
         let lo = self.lo + chunk_length * chunk_idx;
         Self {
             lo,
-            hi: lo + chunk_length ,
+            hi: lo + chunk_length,
         }
     }
 
@@ -94,6 +99,16 @@ where
     type Output = Self;
     fn add(self, rhs: T) -> Self::Output {
         let rhs = FixedPoint::from(T::into(rhs));
+        Self {
+            lo: self.lo + rhs,
+            hi: self.hi + rhs,
+        }
+    }
+}
+
+impl std::ops::Add<FixedPoint> for Interval {
+    type Output = Self;
+    fn add(self, rhs: FixedPoint) -> Self::Output {
         Self {
             lo: self.lo + rhs,
             hi: self.hi + rhs,

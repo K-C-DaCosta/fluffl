@@ -148,7 +148,7 @@ pub trait WindowManager: Sized {
     fn gl(&self) -> Arc<Box<Context>>;
 
     /// Returns a hook to audio functions
-    fn audio_context(&self) -> Arc<RefCell<FlufflAudioContext>>;
+    fn audio_context(&self) -> FlufflAudioContext;
 
     /// returns current width of window
     fn width(&self) -> u32;

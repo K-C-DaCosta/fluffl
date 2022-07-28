@@ -51,7 +51,7 @@ pub struct FlufflWindow {
     sdl_event_pump: sdl2::EventPump,
     gl: Arc<Box<Context>>,
     render_loop: Option<RenderLoop<sdl2::video::Window>>,
-    audio_context: Arc<RefCell<FlufflAudioContext>>,
+    audio_context: FlufflAudioContext,
     video_ss: sdl2::VideoSubsystem,
     window_width: u32,
     window_height: u32,
@@ -94,10 +94,10 @@ impl FlufflWindow {
                 FlufflState::new(aux_data_ptr.clone()),
             );
 
-            //execute future 
+            //execute future
             futures::executor::block_on(unexecuted_iteration);
 
-            //update termination condition 
+            //update termination condition
             *running = local_run.deref().get();
         });
     }
@@ -112,7 +112,7 @@ impl WindowManager for FlufflWindow {
         self.window_height
     }
 
-    fn audio_context(&self) -> Arc<RefCell<FlufflAudioContext>> {
+    fn audio_context(&self) -> FlufflAudioContext {
         self.audio_context.clone()
     }
 
@@ -178,7 +178,9 @@ impl WindowManager for FlufflWindow {
             window_width: settings.width,
             window_height: settings.height,
             sdl_state: sdl,
-            audio_context: Arc::new(RefCell::new(FlufflAudioContext { audio_ss: audio })),
+            audio_context: FlufflAudioContext {
+                audio_ss: Arc::new(RefCell::new(audio)),
+            },
             video_ss: video,
             window_pointer: CustomSDL2Window::new(window_context_ref.clone()),
         };

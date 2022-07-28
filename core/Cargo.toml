@@ -26,6 +26,7 @@ lewton = { version = "0.10.1", optional = true }
 puremp3 = { version = "0.1.0", optional = true }
 hiero_pack = { version = "0.1.0", default-features = false, optional = true }
 rustc-hash = "1.1.0"
+adhoc_audio = { git = "https://github.com/K-C-DaCosta/adhoc_audio", default-features = false }
 
 #........................ 
 #......browser deps...... 
@@ -80,7 +81,7 @@ web-sys = { version = "0.3.44", features = [
     'Screen',
     'MediaQueryList',
     'Performance',
-    'PerformanceTiming'
+    'PerformanceTiming',
 ] }
 
 
