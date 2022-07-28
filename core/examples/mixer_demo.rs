@@ -64,10 +64,15 @@ pub async fn main() {
 
     let ctx = window.audio_context();
 
+    let mixer_device = MixerAudioDeviceContext::new(ctx);
+    mixer_device.resume(); 
+
+    
+
     FlufflWindow::main_loop(
         window,
         MainState {
-            mixer_device: MixerAudioDeviceContext::new(ctx),
+            mixer_device ,
             t: 0.,
             pos_x: 0.,
             pos_y: 0.,

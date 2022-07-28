@@ -409,6 +409,17 @@ impl Mixer {
     }
 
     fn remove_irrelevent_tracks(&mut self, _cursor: MixerCursor) {
+        self.remove_irrelevent_tracks_predicate(| track| {
+            track.time_remaining_in_ms() < FixedPoint::from(1)
+        })
+    }
+
+    fn remove_irrelevent_tracks_predicate<Predicate>(
+        &mut self,
+        can_be_removed: Predicate,
+    ) where
+        Predicate: Fn(&Box<dyn HasAudioStream>) -> bool,
+    {
         let track_chart = &mut self.track_chart;
         let running_streams = &mut self.running_streams;
         let running_streams_table = &mut self.running_streams_table;
@@ -421,7 +432,7 @@ impl Mixer {
                 .get_data()
                 .expect("should be available");
 
-            if track_chart[gi].time_remaining_in_ms() < FixedPoint::from(1) {
+            if can_be_removed(&track_chart[gi]) {
                 //queue track to be removed
                 track_removal_stack.push(node_ptr);
                 //remove it from the table as well
@@ -502,6 +513,9 @@ impl Mixer {
                 }
                 MixerRequest::Seek(offset_kind) => {
                     Self::request_operation_seek(track_chart, global_t, offset_kind);
+                    mixer_ref.remove_irrelevent_tracks_predicate( |track|{
+                        track.interval().is_within( global_t.elapsed_in_ms_fp()) == false
+                    });
                 }
             }
         }
