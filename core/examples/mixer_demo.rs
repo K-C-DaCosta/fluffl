@@ -1,6 +1,6 @@
 #![allow(unused_variables)]
 
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use fluffl::{
     audio::{
@@ -17,10 +17,10 @@ use fluffl::{
     //so here is my implementation of certain things like "text rendering" and music playing
     extras::{hiero_pack::*, text_writer::*},
     io::*,
-    math::FixedPoint,
+    math::{FP64, WaveKind},
     prelude::*,
     // net::*,
-    window::{event_util::*, glow::*, *},
+    window::{event_util::*,  *},
     *,
 };
 
@@ -32,18 +32,24 @@ fn wave_sin<const FREQ: u32>(t: f64) -> f64 {
 pub struct MainState {
     // pub dev_ptr: ShortDeviceContext,
     pub mixer_device: MixerAudioDeviceContext,
-    pub stream_queue: Vec<Box<dyn HasAudioStream>>,
-    pub is_key_down: HashSet<char>,
-    pub key_extend_list: Vec<(char, TrackID)>,
+    pub stream_queue: Vec<Option<Box<dyn HasAudioStream>>>,
+    pub is_key_down: HashSet<KeyCode>,
+    pub key_extend_list: Vec<(KeyCode, TrackID)>,
+    pub key_frequency_table: HashMap<KeyCode, f32>,
+
     pub t: f32,
     pub pos_x: f32,
     pub pos_y: f32,
     pub mixer_time: SampleTime,
     pub writer: TextWriter,
+    pub init_route: bool,
+    pub wave_type: WaveKind,
 }
 
 #[fluffl(Debug)]
 pub async fn main() {
+    math::waves::noise::init();
+
     //FlufflWindow is configured with XML, the format is self-explanitory
     let raw_bytes = load_file!("./wasm_bins/resources/config.xml").expect("config failed to load");
     let config_text = String::from_utf8(raw_bytes).expect("config file currupted");
@@ -65,14 +71,22 @@ pub async fn main() {
     let ctx = window.audio_context();
 
     let mixer_device = MixerAudioDeviceContext::new(ctx);
-    mixer_device.resume(); 
-
-    
+    mixer_device.resume();
 
     FlufflWindow::main_loop(
         window,
         MainState {
-            mixer_device ,
+            key_frequency_table: vec![
+                (KeyCode::KEY_A, 262.0),
+                (KeyCode::KEY_S, 294.0),
+                (KeyCode::KEY_D, 330.0),
+                (KeyCode::KEY_F, 349.0),
+                (KeyCode::KEY_H, 10_000.0),
+                (KeyCode::KEY_J, 100.0),
+            ]
+            .into_iter()
+            .collect::<HashMap<_, _>>(),
+            mixer_device,
             t: 0.,
             pos_x: 0.,
             pos_y: 0.,
@@ -81,6 +95,8 @@ pub async fn main() {
             is_key_down: HashSet::new(),
             key_extend_list: Vec::new(),
             mixer_time: SampleTime::new(),
+            init_route: false,
+            wave_type: WaveKind::SQUARE,
         },
         main_loop,
     );
@@ -96,6 +112,10 @@ async fn main_loop(
     let writer = &mut main_state.writer;
     let is_key_down = &mut main_state.is_key_down;
     let key_extend_list = &mut main_state.key_extend_list;
+    let init_route = &mut main_state.init_route;
+    let wave_type = &mut main_state.wave_type;
+    let key_frequency_table = &mut main_state.key_frequency_table;
+
     let gl = win_ptr.window().gl();
 
     mixer_device.send_request(MixerRequest::FetchMixerTime);
@@ -104,6 +124,20 @@ async fn main_loop(
     let t = main_state.t;
     let x = main_state.pos_x;
     let y = main_state.pos_y;
+
+    // if *init_route == false {
+    //     let file_pointer_to_music = std::fs::File::open("./wasm_bins/resources/fuck_jannies.adhoc")
+    //         .expect("file galed to load");
+    //     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
+    //         .expect("failed to read music file");
+    //     let id = mixer_device.gen_id();
+    //     mixer_device.send_request(MixerRequest::AddTrack(
+    //         id,
+    //         OffsetKind::current(),
+    //         Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
+    //     ));
+    //     *init_route = true;
+    // }
 
     //draw seek time
     let max_seek_time_ms = 300_000.0;
@@ -120,6 +154,12 @@ async fn main_loop(
             }
             EventKind::KeyDown { code } => {
                 let code_char = code.key_val().unwrap_or_default();
+
+                if let '0'..='9' = code_char {
+                    let offset = code_char as u8 as usize - b'0' as usize;
+                    let new_type = WaveKind::from(offset);
+                    *wave_type = new_type;
+                }
 
                 if let KeyCode::KEY_E = code {
                     let file_pointer_to_music =
@@ -171,75 +211,26 @@ async fn main_loop(
                     ));
                 }
 
-                if let KeyCode::KEY_G = code {
-                    let id = mixer_device.gen_id();
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        id,
-                        OffsetKind::current(),
-                        Box::new(ImplicitWave::new(
-                            wave_sin::<39>,
-                            Interval::from_length(FixedPoint::from(10_000)),
-                            44_100,
-                        )),
-                    ));
-                }
-                if let KeyCode::KEY_A = code {
-                    if is_key_down.contains(&KeyCode::KEY_A.key_val().unwrap_or_default()) == false
-                    {
+                //handle keyboard notes
+                if is_key_down.contains(&code) == false {
+                    if let Some(&wave_frequency) = key_frequency_table.get(&code) {
+                        let wave_frequency = wave_frequency as f64;
                         let id = mixer_device.gen_id();
+
                         mixer_device.send_request(MixerRequest::AddTrack(
                             id,
                             OffsetKind::current(),
                             Box::new(ImplicitWave::new(
-                                wave_sin::<262>,
-                                Interval::from_length(FixedPoint::from(1_000)),
-                                44_100,
+                                wave_type.as_fn(),
+                                Interval::from_length(FP64::from(1_000)),
+                                wave_frequency,
                             )),
                         ));
-                        key_extend_list.push((code_char, id));
+
+                        key_extend_list.push((code, id));
                     }
                 }
-                if let KeyCode::KEY_S = code {
-                    let id = mixer_device.gen_id();
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        id,
-                        OffsetKind::current(),
-                        Box::new(ImplicitWave::new(
-                            wave_sin::<294>,
-                            Interval::from_length(FixedPoint::from(1_000)),
-                            44_100,
-                        )),
-                    ));
-                }
 
-                if let KeyCode::KEY_D = code {
-                    let id = mixer_device.gen_id();
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        id,
-                        OffsetKind::current(),
-                        Box::new(ImplicitWave::new(
-                            wave_sin::<330>,
-                            Interval::from_length(FixedPoint::from(1_000)),
-                            44_100,
-                        )),
-                    ));
-                }
-
-                if let KeyCode::KEY_F = code {
-                    let id = mixer_device.gen_id();
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        id,
-                        OffsetKind::current(),
-                        Box::new(ImplicitWave::new(
-                            wave_sin::<349>,
-                            Interval::from_point_and_length(
-                                FixedPoint::zero(),
-                                FixedPoint::from(1_000),
-                            ),
-                            44_100,
-                        )),
-                    ));
-                }
                 if let KeyCode::KEY_V = code {
                     mixer_device
                         .send_request(MixerRequest::MutateMixer(TrackID::null(), |_, mixer| {
@@ -253,23 +244,25 @@ async fn main_loop(
                     mixer_device.resume();
                 }
                 if let KeyCode::KEY_Y = code {
-                    // mixer_device.dump_recording();
+                    mixer_device.dump_recording();
                 }
 
                 //insert towards the end
-                is_key_down.insert(code_char);
+
+                is_key_down.insert(code);
 
                 console_log!("char = {}\n", code.key_val().unwrap());
             }
             EventKind::KeyUp { code } => {
-                let code_char = code.key_val().unwrap_or_default();
-                is_key_down.remove(&code_char);
-                if let Some((k, _)) = key_extend_list
+                is_key_down.remove(&code);
+
+                let if_code_is_in_extend_list = key_extend_list
                     .iter()
                     .enumerate()
-                    .find(|(k, &(c, _))| c == code_char)
-                {
-                    key_extend_list.remove(k);
+                    .find(|(k, &(c, _))| c == code);
+
+                if let Some((key_idx, _)) = if_code_is_in_extend_list {
+                    key_extend_list.remove(key_idx);
                 }
             }
             EventKind::MouseMove { x, y, .. } => {
@@ -300,6 +293,7 @@ async fn main_loop(
         }
     }
 
+    //extend key  here
     for &(c, id) in &key_extend_list[..] {
         if is_key_down.contains(&c) {
             mixer_device.send_request(MixerRequest::MutateMixer(id, |tid, mixer| {
@@ -317,13 +311,13 @@ async fn main_loop(
         gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
     }
 
-    let speed_t = ((FixedPoint::from(x) - 0) / 200).clamp(FixedPoint::from(0), FixedPoint::from(1));
+    let speed_t = ((FP64::from(x) - 0) / 200).clamp(FP64::from(0), FP64::from(1));
     let speed = speed_t * 3;
 
     //draw text here
     let caption_list = [format!(
         "{time:}x[{speed:.2}]",
-        time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_int_i64()),
+        time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_i64()),
         speed = speed.as_f64()
     )];
     caption_list.iter().enumerate().for_each(|(k, caption)| {

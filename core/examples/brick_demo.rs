@@ -7,7 +7,7 @@ use fluffl::{
     },
     io::*,
     prelude::*,
-    window::{event_util::*, glow, glow::*, *},
+    window::{event_util::*, *},
     GlowGL, *,
 };
 
@@ -180,6 +180,9 @@ impl BrickAppState {
 
 #[fluffl(Debug)]
 pub async fn main() {
+    
+
+
     let window = FlufflWindow::init(FLUFFL_CONFIG).expect("init failed");
     let gl = window.gl();
 

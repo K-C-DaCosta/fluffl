@@ -1,8 +1,8 @@
-use std::ops::Deref;
+use std::{ops::Deref,fs};
 
 use super::*;
 use crate::audio::{AudioDeviceCore, DesiredSpecs, FlufflAudioContext, FlufflAudioDeviceContext};
-use adhoc_audio::{StreamInfo, WavCodec};
+use adhoc_audio::{StreamInfo, WavCodec,Streamable};
 
 pub type StandardMixerCB = fn(&mut StandardMixerState, &mut [f32]);
 
@@ -45,6 +45,15 @@ impl MixerAudioDeviceContext {
         let id = self.id_counter;
         self.id_counter += 1;
         TrackID::from_u64(id)
+    }
+
+    pub fn dump_recording(&self){
+        self.modify_state(|state|{
+            let state = state?;
+            let file = fs::File::create("mixer_dump.wav").ok()?;
+            state.recording.save_to(file).ok()?;
+            Some(())
+        });
     }
 
     /// ## Description
@@ -94,6 +103,7 @@ impl StandardMixerState {
         init(&mut state);
         state
     }
+  
 }
 
 impl std::ops::Deref for StandardMixerState {
@@ -117,5 +127,6 @@ fn standard_mixer_state_cb(state: &mut StandardMixerState, output: &mut [f32]) {
         state.channels as u32,
     ));
     //for debug purposes
-    // state.recording.encode(output);
+    state.recording.encode(output);
+    
 }

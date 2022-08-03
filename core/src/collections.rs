@@ -7,6 +7,7 @@ pub mod bitarray;
 pub mod fixed_stack;
 pub mod linked_list;
 pub mod nary_forest;
+pub mod flat_nary_tree; 
 pub mod segment_tree;
 
 /// ## Description

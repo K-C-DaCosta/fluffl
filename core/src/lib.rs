@@ -26,6 +26,9 @@ mod parsers;
 pub mod mem;
 
 
+pub mod gui; 
+
+
 /// private custom iterators
 mod iterators;
 

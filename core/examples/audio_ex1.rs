@@ -13,7 +13,7 @@ use fluffl::{
     io::*,
     prelude::*,
     // net::*,
-    window::{event_util::*, glow::*, *},
+    window::{event_util::*, *},
     *,
 };
 

@@ -3,7 +3,7 @@ use fluffl::{
     extras::text_writer::*,
     io::*,
     prelude::*,
-    window::{event_util::*, glow::*, *},
+    window::{event_util::*, *},
     *,
 };
 use std::collections::HashMap;

@@ -1,7 +1,7 @@
 use fluffl::{
-    prelude::*,
     console::*,
-    window::{event_util::*, glow::*, *},
+    prelude::*,
+    window::{event_util::*, *},
     *,
 };
 
@@ -135,11 +135,7 @@ pub async fn main() {
 
     FlufflWindow::main_loop(
         window,
-        GlobalVariablesOrWhatever {
-            vao,
-            prog,
-            t: 0.,
-        },
+        GlobalVariablesOrWhatever { vao, prog, t: 0. },
         |win_ptr, running, main_state| async move {
             // let audio_ctx = win_ptr.window().audio_context().clone();
             let gl = win_ptr.window().gl();

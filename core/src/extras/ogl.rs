@@ -1,25 +1,18 @@
 //Note:This module basically a bunch of helper code to make dealing with opengl easier.
 //It was not inteneded to be used by others.
-use crate::{
-    window::{glow::*},
-};
-
-
+use glow::*;
 
 pub mod array;
 pub mod buffer;
 pub mod program;
 pub mod texture;
 
-
-
-
 type FixedString = ArrayString<[u8; 32]>;
 use arrayvec::{ArrayString, ArrayVec};
 use std::collections::HashMap;
 
 pub struct OglIncomplete<T> {
-   pub inner: T,
+    pub inner: T,
 }
 
 impl<T> OglIncomplete<T> {

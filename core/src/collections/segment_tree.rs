@@ -6,7 +6,7 @@ use crate::{
     console::*,
     console_log,
     iterators::GroupIterator,
-    math::FixedPoint,
+    math::FP64,
     mem::force_static_mut,
 };
 use std::{
@@ -71,7 +71,7 @@ impl<V: 'static> CircularSegmentTree<V> {
 
     pub fn search_scalar<'a>(
         &'a self,
-        time: FixedPoint,
+        time: FP64,
     ) -> impl Iterator<Item = (GlobalIndex, &'a GlobalInterval<V>)> {
         let tree = self;
         let exponent = self.exponent as u8;
@@ -94,7 +94,7 @@ impl<V: 'static> CircularSegmentTree<V> {
     /// but gets converted to circular t internally
     /// ## Comments
     /// - For whatever reason, scalar searches are fastest kind of iterator
-    fn bucket_search_scalar<'a>(&'a self, t: FixedPoint) -> ScalarSearchIter<'a, V> {
+    fn bucket_search_scalar<'a>(&'a self, t: FP64) -> ScalarSearchIter<'a, V> {
         ScalarSearchIter::new(self, t)
     }
 
@@ -423,27 +423,27 @@ impl<V: 'static> CircularSegmentTree<V> {
         let exponent = self.exponent as u8;
         let Interval { lo, hi } = interval;
 
-        let zero = FixedPoint::from(0);
-        let width = FixedPoint::from(self.width);
+        let zero = FP64::from(0);
+        let width = FP64::from(self.width);
 
         // println!("interval = {:?}",interval);
 
         let lo_block = lo >> exponent;
         let hi_block = hi >> exponent;
-        let num_blocks_interval_spans = (hi_block.floor() - lo_block.floor()) + FixedPoint::from(1);
+        let num_blocks_interval_spans = (hi_block.floor() - lo_block.floor()) + FP64::from(1);
 
         let split_a = Interval::from((lo.fast_mod(exponent), width));
         let split_b = Interval::from((zero, hi.fast_mod(exponent)));
         let splic_c = Interval::from((lo.fast_mod(exponent), hi.fast_mod(exponent)));
 
         //clip the intervals and make them circular
-        if num_blocks_interval_spans >= FixedPoint::from(3) {
+        if num_blocks_interval_spans >= FP64::from(3) {
             //this case the interval spans multiple blocks so insert it at the root and stop there
             clippings[0] = Interval::from((zero, width));
             1
-        } else if num_blocks_interval_spans >= FixedPoint::from(2)
-            && split_a.distance() > FixedPoint::zero()
-            && split_b.distance() > FixedPoint::zero()
+        } else if num_blocks_interval_spans >= FP64::from(2)
+            && split_a.distance() > FP64::zero()
+            && split_b.distance() > FP64::zero()
         {
             //this interval spans two blocks so it can be broken up more efficiently
             clippings[0] = split_a;

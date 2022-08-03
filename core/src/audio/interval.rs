@@ -1,11 +1,11 @@
-use crate::{collections::segment_tree::index_types::GlobalIndex, math::FixedPoint};
+use crate::{collections::segment_tree::index_types::GlobalIndex, math::FP64};
 use std::{fmt::Debug, ops::Deref};
 
 /// Represents an interval
 #[derive(Copy, Clone, PartialEq, Eq, Default)]
 pub struct Interval {
-    pub lo: FixedPoint,
-    pub hi: FixedPoint,
+    pub lo: FP64,
+    pub hi: FP64,
 }
 
 impl Debug for Interval {
@@ -16,16 +16,16 @@ impl Debug for Interval {
 
 impl Interval {
     /// creates and interval: \[`t0`,`t0`+`dt`\]
-    pub fn from_point_and_length(t0: FixedPoint, dt: FixedPoint) -> Self {
+    pub fn from_point_and_length(t0: FP64, dt: FP64) -> Self {
         Self {
             lo: t0,
             hi: t0 + dt,
         }
     }
     /// creates an interval: \[0,`dt`\]
-    pub fn from_length(dt: FixedPoint) -> Self {
+    pub fn from_length(dt: FP64) -> Self {
         Self {
-            lo: FixedPoint::zero(),
+            lo: FP64::zero(),
             hi: dt,
         }
     }
@@ -53,14 +53,14 @@ impl Interval {
         lo_b > hi_a || lo_a > hi_b
     }
 
-    pub fn distance(&self) -> FixedPoint {
+    pub fn distance(&self) -> FP64 {
         self.hi - self.lo
     }
 
     /// divide the interval into equal chunks of count `num_chunks`. returns the `chunk_idx`-th chunk
     pub fn chunk(&self, num_chunks: u64, chunk_idx: usize) -> Self {
-        let num_chunks = FixedPoint::from(num_chunks);
-        let chunk_idx = FixedPoint::from(chunk_idx as u32);
+        let num_chunks = FP64::from(num_chunks);
+        let chunk_idx = FP64::from(chunk_idx as u32);
         let length = self.distance();
         let chunk_length = length / num_chunks;
         let lo = self.lo + chunk_length * chunk_idx;
@@ -74,18 +74,18 @@ impl Interval {
         !self.is_seperating(other_interval)
     }
 
-    pub fn is_within(&self, t: FixedPoint) -> bool {
+    pub fn is_within(&self, t: FP64) -> bool {
         let &Self { lo, hi } = self;
         t >= lo && t <= hi
     }
 
     #[allow(dead_code)]
-    pub fn midpoint(&self) -> FixedPoint {
-        self.lo + (self.hi - self.lo) / FixedPoint::from(2)
+    pub fn midpoint(&self) -> FP64 {
+        self.lo + (self.hi - self.lo) / FP64::from(2)
     }
 
     pub fn to_tuple(&self) -> (u128, u128) {
-        (self.lo.as_int_i64() as u128, self.hi.as_int_i64() as u128)
+        (self.lo.as_i64() as u128, self.hi.as_i64() as u128)
     }
     pub fn to_tuple_f32(&self) -> (f32, f32) {
         (self.lo.as_f64() as f32, self.hi.as_f64() as f32)
@@ -98,7 +98,7 @@ where
 {
     type Output = Self;
     fn add(self, rhs: T) -> Self::Output {
-        let rhs = FixedPoint::from(T::into(rhs));
+        let rhs = FP64::from(T::into(rhs));
         Self {
             lo: self.lo + rhs,
             hi: self.hi + rhs,
@@ -106,9 +106,9 @@ where
     }
 }
 
-impl std::ops::Add<FixedPoint> for Interval {
+impl std::ops::Add<FP64> for Interval {
     type Output = Self;
-    fn add(self, rhs: FixedPoint) -> Self::Output {
+    fn add(self, rhs: FP64) -> Self::Output {
         Self {
             lo: self.lo + rhs,
             hi: self.hi + rhs,
@@ -119,29 +119,29 @@ impl std::ops::Add<FixedPoint> for Interval {
 impl From<(u64, u64)> for Interval {
     fn from((lo, hi): (u64, u64)) -> Self {
         Self {
-            lo: FixedPoint::from(lo),
-            hi: FixedPoint::from(hi),
+            lo: FP64::from(lo),
+            hi: FP64::from(hi),
         }
     }
 }
 impl From<(i64, i64)> for Interval {
     fn from((lo, hi): (i64, i64)) -> Self {
         Self {
-            lo: FixedPoint::from(lo),
-            hi: FixedPoint::from(hi),
+            lo: FP64::from(lo),
+            hi: FP64::from(hi),
         }
     }
 }
 impl From<(i32, i32)> for Interval {
     fn from((lo, hi): (i32, i32)) -> Self {
         Self {
-            lo: FixedPoint::from(lo),
-            hi: FixedPoint::from(hi),
+            lo: FP64::from(lo),
+            hi: FP64::from(hi),
         }
     }
 }
-impl From<(FixedPoint, FixedPoint)> for Interval {
-    fn from((lo, hi): (FixedPoint, FixedPoint)) -> Self {
+impl From<(FP64, FP64)> for Interval {
+    fn from((lo, hi): (FP64, FP64)) -> Self {
         Self { lo, hi }
     }
 }

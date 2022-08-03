@@ -16,14 +16,14 @@ pub mod window_util;
 pub mod window_util;
 
 use super::parsers::xml::*;
-use crate::audio::FlufflAudioContext;
-use crate::FlufflError;
-use glow::*;
+use crate::{
+    audio::FlufflAudioContext,
+    FlufflError,
+    GlowGL,
+};
 
 pub use event_util::FlufflEvent;
-pub use glow;
 pub use window_util::*;
-
 pub mod event_util;
 
 ///Global for touch tracker
@@ -145,7 +145,7 @@ pub trait WindowManager: Sized {
     /// Exposes the glow api to user
     /// # Comments
     /// - make sure you `use fluffl::{window::{ ... , glow::*, ... }};` in order to actually get access to the interface functions
-    fn gl(&self) -> Arc<Box<Context>>;
+    fn gl(&self) -> GlowGL;
 
     /// Returns a hook to audio functions
     fn audio_context(&self) -> FlufflAudioContext;

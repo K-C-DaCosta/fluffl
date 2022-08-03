@@ -1,4 +1,4 @@
-use crate::math::FixedPoint;
+use crate::math::FP64;
 
 //the dektop implementation of sound is in the sdl2_audio module
 #[cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))]
@@ -99,18 +99,18 @@ where
 }
 
 /// given `frequency` (in sample/sec) and `dt`(in milliseconds), it can calculate samples required per channel
-pub fn calculate_samples_needed_per_channel_st(frequency: u32, dt: FixedPoint) -> SampleTime {
+pub fn calculate_samples_needed_per_channel_st(frequency: u32, dt: FP64) -> SampleTime {
     const MILLISECONDS_IN_ONE_SEC: i32 = 1000;
-    let sample_count = (FixedPoint::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
+    let sample_count = (FP64::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
     SampleTime::new()
         .with_sample_rate(frequency)
-        .with_sample_count(sample_count.as_int_i64() as u64)
+        .with_sample_count(sample_count.as_i64() as u64)
 }
 
 /// given `frequency` (in sample/sec) and `dt`(in milliseconds), it can calculate samples required per channel
-pub fn calculate_samples_needed_per_channel_fp(frequency: u32, dt: FixedPoint) -> FixedPoint {
+pub fn calculate_samples_needed_per_channel_fp(frequency: u32, dt: FP64) -> FP64 {
     const MILLISECONDS_IN_ONE_SEC: i32 = 1000;
-    let result = (FixedPoint::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
+    let result = (FP64::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
     // let mut samps = result.as_f64();
     // samps += 1.0;
     // samps -= 1.0;
@@ -120,8 +120,8 @@ pub fn calculate_samples_needed_per_channel_fp(frequency: u32, dt: FixedPoint) -
 /// given a `num_samples` and `frequency` it returns the elapsed time in ms
 /// ## Comments
 /// this is a single channel calculation
-pub fn calculate_elapsed_time_in_ms_fp(frequency: u32, num_samples: usize) -> FixedPoint {
-    let result = FixedPoint::from(num_samples as u64 * 1000) / FixedPoint::from(frequency);
+pub fn calculate_elapsed_time_in_ms_fp(frequency: u32, num_samples: usize) -> FP64 {
+    let result = FP64::from(num_samples as u64 * 1000) / FP64::from(frequency);
     // let mut samps = result.as_f64();
     // samps += 1.0;
     // samps -= 1.0;

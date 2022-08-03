@@ -1,4 +1,4 @@
-use crate::math::FixedPoint;
+use crate::math::FP64;
 
 /// tracks time by counting samples processed, and using frequency to calculate time to arbitrary precisions.\
 /// its basically the elapsed time stored as a rational number
@@ -28,8 +28,8 @@ impl SampleTime {
         self.sample_rate = sample_rate;
         self
     }
-    pub fn elapsed_in_ms_fp(&self) -> FixedPoint {
-        FixedPoint::from(self.samples_count * 1000) / FixedPoint::from(self.sample_rate)
+    pub fn elapsed_in_ms_fp(&self) -> FP64 {
+        FP64::from(self.samples_count * 1000) / FP64::from(self.sample_rate)
     }
     pub fn elapsed_in_ms_f32(&self) -> f32 {
         (self.samples_count as f32 * 1000.0) / self.sample_rate as f32
@@ -89,20 +89,20 @@ impl SampleTime {
     }
 
     /// Computes a new SampleTime,with info from `self`, given `dt` in milliseconds
-    pub fn from_time_in_ms_fp(&self, dt: FixedPoint) -> Self {
+    pub fn from_time_in_ms_fp(&self, dt: FP64) -> Self {
         let sample_rate = self.sample_rate;
-        let sample_count = (FixedPoint::from(self.sample_rate) * dt) / FixedPoint::from(1000);
+        let sample_count = (FP64::from(self.sample_rate) * dt) / FP64::from(1000);
         Self {
-            samples_count: sample_count.as_int_i64() as u64,
+            samples_count: sample_count.as_i64() as u64,
             sample_rate,
         }
     }
     /// Computes a new SampleTime,with info from `self`, given `dt` in milliseconds
     pub fn from_time_in_ms_u64(&self, dt: u64) -> Self {
         let sample_rate = self.sample_rate;
-        let sample_count = FixedPoint::from(self.sample_rate as u64 * dt) / FixedPoint::from(1000);
+        let sample_count = FP64::from(self.sample_rate as u64 * dt) / FP64::from(1000);
         Self {
-            samples_count: sample_count.as_int_i64() as u64,
+            samples_count: sample_count.as_i64() as u64,
             sample_rate,
         }
     }

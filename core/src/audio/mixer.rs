@@ -5,7 +5,7 @@ use crate::{
         segment_tree::{index_types::GlobalIndex, CircularSegmentTree, TreeIterState},
         Ptr,
     },
-    math::FixedPoint,
+    math::FP64,
     mem,
 };
 
@@ -95,7 +95,7 @@ pub struct PullInfo {
     /// number of samples per channel written to the `PCMSlice`
     pub samples_read_per_channel: usize,
     /// amount of time ,in ms, that it would take for the written audio to play
-    pub elapsed_audio_in_ms: FixedPoint,
+    pub elapsed_audio_in_ms: FP64,
 }
 
 pub trait HasAudioStream: Send + Debug {
@@ -128,7 +128,7 @@ pub trait HasAudioStream: Send + Debug {
         (self.frequency() * dt) / NUM_MILLISECONDS_IN_ONE_SECOND
     }
 
-    fn calculate_samples_needed_per_channel_fp(&self, dt: FixedPoint) -> FixedPoint {
+    fn calculate_samples_needed_per_channel_fp(&self, dt: FP64) -> FP64 {
         let f = self.frequency();
         super::calculate_samples_needed_per_channel_fp(f, dt)
     }
@@ -138,7 +138,7 @@ pub trait HasAudioStream: Send + Debug {
         (self.frequency() as f32 * dt) / NUM_MILLISECONDS_IN_ONE_SECOND
     }
 
-    fn time_remaining_in_ms(&self) -> FixedPoint {
+    fn time_remaining_in_ms(&self) -> FP64 {
         let state = self.stream_state();
         let local_t = state.local_time.elapsed_in_ms_fp();
         let interval = state.global_interval;
@@ -186,7 +186,7 @@ pub struct Mixer {
     /// controls how 'fast' the mixer will play the track ( will effect the pitch )
     /// by default this is set to '1', but if you want to play the chart to times as fast
     /// you set this to '2'
-    speed_factor: FixedPoint,
+    speed_factor: FP64,
 
     /// essentially a rational number, perfectly represents global time
     global_t: SampleTime,
@@ -235,7 +235,7 @@ impl Mixer {
             // another scrach slice used for mixing audio
             sample_scratch_space: vec![0.0f32; 8192 * 2],
             local_response_queue: VecDeque::new(),
-            speed_factor: FixedPoint::from(1),
+            speed_factor: FP64::from(1),
         }
     }
 
@@ -243,11 +243,11 @@ impl Mixer {
         //the 'length' of the cursor determines the global speed of the mixer
         //this controls the speed of the mixer
         let new_samples_per_channel =
-            FixedPoint::from(output_buffer.samples_per_channel()) * self.speed_factor;
+            FP64::from(output_buffer.samples_per_channel()) * self.speed_factor;
         let cursor = MixerCursor::new(
             self.global_t,
             self.global_t
-                .with_sample_count(new_samples_per_channel.as_int_i64().max(0) as u64),
+                .with_sample_count(new_samples_per_channel.as_i64().max(0) as u64),
         );
 
         output_buffer.set_zero();
@@ -298,7 +298,7 @@ impl Mixer {
             let samples_needed_per_channel = current_track
                 .calculate_samples_needed_per_channel_fp(delta)
                 .ceil()
-                .as_int_i64() as usize;
+                .as_i64() as usize;
 
             let samples_needed = samples_needed_per_channel * 2;
 
@@ -358,7 +358,7 @@ impl Mixer {
                     current_track.calculate_samples_needed_per_channel_fp(elapsed_time_in_ms) * 2;
 
                 let samples_required_to_pull_from_track_truncated =
-                    samples_required_to_pull_from_track.ceil().as_int_i64() as usize;
+                    samples_required_to_pull_from_track.ceil().as_i64() as usize;
                 // .min((output_buffer.len()) as i64) as usize;
 
                 let PullInfo { samples_read, .. } = current_track.pull_samples(
@@ -410,7 +410,7 @@ impl Mixer {
 
     fn remove_irrelevent_tracks(&mut self, _cursor: MixerCursor) {
         self.remove_irrelevent_tracks_predicate(| track| {
-            track.time_remaining_in_ms() < FixedPoint::from(1)
+            track.time_remaining_in_ms() < FP64::from(1)
         })
     }
 
@@ -532,12 +532,12 @@ impl Mixer {
 
         let new_global_t = match offset_kind {
             OffsetKind::Current { offset } => {
-                let offset = FixedPoint::from(offset);
-                global_t.from_time_in_ms_fp((global_t_in_ms + offset).max(FixedPoint::zero()))
+                let offset = FP64::from(offset);
+                global_t.from_time_in_ms_fp((global_t_in_ms + offset).max(FP64::zero()))
             }
             OffsetKind::Start { offset } => {
-                let offset = FixedPoint::from(offset);
-                global_t.from_time_in_ms_fp((offset).max(FixedPoint::zero()))
+                let offset = FP64::from(offset);
+                global_t.from_time_in_ms_fp((offset).max(FP64::zero()))
             }
         };
 
@@ -553,7 +553,7 @@ impl Mixer {
     fn request_operation_add_track(
         track_chart: &mut CircularSegmentTree<Box<dyn HasAudioStream>>,
         track_id_table: &mut HashMap<TrackID, GlobalIndex>,
-        current_time: FixedPoint,
+        current_time: FP64,
         tid: TrackID,
         off: OffsetKind,
         mut track: Box<dyn HasAudioStream>,
@@ -564,11 +564,11 @@ impl Mixer {
 
         let offset_interval = match off {
             OffsetKind::Current { offset } => {
-                *track.interval() + (current_time + FixedPoint::from(offset))
+                *track.interval() + (current_time + FP64::from(offset))
             }
             OffsetKind::Start { offset } => {
                 let interval_length = track.interval().distance();
-                Interval::from_point_and_length(FixedPoint::from(offset), interval_length)
+                Interval::from_point_and_length(FP64::from(offset), interval_length)
             }
         };
 
@@ -627,8 +627,8 @@ impl Mixer {
     ///     - `2` twice as fast speed
     ///     - `0.5` is twice as slow
     ///     - `0` and the mixer comes to a complete stop
-    pub fn set_mixer_speed(&mut self, speed: FixedPoint) -> MutatedResult<()> {
-        self.speed_factor = speed.max(FixedPoint::zero());
+    pub fn set_mixer_speed(&mut self, speed: FP64) -> MutatedResult<()> {
+        self.speed_factor = speed.max(FP64::zero());
         Ok(())
     }
 
@@ -756,12 +756,6 @@ impl Mixer {
 
         Some(())
     }
-
-    fn add_track(&mut self, track: Box<dyn HasAudioStream>) {
-        let &interval = track.interval();
-        self.track_chart.insert(interval, track);
-    }
-
     pub fn get_time(&self) -> SampleTime {
         self.global_t
     }

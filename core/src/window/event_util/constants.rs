@@ -7,7 +7,6 @@ pub const KP_OFFSET: isize = 1000;
 //Every target needs to map its native events to these.
 #[derive(Copy, Clone, Serialize, Deserialize)]
 pub enum EventKind {
-    
     /// # Description
     /// This event fires only when the user clicks on the "x" button on desktop.
     /// This event doesn't really apply in the browser environment, unless I do my own virtual window thingy, which im
@@ -93,7 +92,7 @@ pub enum EventKind {
     },
 }
 
-#[derive(Copy, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Copy, Clone, PartialEq,Eq, Serialize, Deserialize, Hash)]
 #[allow(non_camel_case_types)]
 pub enum KeyCode {
     KEY_A = 'a' as isize,

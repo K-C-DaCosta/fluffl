@@ -6,10 +6,10 @@ use fluffl::{
     //so here is my implementation of certain things like "text rendering" and music playing
     extras::{hiero_pack::*, text_writer::*},
     io::*,
-    math::FixedPoint,
+    math::FP64,
     prelude::*,
     // net::*,
-    window::{event_util::*, glow::*, *},
+    window::{event_util::*, *},
     *,
 };
 

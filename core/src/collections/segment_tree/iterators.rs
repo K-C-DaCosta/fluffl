@@ -5,10 +5,10 @@ pub struct ScalarSearchIter<'a, V> {
     tree: &'a CircularSegmentTree<V>,
     node: Ptr,
     node_interval: Interval,
-    t: FixedPoint,
+    t: FP64,
 }
 impl<'a, V> ScalarSearchIter<'a, V> {
-    pub fn new(tree: &'a CircularSegmentTree<V>, t: FixedPoint) -> Self {
+    pub fn new(tree: &'a CircularSegmentTree<V>, t: FP64) -> Self {
         Self {
             tree,
             node: tree.linear_tree.root(),

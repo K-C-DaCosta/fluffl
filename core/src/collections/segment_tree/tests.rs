@@ -330,7 +330,7 @@ fn insert_search_by_scalar_shotgun_0() {
     }
 
     let mut time = lo;
-    let step_size = ((hi - lo) / FixedPoint::from(2000)).max(From::from(1));
+    let step_size = ((hi - lo) / FP64::from(2000)).max(From::from(1));
     let mut tree_search_results: Vec<Interval> = Vec::with_capacity(500);
     let mut linear_search_results: Vec<Interval> = Vec::with_capacity(500);
 

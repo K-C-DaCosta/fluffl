@@ -216,13 +216,10 @@ impl ExplicitWave {
         scratch_space: &mut [f32],
         audio_pcm: PCMSlice<'a, f32>,
     ) -> PullInfo {
-        unimplemented!("stretch not implemeted");
-        PullInfo {
-            samples_read: 0,
-            samples_read_per_channel: 0,
-            elapsed_audio_in_ms: FixedPoint::zero(),
-        }
+        unimplemented!("stretch not implemented");
     }
+
+
 }
 impl Debug for ExplicitWave {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -262,8 +259,8 @@ impl HasAudioStream for ExplicitWave {
                 let explicit_wave_duration_ms = self.explicit_wave_duration.elapsed_in_ms_u64();
 
                 let new_local_time_in_ms = (global_time.elapsed_in_ms_fp() - global_interval.lo)
-                    .clamp(FixedPoint::zero(), elapsed_time_in_ms)
-                    .as_int_i64();
+                    .clamp(FP64::zero(), elapsed_time_in_ms)
+                    .as_i64();
 
                 // circular time because the track interval may over-extend the duration of the explicit wave
                 let new_local_time_in_ms_circular =
@@ -276,66 +273,17 @@ impl HasAudioStream for ExplicitWave {
                 // update local time cursor
                 self.state.local_time = audio::calculate_samples_needed_per_channel_st(
                     frequency,
-                    FixedPoint::from(new_local_time_in_ms),
+                    FP64::from(new_local_time_in_ms),
                 );
             }
             ScaleMode::Stretch => {
                 let new_local_time_in_ms = (global_time.elapsed_in_ms_fp() - global_interval.lo)
-                    .clamp(FixedPoint::zero(), elapsed_time_in_ms)
-                    .as_int_i64();
+                    .clamp(FP64::zero(), elapsed_time_in_ms)
+                    .as_i64();
 
                 self.explicit_wave
                     .seek(SeekFrom::Start(new_local_time_in_ms as u64))
             }
         };
     }
-}
-
-#[test]
-fn test_candidates() {
-    let mut candidates = vec![10, 1, 2, 7, 6, 1, 5];
-    let res = candidate_target(&mut candidates, 8);
-    for arr in res {
-        println!("{:?}", arr);
-    }
-}
-fn candidate_target(candidates: &mut Vec<u32>, target: u32) -> Vec<Vec<u32>> {
-    use std::collections::HashSet;
-
-    // candidates.sort();
-
-    let mut candidate_groups = Vec::<u128>::new();
-    let candidates_len = candidates.len();
-    let max_permutation = 1 << candidates.len();
-    let mut unique_values_selected_table = HashSet::<u32>::new();
-
-    for permutation_set in 0..max_permutation {
-        let mut sum = 0;
-        let mut values_selected_code = 0;
-        for k in 0..candidates_len {
-            let is_chosen = ((permutation_set & (1 << k)) != 0) as u32;
-            sum += is_chosen * candidates[k];
-            values_selected_code |= (1 << candidates[k]) * is_chosen;
-            if sum > target {
-                break;
-            }
-        }
-        if unique_values_selected_table.contains(&values_selected_code) == false && sum == target {
-            unique_values_selected_table.insert(values_selected_code);
-            candidate_groups.push(permutation_set);
-        }
-    }
-    candidate_groups
-        .into_iter()
-        .map(|bitset| {
-            //rebuild set from bitset
-            let mut items = vec![];
-            for k in 0..candidates_len {
-                if (bitset & (1 << k)) != 0 {
-                    items.push(candidates[k]);
-                }
-            }
-            items
-        })
-        .collect::<Vec<_>>()
 }

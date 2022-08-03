@@ -1,32 +1,38 @@
 use super::*;
-use crate::audio;
+use crate::{audio, math};
 
 /// represents an implicit function `f(t)`, where:
 /// - `t` is in seconds
 /// - |`f(t)`| <= 1
 pub struct ImplicitWave {
+    wave_frequency: f64,
     wave_function: fn(f64) -> f64,
     state: StreamState,
 }
 
 impl ImplicitWave {
-    pub fn new(func: fn(f64) -> f64, interval: Interval, frequency: u32) -> Self {
+    pub fn new(func: fn(f64) -> f64, interval: Interval, wave_frequency: f64) -> Self {
         //attack and release should be at least 2% of the elapsed time, to avoid cracks
         const ATTACK_RELEASE_RATIO: f64 = 0.2;
+        //mixer frequency assumed to be 44_100hz
+        const TRACK_FREQUENCY: u32 = 44_100;
+
         let total_elapsed_time = interval.distance().as_f64();
         let default_attack_and_release = (ATTACK_RELEASE_RATIO * total_elapsed_time).ceil() as u32;
+
         // println!(
         //     "default attack and release = {}ms ",
         //     default_attack_and_release
         // );
         Self {
             wave_function: func,
+            wave_frequency,
             state: StreamState {
                 global_interval: interval,
-                frequency,
+                frequency: TRACK_FREQUENCY,
                 attack_time: default_attack_and_release,
                 release_time: default_attack_and_release,
-                local_time: SampleTime::new().with_sample_rate(frequency),
+                local_time: SampleTime::new().with_sample_rate(TRACK_FREQUENCY),
                 channels: 1,
                 gain: 1.0,
                 pan: 0.5,
@@ -53,7 +59,7 @@ impl HasAudioStream for ImplicitWave {
         let global_time_in_ms = global_time.elapsed_in_ms_fp();
         let local_time = global_time_in_ms - interval.lo;
 
-        if local_time <= FixedPoint::zero() || local_time >= duration_in_ms {
+        if local_time <= FP64::zero() || local_time >= duration_in_ms {
             self.state.local_time.set_samps(0);
             return;
         }
@@ -71,6 +77,7 @@ impl HasAudioStream for ImplicitWave {
         let wave_function = self.wave_function;
         let local_time = &mut self.state.local_time;
         let interval = &self.state.global_interval;
+        let wave_frequency = self.wave_frequency;
 
         //calculate local time and deltas
         let mut local_time_in_seconds = local_time.elapsed_in_sec_f64();
@@ -97,7 +104,10 @@ impl HasAudioStream for ImplicitWave {
             );
             let attack_coef = 1.0 - (1.0 - attack_t) * (1.0 - attack_t);
             let release_coef = 1.0 - release_t * release_t;
-            let output = attack_coef * wave_function(local_time_in_seconds) * release_coef * gain;
+            let output = attack_coef
+                * wave_function(math::angular_frequency(wave_frequency) * local_time_in_seconds)
+                * release_coef
+                * gain;
 
             //write output sample in every channel (for now)
             for channel_idx in 0..num_channels_in_output {
