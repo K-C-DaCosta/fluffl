@@ -6,7 +6,10 @@ use crate::mem;
 #[derive(Copy, Clone)]
 pub enum StackSignal {
     Push,
-    Pop(usize),
+    ///pop `n`  times
+    Pop {
+        n_times: usize,
+    },
     Nop,
 }
 
@@ -44,31 +47,30 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
         let cur_node_ref = &mut self.cur_node;
 
         let cur_node = *cur_node_ref;
-        // let cur_node_ptr = Ptr::from(cur_node);
 
         (cur_node < node_len).then(move || {
             *cur_node_ref += 1;
 
             let cur_level = level[cur_node];
             let diff = cur_level as isize - level[cur_node - 1] as isize;
-            let mut pop_count = 0; 
+            let mut pop_count = 0;
 
             if diff < 0 {
                 while parent_stack.last().is_some()
                     && level[*parent_stack.last().unwrap()] != cur_level
                 {
                     parent_stack.pop();
-                    pop_count+=1;
+                    pop_count += 1;
                 }
             }
 
-            let signal = if diff > 0 {
+            let signal = if diff == 0 {
+                StackSignal::Nop
+            } else if diff > 0 {
                 parent_stack.push(cur_node);
                 StackSignal::Push
-            } else if diff < 0 {
-                StackSignal::Pop(pop_count)
             } else {
-                StackSignal::Nop
+                StackSignal::Pop { n_times: pop_count }
             };
 
             (signal, data[cur_node].as_mut().unwrap())

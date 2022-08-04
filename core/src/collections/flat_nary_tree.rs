@@ -162,7 +162,7 @@ where
         for (signal, item) in StackSignalIterator::new(self) {
             match signal {
                 StackSignal::Push => indents.push_str("->"),
-                StackSignal::Pop(pop_count) => (0..2 * pop_count).for_each(|_| {
+                StackSignal::Pop { n_times } => (0..2 * n_times).for_each(|_| {
                     indents.pop();
                 }),
                 StackSignal::Nop => (),
@@ -170,6 +170,7 @@ where
             println!("{}{}", indents, item);
         }
     }
+
     fn compute_post_order_traversal(&mut self, root: Ptr) {
         let mut order_idx = 0;
         self.order.iter_mut().for_each(|e| *e = !0);
