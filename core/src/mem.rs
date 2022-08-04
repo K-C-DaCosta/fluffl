@@ -10,3 +10,8 @@ pub unsafe fn force_static<'a, T>(reference: &'a T) -> &'static T {
 pub unsafe fn force_static_mut<'a, T>(reference: &'a T) -> &'static mut T {
     &mut *(reference as *const T as *mut T)
 }
+ 
+pub unsafe fn force_borrow_mut<'a,'b, T>(reference: &'a T) -> &'b mut T {
+    &mut *(reference as *const T as *mut T)
+}
+

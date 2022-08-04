@@ -1,10 +1,11 @@
 use super::*;
 use std::fmt::Debug;
 
+mod iterators;
 mod sort_util;
 mod swappable;
 
-use self::{sort_util::*, swappable::*};
+use self::{iterators::*, sort_util::*, swappable::*};
 
 /// ## Description
 /// stores a tree by keeping nodes in pre-order traversal in a vector.
@@ -140,7 +141,9 @@ where
             let diff = cur_level as isize - level[cur_node - 1] as isize;
 
             if diff < 0 {
-                while parent_stack.last().is_some() && *parent_stack.last().unwrap() != cur_level {
+                while parent_stack.last().is_some()
+                    && level[*parent_stack.last().unwrap()] as usize != cur_level
+                {
                     parent_stack.pop();
                 }
                 parent_stack.pop();
@@ -154,24 +157,18 @@ where
     }
 
     pub fn print(&mut self) {
-        let level = &mut self.level;
-        let parent_stack = &mut &mut self.parent_stack;
+        let mut indents = String::new();
 
-        // for (ptr, item) in self.iter() {
-        //     let cur_node = ptr.as_usize();
-
-        //     let cur_level = level[cur_node] as usize;
-        //     let diff = cur_level as isize - level[cur_node - 1] as isize;
-
-        //     if diff < 0 {
-        //         while parent_stack.last().is_some() && *parent_stack.last().unwrap() != cur_level {
-        //             parent_stack.pop();
-        //         }
-        //         parent_stack.pop();
-        //     }
-
-        //     // println!("{}[{}]", indents, item);
-        // }
+        for (signal, item) in StackSignalIterator::new(self) {
+            match signal {
+                StackSignal::Push => indents.push_str("->"),
+                StackSignal::Pop(pop_count) => (0..2 * pop_count).for_each(|_| {
+                    indents.pop();
+                }),
+                StackSignal::Nop => (),
+            }
+            println!("{}{}", indents, item);
+        }
     }
     fn compute_post_order_traversal(&mut self, root: Ptr) {
         let mut order_idx = 0;
