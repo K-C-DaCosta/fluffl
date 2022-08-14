@@ -5,9 +5,9 @@ use std::fmt::Display;
 pub mod binary_tree;
 pub mod bitarray;
 pub mod fixed_stack;
+pub mod flat_nary_tree;
 pub mod linked_list;
 pub mod nary_forest;
-pub mod flat_nary_tree; 
 pub mod segment_tree;
 
 /// ## Description
@@ -30,8 +30,8 @@ impl Ptr {
     pub const fn null() -> Self {
         Self { idx: !0 }
     }
-    
-    pub fn is_null(&self) -> bool{
+
+    pub fn is_null(&self) -> bool {
         *self == Self::null()
     }
 }
@@ -49,5 +49,39 @@ impl From<usize> for Ptr {
 impl Display for Ptr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.idx)
+    }
+}
+
+impl<T> std::ops::Index<Ptr> for Vec<T> {
+    type Output = T;
+    fn index(&self, index: Ptr) -> &Self::Output {
+        &self[index.as_usize()]
+    }
+}
+
+impl<T> std::ops::IndexMut<Ptr> for Vec<T> {
+    fn index_mut(&mut self, index: Ptr) -> &mut Self::Output {
+        &mut self[index.as_usize()]
+    }
+}
+
+impl<T> std::ops::Add<T> for Ptr
+where
+    i64: From<T>,
+{
+    type Output = Self;
+    fn add(self, rhs: T) -> Self::Output {
+        Self {
+            idx: self.idx + i64::from(rhs) as u64,
+        }
+    }
+}
+
+impl<T> std::ops::AddAssign<T> for Ptr
+where
+    i64: From<T>,
+{
+    fn add_assign(&mut self, rhs: T) {
+        self.idx += i64::from(rhs) as u64;
     }
 }

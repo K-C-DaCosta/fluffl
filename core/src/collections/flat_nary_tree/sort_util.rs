@@ -18,10 +18,10 @@ where
     });
 }
 
-fn quick_sort<T, CB>(lbound: usize, ubound: usize, list: &mut [T], my_swap: CB)
+fn quick_sort<T, SWAP>(lbound: usize, ubound: usize, list: &mut [T], my_swap: SWAP)
 where
     T: PartialOrd + Copy,
-    CB: FnMut((usize, usize)) + Copy,
+    SWAP: FnMut((usize, usize)) + Copy,
 {
     if (ubound - lbound) < 2 {
         return;
@@ -32,10 +32,10 @@ where
     quick_sort(split_idx + 1, ubound, list, my_swap);
 }
 
-fn partition<T, CB>(lbound: usize, ubound: usize, list: &mut [T], mut my_swap: CB) -> usize
+fn partition<T, SWAP>(lbound: usize, ubound: usize, list: &mut [T], mut my_swap: SWAP) -> usize
 where
     T: PartialOrd + Copy,
-    CB: FnMut((usize, usize)),
+    SWAP: FnMut((usize, usize)),
 {
     let mut wall_pos = lbound + 1;
     let wall_val = list[lbound];

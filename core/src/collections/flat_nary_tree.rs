@@ -8,9 +8,9 @@ mod swappable;
 use self::{iterators::*, sort_util::*, swappable::*};
 
 /// ## Description
-/// stores a tree by keeping nodes in pre-order traversal in a vector.
+/// stores a tree by keeping nodes in pre-order traversal in a vector for fast traversal.
 /// I call this a "linear" tree because this data structure only stores the parent info
-/// making it more compact with `O(|V|)`. Removing edge info makes insert take`O(|V|^2)` time instead of `O(1)` time
+/// making it more compact with `O(|V|)` space. Removing edge info makes insert take`O(|V|^2)` time instead of `O(1)` time.
 /// so this tree structure should not be used if heavy tree manipulation is required.
 /// This tree is advantagous only when it is *static*
 pub struct LinearTree<T> {
@@ -22,6 +22,7 @@ pub struct LinearTree<T> {
     node_id: Vec<NodeID>,
     node_id_counter: usize,
     has_child: Vec<bool>,
+    nodes_deleted: usize,
 }
 
 #[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
@@ -41,6 +42,7 @@ where
             node_id: vec![],
             node_id_counter: 0,
             has_child: vec![],
+            nodes_deleted: 0,
         }
     }
 
@@ -62,17 +64,17 @@ where
             .map(|(idx, data)| (Ptr::from(idx), data))
     }
 
-    fn get_parent_ptr(&self, parent_id: NodeID) -> Ptr {
+    fn resolve_id_to_ptr(&self, id: NodeID) -> Ptr {
         self.node_id
             .iter()
             .enumerate()
-            .find(|(_idx, &nid)| nid == parent_id)
+            .find(|(_idx, &nid)| nid == id)
             .map(|(idx, _)| Ptr::from(idx))
             .unwrap_or(Ptr::null())
     }
 
     pub fn add(&mut self, data: T, parent_id: NodeID) -> NodeID {
-        let parent = self.get_parent_ptr(parent_id);
+        let parent = self.resolve_id_to_ptr(parent_id);
         let (nid, _) = self.allocate_node(data, parent);
 
         #[cfg(debug_assertions)]
@@ -82,8 +84,7 @@ where
             }
         }
 
-        self.recompute_prefix_ordering();
-        self.reconstruct_parent_pointers_using_ordering_info();
+        self.reconstruct_parent_pointers_using_dfs_ordering_info();
 
         nid
     }
@@ -110,31 +111,44 @@ where
         );
     }
     fn recompute_has_child_table(&mut self) {
-        let len = self.has_child.len();
+        let len = self.len();
         for ptr in 0..len {
             let has_children = self.get_child_nodes(ptr).next().is_some();
             self.has_child[ptr] = has_children;
         }
     }
 
-    fn reconstruct_parent_pointers_using_ordering_info(&mut self) {
+    /// ## Description
+    /// - each element in array corresponds to a node attribute
+    /// - DFSes the tree in post-order using the array `order` to label the vertex order
+    ///     - also computes node `level` in the DFS traversal
+    /// - sort by `order` but also co-sort arrays associated with vertex
+    /// - once the all the lists are sorted in post-order I use `level` to recompute parent pointers
+    /// ## Complexity
+    /// `O(|V|log(|V|))`
+    /// ## Comments
+    /// - index 0 in all the node attribute arrays ALWAYS means the root of the tree
+    fn reconstruct_parent_pointers_using_dfs_ordering_info(&mut self) {
+        self.recompute_prefix_ordering();
+
         self.recompute_has_child_table();
+
         self.reconstruct_parent_pointers();
     }
 
     fn reconstruct_parent_pointers(&mut self) {
         let root = Ptr::from(0);
+        let valid_nodes_len = self.len();
         let level = &mut self.level;
         let parent_stack = &mut self.parent_stack;
         let has_child = &mut self.has_child;
         let parent = &mut self.parent;
-        let node_len = level.len();
 
         parent_stack.clear();
         parent_stack.push(root.as_usize());
         // println!("stack-V");
 
-        for cur_node in 1..node_len {
+        for cur_node in 1..valid_nodes_len {
             // println!("stack-{:?}", self.parent_stack);
 
             let cur_level = level[cur_node] as usize;
@@ -156,18 +170,31 @@ where
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.data.len() - self.nodes_deleted
+    }
+
     pub fn print(&mut self) {
         let mut indents = String::new();
+        let indent = "--";
 
         for (signal, item) in StackSignalIterator::new(self) {
             match signal {
-                StackSignal::Push => indents.push_str("->"),
-                StackSignal::Pop { n_times } => (0..2 * n_times).for_each(|_| {
+                StackSignal::Push => indents.push_str(indent),
+                StackSignal::Pop { n_times } => (0..indent.len() * n_times).for_each(|_| {
                     indents.pop();
                 }),
-                StackSignal::Nop => (),
+                StackSignal::Nop => {}
             }
-            println!("{}{}", indents, item);
+            if indents.len() > 0 {
+                indents.pop();
+                indents.push('>');
+                println!("{}{}", indents, item);
+                indents.pop();
+                indents.push('-');
+            } else {
+                println!("{}{}", indents, item);
+            }
         }
     }
 
@@ -179,17 +206,15 @@ where
 
     fn compute_post_order_traversal_helper(&mut self, root: Ptr, level: u32, order_idx: &mut u32) {
         let self_ptr = self as *mut Self;
-        // let data = &mut self.data;
-
         let root_idx = root.as_usize();
         self.level[root_idx] = level;
-        self.order[root_idx] = *order_idx;
+        let is_root_or_non_root_but_has_parent =
+            root_idx == 0 || root_idx > 0 && self.parent[root_idx] != Ptr::null();
 
-        // println!(
-        //     "[{},ord:{}]",
-        //     data[root_idx].as_ref().unwrap(),
-        //     self.order[root_idx]
-        // );
+        if is_root_or_non_root_but_has_parent {
+            self.order[root_idx] = *order_idx;
+        }
+
         *order_idx += 1;
 
         for root in self.get_child_nodes(root) {
@@ -198,46 +223,92 @@ where
         }
     }
 
+    pub fn iter_mut_stack_signals(&mut self) -> StackSignalIterator<'_, T> {
+        StackSignalIterator::new(self)
+    }
+
     fn get_child_nodes<PTR>(&self, root: PTR) -> impl Iterator<Item = Ptr> + '_
     where
         PTR: Into<Ptr>,
     {
+        let num_active_nodes = self.len();
         let root = root.into();
         let data = &self.data;
         let parent = &self.parent;
         data.iter()
             .enumerate()
+            .take(num_active_nodes)
             .filter_map(|(k, d)| Some(Ptr::from(k)).zip(d.as_ref()))
             .map(|(ptr, _)| ptr)
             .filter(move |ptr| parent[ptr.as_usize()] == root)
     }
 
     fn allocate_node(&mut self, data: T, parent: Ptr) -> (NodeID, Ptr) {
-        let node_id = NodeID(self.node_id_counter);
-        self.order.push(!0);
-        self.data.push(Some(data));
-        self.level.push(0);
-        self.parent.push(parent);
-        self.node_id.push(node_id);
-        self.has_child.push(false);
-        self.node_id_counter += 1;
-        (node_id, Ptr::from(self.data.len() - 1))
+        debug_assert_eq!(
+            self.nodes_deleted <= self.data.len(),
+            true,
+            "nodes_deleted cannot be greater than the length of the array"
+        );
+
+        if self.nodes_deleted > 0 {
+            let ptr = self.data.len() - self.nodes_deleted;
+            let node_id = self.node_id[ptr];
+            //set new data
+            self.data[ptr] = Some(data);
+            self.parent[ptr] = parent;
+            //decrement nodes deleted
+            self.nodes_deleted -= 1;
+            (node_id, Ptr::from(ptr))
+        } else {
+            let node_id = NodeID(self.node_id_counter);
+            //instantiate node object
+            self.order.push(!0);
+            self.data.push(Some(data));
+            self.level.push(0);
+            self.parent.push(parent);
+            self.node_id.push(node_id);
+            self.has_child.push(false);
+            self.node_id_counter += 1;
+            (node_id, Ptr::from(self.data.len() - 1))
+        }
     }
 
-    pub fn remove(&mut self, node: Ptr) -> Option<(Ptr, T)> {
-        unimplemented!("remove not implemented")
-        // let idx = node.as_usize();
-        // let parent = self.parent.get(idx).map(|&a| a);
-        // if parent.is_some() {
-        //     self.free_node_list.push(node);
-        //     self.order[idx] = !0;
-        // }
-        // parent.zip(self.data[idx].take())
+    pub fn remove(&mut self, id: NodeID, removed_vals: &mut Vec<T>) {
+        //before anything happens make sure result buffer is clear
+        removed_vals.clear();
+
+        let ptr = self.resolve_id_to_ptr(id);
+        let deleted_level = self.level[ptr];
+        let len = self.len();
+
+        //remove root node
+        self.remove_single_node(ptr, removed_vals);
+
+        //remove subtree nodes
+        let mut subtree_node = ptr + 1;
+        while subtree_node.as_usize() < len && self.level[subtree_node] > deleted_level {
+            self.remove_single_node(subtree_node, removed_vals);
+            subtree_node += 1;
+        }
+
+        self.reconstruct_parent_pointers_using_dfs_ordering_info();
+    }
+
+    fn remove_single_node(&mut self, ptr: Ptr, removed_vals: &mut Vec<T>) {
+        self.order[ptr] = !0;
+        self.parent[ptr] = Ptr::null();
+        self.level[ptr] = !0;
+        if let Some(item) = self.data[ptr].take() {
+            removed_vals.push(item);
+        }
+        self.nodes_deleted += 1;
     }
 }
 
 #[test]
 pub fn tree_test() {
+    let mut removed_nodes = vec![];
+
     let mut tree = LinearTree::<i32>::new();
     let root = tree.add(1, NodeID::default());
 
@@ -245,6 +316,18 @@ pub fn tree_test() {
     let rb = tree.add(3, root);
     tree.add(5, lb);
     tree.add(4, rb);
+    tree.add(7, rb);
+    tree.add(9, rb);
 
+    tree.print();
+    for _ in 0..10 {
+        tree.remove(rb, &mut removed_nodes);
+        let rb = tree.add(3, root);
+        tree.add(4, rb);
+        tree.add(7, rb);
+        tree.add(9, rb);
+
+        // println!("{:?}",removed_nodes);
+    }
     tree.print();
 }

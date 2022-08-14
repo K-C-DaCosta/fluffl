@@ -13,19 +13,24 @@ pub enum StackSignal {
     Nop,
 }
 
+/// Iterates through the list but also tells you how many times you should push or pop from your stack
 pub struct StackSignalIterator<'a, T> {
     tree: &'a mut LinearTree<T>,
     covered_root: bool,
     cur_node: usize,
+    node_len: usize,
 }
-impl<'a, T> StackSignalIterator<'a, T> {
+impl<'a, T> StackSignalIterator<'a, T>
+where
+    T: Display + Debug,
+{
     pub fn new(tree: &'a mut LinearTree<T>) -> Self {
-        tree.parent_stack.clear();
-        tree.parent_stack.push(0);
+        let len = tree.len();
         Self {
             tree,
             covered_root: false,
             cur_node: 1,
+            node_len: len,
         }
     }
 }
@@ -33,6 +38,7 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
     type Item = (StackSignal, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
+        //allows me to split-borrow the tree
         let tree = unsafe { mem::force_borrow_mut(self.tree) };
 
         if self.covered_root == false {
@@ -41,36 +47,25 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
         }
 
         let level = &mut tree.level;
-        let parent_stack = &mut tree.parent_stack;
         let data = &mut tree.data;
-        let node_len = level.len();
+        let node_len = self.node_len;
         let cur_node_ref = &mut self.cur_node;
 
         let cur_node = *cur_node_ref;
 
         (cur_node < node_len).then(move || {
             *cur_node_ref += 1;
-
             let cur_level = level[cur_node];
             let diff = cur_level as isize - level[cur_node - 1] as isize;
-            let mut pop_count = 0;
-
-            if diff < 0 {
-                while parent_stack.last().is_some()
-                    && level[*parent_stack.last().unwrap()] != cur_level
-                {
-                    parent_stack.pop();
-                    pop_count += 1;
-                }
-            }
 
             let signal = if diff == 0 {
                 StackSignal::Nop
             } else if diff > 0 {
-                parent_stack.push(cur_node);
                 StackSignal::Push
             } else {
-                StackSignal::Pop { n_times: pop_count }
+                StackSignal::Pop {
+                    n_times: diff.abs() as usize,
+                }
             };
 
             (signal, data[cur_node].as_mut().unwrap())
