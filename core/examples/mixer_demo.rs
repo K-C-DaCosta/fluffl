@@ -16,11 +16,12 @@ use fluffl::{
     //playing music files requires more than what the base library provides
     //so here is my implementation of certain things like "text rendering" and music playing
     extras::{hiero_pack::*, text_writer::*},
+    gui::GUIManager,
     io::*,
-    math::{FP64, WaveKind},
+    math::{WaveKind, FP64},
     prelude::*,
     // net::*,
-    window::{event_util::*,  *},
+    window::{event_util::*, *},
     *,
 };
 
@@ -44,6 +45,7 @@ pub struct MainState {
     pub writer: TextWriter,
     pub init_route: bool,
     pub wave_type: WaveKind,
+    pub gui_manager: GUIManager,
 }
 
 #[fluffl(Debug)]
@@ -76,6 +78,7 @@ pub async fn main() {
     FlufflWindow::main_loop(
         window,
         MainState {
+            gui_manager: GUIManager::new(gl.clone()),
             key_frequency_table: vec![
                 (KeyCode::KEY_A, 262.0),
                 (KeyCode::KEY_S, 294.0),
@@ -115,6 +118,7 @@ async fn main_loop(
     let init_route = &mut main_state.init_route;
     let wave_type = &mut main_state.wave_type;
     let key_frequency_table = &mut main_state.key_frequency_table;
+    let gui_manager = &mut main_state.gui_manager;
 
     let gl = win_ptr.window().gl();
 
@@ -144,6 +148,8 @@ async fn main_loop(
     let seek_time = (x / 500.0) * max_seek_time_ms;
 
     for event in win_ptr.window_mut().get_events().flush_iter_mut() {
+        gui_manager.push_event(event);
+       
         match event {
             EventKind::Quit => running.set(false),
             EventKind::Resize { width, height } => {
@@ -311,34 +317,37 @@ async fn main_loop(
         gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
     }
 
-    let speed_t = ((FP64::from(x) - 0) / 200).clamp(FP64::from(0), FP64::from(1));
-    let speed = speed_t * 3;
+    let (win_width, win_height) = win_ptr.window().get_bounds_f32();
+    main_state.gui_manager.render(win_width, win_height);
 
-    //draw text here
-    let caption_list = [format!(
-        "{time:}x[{speed:.2}]",
-        time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_i64()),
-        speed = speed.as_f64()
-    )];
-    caption_list.iter().enumerate().for_each(|(k, caption)| {
-        // let size = (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.;
-        let size = 100.0;
-        writer.draw_text_line(
-            caption,
-            0.,
-            0. + 64. * k as f32,
-            size,
-            Some(win_ptr.window().get_bounds()),
-        );
-    });
+    // let speed_t = ((FP64::from(x) - 0) / 200).clamp(FP64::from(0), FP64::from(1));
+    // let speed = speed_t * 3;
 
-    writer.draw_text_line(
-        &time_to_string(seek_time as i64),
-        x + 10.0,
-        y,
-        32.0,
-        Some(win_ptr.window().get_bounds()),
-    );
+    // //draw text here
+    // let caption_list = [format!(
+    //     "{time:}x[{speed:.2}]",
+    //     time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_i64()),
+    //     speed = speed.as_f64()
+    // )];
+    // caption_list.iter().enumerate().for_each(|(k, caption)| {
+    //     // let size = (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.;
+    //     let size = 100.0;
+    //     writer.draw_text_line(
+    //         caption,
+    //         0.,
+    //         0. + 64. * k as f32,
+    //         size,
+    //         Some(win_ptr.window().get_bounds()),
+    //     );
+    // });
+
+    // writer.draw_text_line(
+    //     &time_to_string(seek_time as i64),
+    //     x + 10.0,
+    //     y,
+    //     32.0,
+    //     Some(win_ptr.window().get_bounds()),
+    // );
 
     // mixer_device.modify_state(|state| {
     //     let mixer_state = state?;

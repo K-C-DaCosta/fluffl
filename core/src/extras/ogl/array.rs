@@ -1,5 +1,5 @@
 use super::{buffer::*, *};
-use crate::{window::*, *};
+use crate::*;
 
 /// `buffer_name` should be a unique string to name your buffer.
 /// `buffer_object` is just the buffer object

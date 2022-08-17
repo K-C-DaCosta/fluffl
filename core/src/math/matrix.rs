@@ -5,18 +5,14 @@ use std::{
     ops::{Add, AddAssign, Mul},
 };
 
-pub mod traits;
-
-use self::traits::HasConsts;
-
-pub type Mat4<T> = Matrix<16, T>;
-pub type Mat3<T> = Matrix<9, T>;
+pub type Mat4<T> = Matrix<16, 4, 4, T>;
+pub type Mat3<T> = Matrix<9, 3, 3, T>;
 
 #[derive(Copy, Clone)]
-pub struct Matrix<const CAPACITY: usize, T> {
+pub struct Matrix<const CAPACITY: usize, const N: usize, const M: usize, T> {
     data: [T; CAPACITY],
 }
-impl<const CAP: usize, T> Matrix<CAP, T>
+impl<const CAP: usize, const N: usize, const M: usize, T> Matrix<CAP, N, M, T>
 where
     T: Default + Copy + HasConsts,
 {
@@ -38,26 +34,27 @@ where
 
     pub fn identity() -> Self {
         let mut data = [T::default(); CAP];
-        let rows = compile_time_root(CAP);
-        for i in 0..rows {
-            data[rows * i + i] = T::one();
+        for i in 0..N {
+            data[N * i + i] = T::one();
         }
         Self { data }
     }
 }
-impl<const CAP: usize, T> Mul for Matrix<CAP, T>
+
+impl<const CAP: usize, const N: usize, const M: usize, T> Mul for Matrix<CAP, N, M, T>
 where
     T: HasConsts + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
-        let n = compile_time_root(CAP);
         let mut result = Self::zero();
 
-        for i in 0..n {
-            for j in 0..n {
-                for k in 0..n {
-                    result.data[i * n + j] += self.data[i * n + k] * rhs.data[k * n + j];
+        debug_assert_eq!(N, M, "mul assumed to be square");
+
+        for i in 0..N {
+            for j in 0..N {
+                for k in 0..N {
+                    result.data[i * N + j] += self.data[i * N + k] * rhs.data[k * N + j];
                 }
             }
         }
@@ -66,14 +63,29 @@ where
     }
 }
 
-impl<const CAP: usize, T> std::fmt::Display for Matrix<CAP, T>
+impl<const CAP: usize, const N: usize, const M: usize, T> Mul<Vector<N, T>> for Matrix<CAP, N, M, T>
+where
+    T: HasConsts + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
+{
+    type Output = Vector<N, T>;
+    fn mul(self, rhs: Vector<N, T>) -> Self::Output {
+        let mut result = Self::Output::zero();
+        for i in 0..N {
+            for j in 0..M {
+                result[i] += rhs[j] * self.data[i * M + j];
+            }
+        }
+        result
+    }
+}
+
+impl<const CAP: usize, const N: usize, const M: usize, T> std::fmt::Display for Matrix<CAP, N, M, T>
 where
     T: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let n = compile_time_root(CAP);
-        for k in 0..n {
-            for (k, e) in self.data[n * k..n * (k + 1)].iter().enumerate() {
+        for row in 0..N {
+            for (k, e) in self.data[M * row..M * (row + 1)].iter().enumerate() {
                 if k == 0 {
                     write!(f, "[{:5}", e)?;
                 } else {
@@ -82,22 +94,16 @@ where
             }
             write!(f, "]\n")?;
         }
+
         Ok(())
     }
 }
-const fn compile_time_root(x: usize) -> usize {
-    if x == 0 || x == 1 {
-        return x;
+
+impl<const CAP: usize, const N: usize, const M: usize, T> std::ops::Deref for Matrix<CAP, N, M, T> {
+    type Target = [T; CAP];
+    fn deref(&self) -> &Self::Target {
+        &self.data
     }
-    // Starting from 1, try all numbers until
-    // i*i is greater than or equal to x.
-    let mut i = 1;
-    let mut result = 1;
-    while result <= x {
-        i += 1;
-        result = i * i;
-    }
-    i - 1
 }
 
 #[test]
@@ -121,4 +127,46 @@ fn sanity() {
     println!("b*b =...\n{}", b * b);
 
     println!("a*a =...\n{}", a * a);
+
+    let c = a * a;
+
+    let x = c * Vec4::from_array([1.0, 2.0, 3.0, 4.0]);
+    println!("x = {}", x);
+}
+
+#[rustfmt::skip]
+pub fn translate4<T>(translate:Vec4<T>)->Mat4<T>
+where T:HasConsts+Default+Copy,
+{
+    Mat4::new().with_data([
+        T::one() , T::zero(),T::zero(),translate[0],
+        T::zero(), T::one() ,T::zero(),translate[1],
+        T::zero(), T::zero(),T::one() ,translate[2],
+        T::zero(), T::zero(),T::zero(),T::one(),
+    ])
+}
+
+#[rustfmt::skip]
+pub fn scale4<T>(scale:Vec4<T>)->Mat4<T>
+where T:HasConsts+Default+Copy,
+{
+    
+    Mat4::new().with_data([
+        scale[0] , T::zero(),T::zero(),T::zero(),
+        T::zero(), scale[1] ,T::zero(),T::zero(),
+        T::zero(), T::zero(),scale[2] ,T::zero(),
+        T::zero(), T::zero(),T::zero(),T::one(),
+    ])
+}
+
+/// a orthographic matrix with fixed variables
+#[rustfmt::skip]
+pub fn calc_ortho_window_f32(w: f32, h: f32) -> Mat4<f32> {
+    let data = [
+        2.0 / w,0.      ,0.,-1.0, 
+        0.     ,-2.0 / h,0., 1.0,
+        0.     ,0.      ,1.,  0.,
+        0.     ,0.      ,0., 1.0,
+    ];
+    Mat4::new().with_data(data)
 }

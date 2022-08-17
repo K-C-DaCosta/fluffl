@@ -1,7 +1,7 @@
+use std::ops::{Index, IndexMut};
+
 use super::*;
-use crate::{*,
-    window::*,
-};
+use crate::{math::Vector, *};
 
 #[derive(Copy, Clone)]
 pub struct BufferInfo {
@@ -118,18 +118,17 @@ impl<T> HasBufferObj for OglBuf<Vec<T>>
 where
     Vec<T>: HasData,
 {
-    fn info(&self)->&BufferInfo{
+    fn info(&self) -> &BufferInfo {
         &self.info
     }
 
-    fn update(&self){
+    fn update(&self) {
         let gl = &self.gl;
         self.bind(true);
-        unsafe{
-            gl.buffer_sub_data_u8_slice(self.info.target,0,self.raw_bytes());
+        unsafe {
+            gl.buffer_sub_data_u8_slice(self.info.target, 0, self.raw_bytes());
         }
     }
-
 }
 
 impl<T> HasData for OglBuf<Vec<T>>
@@ -161,3 +160,5 @@ where
         Box::new(self)
     }
 }
+
+

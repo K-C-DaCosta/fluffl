@@ -11,6 +11,13 @@ type FixedString = ArrayString<[u8; 32]>;
 use arrayvec::{ArrayString, ArrayVec};
 use std::collections::HashMap;
 
+pub use self::{
+    array::{ArrayBuilder, BufferPair, OglArray},
+    buffer::{HasBufferBuilder, HasBufferObj, OglBuf},
+    program::OglProg,
+    texture::OglTexture,
+};
+
 pub struct OglIncomplete<T> {
     pub inner: T,
 }
