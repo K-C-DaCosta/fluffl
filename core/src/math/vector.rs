@@ -1,7 +1,9 @@
 use std::{
     fmt::{Debug, Display},
-    ops::{Add, AddAssign, Deref, DerefMut, Index, IndexMut, Mul, MulAssign, Sub},
+    ops::{Add, AddAssign, Deref, DerefMut, Div, Index, IndexMut, Mul, MulAssign, Sub},
 };
+
+use super::HasScalar;
 
 pub type Vec2<T> = Vector<2, T>;
 pub type Vec3<T> = Vector<3, T>;
@@ -33,6 +35,22 @@ where
 
     pub fn from_array(data: [T; N]) -> Self {
         Self { data }
+    }
+}
+
+impl<T> Vector<4, T>
+where
+    T: HasScalar + Copy + Default + Div<Output = T> + Mul<Output = T>,
+{
+    pub fn from_rgba_hex_color_u32(color: u32) -> Self {
+        let mut result = Self::zero();
+        let inv_denom = T::from_i32(1) / T::from_i32(255);
+        for k in 0..4 {
+            let comp_byte = (color >> 8 * (4 - k - 1)) & 0xFF;
+            let comp = T::from_i32(comp_byte as i32) * inv_denom;
+            result[k] = comp;
+        }
+        result
     }
 }
 
@@ -140,6 +158,19 @@ impl<const N: usize, T> DerefMut for Vector<N, T> {
     }
 }
 
+impl<const N: usize, T> Index<usize> for Vector<N, T> {
+    type Output = T;
+    fn index(&self, index: usize) -> &Self::Output {
+        &self.data[index]
+    }
+}
+
+impl<const N: usize, T> IndexMut<usize> for Vector<N, T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.data[index]
+    }
+}
+
 /// ## Description
 /// Used to write vector components into arrays
 pub struct ComponentWriter<'a, T, Len, Push> {
@@ -233,4 +264,11 @@ pub fn writer_test() {
     writer.write(&Vec4::from_array([1.0f32, 0.2, 0.3, 0.4]));
     writer.write(&Vec4::from_array([2.0f32, 3.2, -0.3, 9.]));
     println!("{:?}", list);
+}
+
+#[test]
+pub fn color_test() {
+    use super::FP32; 
+    let x = Vec4::<f32>::from_rgba_hex_color_u32(0xffffffff);
+    println!("{}", x);
 }

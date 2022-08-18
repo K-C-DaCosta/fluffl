@@ -1,4 +1,7 @@
-use std::ops::{Index, IndexMut};
+use std::{
+    any::Any,
+    ops::{Index, IndexMut},
+};
 
 use super::*;
 use crate::{math::Vector, *};
@@ -30,6 +33,8 @@ pub struct OglBuf<T> {
 }
 
 pub trait HasBufferObj: HasData + Bindable {
+    fn as_any(&self) -> &dyn Any;
+    fn as_any_mut(&mut self)->&mut dyn Any;
     fn info(&self) -> &BufferInfo;
     fn update(&self);
 }
@@ -103,6 +108,7 @@ where
             info: BufferInfo::default(),
         })
     }
+    
 }
 
 impl<T> Bindable for OglBuf<T> {
@@ -117,7 +123,16 @@ impl<T> Bindable for OglBuf<T> {
 impl<T> HasBufferObj for OglBuf<Vec<T>>
 where
     Vec<T>: HasData,
+    T: 'static,
 {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+    
+    fn as_any_mut(&mut self)->&mut dyn Any {
+        self
+    }
+
     fn info(&self) -> &BufferInfo {
         &self.info
     }
@@ -160,5 +175,3 @@ where
         Box::new(self)
     }
 }
-
-

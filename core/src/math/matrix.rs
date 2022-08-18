@@ -1,5 +1,5 @@
 use super::*;
-
+pub mod stack; 
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Mul},
@@ -14,7 +14,7 @@ pub struct Matrix<const CAPACITY: usize, const N: usize, const M: usize, T> {
 }
 impl<const CAP: usize, const N: usize, const M: usize, T> Matrix<CAP, N, M, T>
 where
-    T: Default + Copy + HasConsts,
+    T: Default + Copy + HasScalar,
 {
     pub fn new() -> Self {
         Self {
@@ -43,7 +43,7 @@ where
 
 impl<const CAP: usize, const N: usize, const M: usize, T> Mul for Matrix<CAP, N, M, T>
 where
-    T: HasConsts + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
+    T: HasScalar + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
@@ -65,7 +65,7 @@ where
 
 impl<const CAP: usize, const N: usize, const M: usize, T> Mul<Vector<N, T>> for Matrix<CAP, N, M, T>
 where
-    T: HasConsts + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
+    T: HasScalar + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
 {
     type Output = Vector<N, T>;
     fn mul(self, rhs: Vector<N, T>) -> Self::Output {
@@ -136,7 +136,7 @@ fn sanity() {
 
 #[rustfmt::skip]
 pub fn translate4<T>(translate:Vec4<T>)->Mat4<T>
-where T:HasConsts+Default+Copy,
+where T:HasScalar+Default+Copy,
 {
     Mat4::new().with_data([
         T::one() , T::zero(),T::zero(),translate[0],
@@ -148,7 +148,7 @@ where T:HasConsts+Default+Copy,
 
 #[rustfmt::skip]
 pub fn scale4<T>(scale:Vec4<T>)->Mat4<T>
-where T:HasConsts+Default+Copy,
+where T:HasScalar+Default+Copy,
 {
     
     Mat4::new().with_data([

@@ -18,7 +18,7 @@ pub struct AABB<const DIM: usize, T> {
 
 impl<const DIM: usize, T> AABB<DIM, T>
 where
-    T: Copy + Default + Add<Output = T> + Sub<Output = T> + AddAssign + PartialOrd + HasConsts,
+    T: Copy + Default + Add<Output = T> + Sub<Output = T> + AddAssign + PartialOrd + HasScalar,
 {
     pub fn from_segment(a: Vector<DIM, T>, b: Vector<DIM, T>) -> Self {
         Self { s0: a, s1: b }
