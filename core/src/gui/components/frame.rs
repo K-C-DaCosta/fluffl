@@ -4,9 +4,9 @@ pub struct Frame {
     key: GuiComponentKey,
     bounds: Vec2<f32>,
     rel_pos: Vec2<f32>,
-    color: Vec4<f32>,
-    edge_color: Vec4<f32>,
-    roundness: Vec4<f32>,
+    pub color: Vec4<f32>,
+    pub edge_color: Vec4<f32>,
+    pub roundness: Vec4<f32>,
     is_visible: bool,
 }
 impl Frame {
@@ -67,6 +67,13 @@ impl Frame {
 impl GUIComponent for Frame {
     fn as_any(&self) -> &dyn Any {
         self
+    }
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self
+    }
+
+    fn get_bounds(&self)-> Vec2<f32> {
+        self.bounds
     }
 
     fn key(&self) -> GuiComponentKey {

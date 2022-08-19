@@ -41,6 +41,14 @@ where
         &self.data
     }
 
+    pub fn convert<const M: usize>(b: Vector<M, T>) -> Self {
+        let mut res = Self::zero();
+        for k in 0..M.min(N) {
+            res[k] = b[k];
+        }
+        res
+    }
+
     pub fn to_pos<const M: usize>(b: Vector<M, T>) -> Self {
         let mut res = Self::zero();
         for k in 0..M.min(N - 1) {

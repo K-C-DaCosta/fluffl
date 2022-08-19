@@ -7,6 +7,7 @@ use glow::HasContext;
 
 use crate::{
     collections::{
+        fixed_stack::FixedStack,
         flat_nary_tree::{LinearTree, NodeID, StackSignal},
         linked_list::{LinkedList, PackedLinkedList},
     },
@@ -114,22 +115,21 @@ impl GUIManager {
                     .with_bounds([256., 128.])
                     .with_color(Vec4::rgb_u32(0xFF7F3F))
                     .with_roundness(Vec4::from([1., 1., 30., 30.]))
-                    .with_edge_color([0.,0.,0.,1.0])
+                    .with_edge_color([0., 0., 0., 1.0])
                     .with_position([128.0, 64.0]),
             ),
             frame.1,
-        ); 
+        );
 
         for k in 0..6 {
-
             manager.add_component(
                 Box::new(
                     Frame::new()
                         .with_bounds([32., 32.])
                         .with_color(Vec4::rgb_u32(0x277BC0))
                         .with_roundness(Vec4::from([1., 1., 1., 1.]))
-                        .with_edge_color([0.,0.,0.,1.0])
-                        .with_position([10.0 + 35.0 * (k as f32)  , 10.0]),
+                        .with_edge_color([0., 0., 0., 1.0])
+                        .with_position([10.0 + 35.0 * (k as f32), 10.0]),
                 ),
                 orange_frame.1,
             );
@@ -159,6 +159,8 @@ impl GUIManager {
     pub fn render(&mut self, window_width: f32, window_height: f32) {
         let gl = &self.gl;
 
+        let mut mouse_inside = vec![];
+
         while let Some(event) = self.window_events.pop_front() {
             match event {
                 EventKind::Resize { width, height } => {
@@ -169,18 +171,57 @@ impl GUIManager {
                     //     height as f32,
                     // );
                 }
+                EventKind::MouseDown { x, y, .. } => {
+                    let mouse_pos = Vec2::from([x as f32, y as f32]);
+
+                    self.component_global_position_bottom_up(|key, mat| {
+                        let aabb = {
+                            let comp = self.key_to_component_table.get(&key).unwrap();
+                            let global_pos = mat * Vec4::from([0., 0., 0., 1.]);
+                            comp.get_aabb(global_pos)
+                        };
+                        let is_point_inside = aabb.is_point_inside(mouse_pos);
+                        if is_point_inside {
+                            mouse_inside.push(key);
+                        }
+                        is_point_inside
+                    });
+
+                    // for (_, key, mat) in self.component_global_position_iter() {
+                    //     let aabb = {
+                    //         let comp = self.key_to_component_table.get(&key).unwrap();
+                    //         let global_pos = mat * Vec4::from([0., 0., 0., 1.]);
+                    //         comp.get_aabb(global_pos)
+                    //     };
+
+                    //     if aabb.is_point_inside(mouse_pos) {
+                    //         mouse_inside.push(key);
+                    //         break;
+                    //     }
+                    // }
+                }
                 EventKind::MouseMove { x, y, .. } => {
                     let pos = Vec2::from([x as f32, y as f32]);
 
-                    if let Some(fkey) = self.focused_component {
-                        self.key_to_component_table
-                            .get_mut(&fkey)
-                            .unwrap()
-                            .set_rel_position(pos);
-                    }
+                    // if let Some(fkey) = self.focused_component {
+                    //     self.key_to_component_table
+                    //         .get_mut(&fkey)
+                    //         .unwrap()
+                    //         .set_rel_position(pos);
+                    // }
                 }
                 _ => (),
             }
+        }
+
+        if let Some(key) = mouse_inside.pop() {
+            self.key_to_component_table
+                .get_mut(&key)
+                .unwrap()
+                .as_any_mut()
+                .downcast_mut::<Frame>()
+                .unwrap()
+                .color = Vec4::rgb_u32(0xff0000);
         }
 
         let s = &mut self.stack;
@@ -192,8 +233,6 @@ impl GUIManager {
             gl.enable(glow::BLEND);
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
         }
-
-
 
         s.clear();
         for (sig, &mut key) in gui_component_tree.iter_mut_stack_signals() {
@@ -208,7 +247,7 @@ impl GUIManager {
                     s.push(transform);
                 }
                 StackSignal::Pop { n_times } => {
-                    s.pop_multi(n_times+1);
+                    s.pop_multi(n_times + 1);
                     comp.render(gl, r, s, window_width, window_height);
                     s.push(transform);
                 }
@@ -218,33 +257,100 @@ impl GUIManager {
                 }
             }
         }
+
         unsafe {
             gl.disable(glow::BLEND);
         }
     }
 
-    fn component_global_position_iter(&self) -> impl Iterator<Item=(StackSignal,GuiComponentKey,Mat4<f32>)> + '_ {
+    fn component_global_position_top_down(
+        &self,
+    ) -> impl Iterator<Item = (StackSignal, GuiComponentKey, Mat4<f32>)> + '_ {
         let mut s = MatStack::new();
-        let key_to_component_table = &self.key_to_component_table;        
-        self.gui_component_tree.iter_stack_signals().map(move |(sig,&key)| {             
+        let key_to_component_table = &self.key_to_component_table;
+
+        self.gui_component_tree
+            .iter_stack_signals()
+            .map(move |(sig, &key)| {
+                let comp = key_to_component_table.get(&key).unwrap();
+                let &comp_pos = comp.rel_position();
+                let transform = translate4(Vec4::to_pos(comp_pos));
+                match sig {
+                    StackSignal::Nop => {
+                        s.pop();
+                        s.push(transform);
+                    }
+                    StackSignal::Pop { n_times } => {
+                        s.pop_multi(n_times + 1);
+                        s.push(transform);
+                    }
+                    StackSignal::Push => {
+                        s.push(transform);
+                    }
+                }
+                (sig, key, *s.peek())
+            })
+    }
+
+    fn component_global_position_bottom_up<CB>(&self, mut cb: CB)
+    where
+        CB: FnMut(GuiComponentKey, Mat4<f32>) -> bool,
+    {
+        let mut mat_stack = MatStack::new();
+        let mut key_stack = FixedStack::<32, GuiComponentKey>::new();
+
+        let mut it = self.gui_component_tree.iter_stack_signals();
+        let key_to_component_table = &self.key_to_component_table;
+
+        let mut peek_and_prop = |matstack: &MatStack<_>, keystack: &FixedStack<32, _>| {
+            let &mat = matstack.peek();
+            let key = keystack.peek();
+            cb(key, mat)
+        };
+
+        while let Some((sig, &key)) = it.next() {
             let comp = key_to_component_table.get(&key).unwrap();
             let &comp_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(comp_pos));
+
             match sig {
                 StackSignal::Nop => {
-                    s.pop();
-                    s.push(transform);
+                    if peek_and_prop(&mat_stack, &key_stack) {
+                        return;
+                    }
+                    mat_stack.pop();
+                    key_stack.pop();
+
+                    mat_stack.push(transform);
+                    key_stack.push(key);
                 }
                 StackSignal::Pop { n_times } => {
-                    s.pop_multi(n_times+1);
-                    s.push(transform);
+                    for _ in 0..n_times + 1 {
+                        if peek_and_prop(&mat_stack, &key_stack) {
+                            return;
+                        }
+                        mat_stack.pop();
+                        key_stack.pop();
+                    }
+
+                    mat_stack.push(transform);
+                    key_stack.push(key);
                 }
                 StackSignal::Push => {
-                    s.push(transform);
+                    mat_stack.push(transform);
+                    key_stack.push(key);
                 }
             }
-            (sig,key,*s.peek())
-        })
+        }
+
+        //flush remaining items in stack
+        while key_stack.len() > 0 {
+            if peek_and_prop(&mat_stack, &key_stack) {
+                return;
+            }
+            mat_stack.pop();
+            key_stack.pop();
+        }
     }
 
     fn gen_component_key(&mut self) -> GuiComponentKey {

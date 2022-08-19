@@ -14,6 +14,17 @@ impl GUIComponent for Button {
         self
     }
 
+    fn as_any_mut(&mut self) -> &mut dyn Any {
+        self    
+    }
+
+
+    fn get_bounds(&self)-> Vec2<f32> {
+        Vec2::from([self.width,self.height])
+    }
+
+    
+
     fn rel_position(&self)->&Vec2<f32> {
         &self.rel_position
     }
