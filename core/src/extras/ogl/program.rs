@@ -1,5 +1,6 @@
 use super::*;
-use crate::{*,window::*};
+use crate::*;
+
 pub struct OglProg {
     pub prog: glow::Program,
     pub gl: GlowGL,
@@ -25,7 +26,7 @@ impl OglProg {
     ///  #endif
     ///  ```
     /// so again `raw_source` is just ONE block of text with multiple shaders jammed in one file.
-    pub fn compile_program(gl:&GlowGL, raw_source: &str) -> Result<OglProg, CompilationError> {
+    pub fn compile_program(gl: &GlowGL, raw_source: &str) -> Result<OglProg, CompilationError> {
         let tokens = tokensize_source(raw_source);
         let header = get_source_block(&tokens, "HEADER");
         let uniforms = get_source_block(&tokens, "UNIFORMS");
@@ -118,13 +119,10 @@ impl Drop for OglProg {
     }
 }
 
-
-impl Bindable for OglProg{
+impl Bindable for OglProg {
     fn bind(&self, opt: bool) {
         let gl = &self.gl;
-        unsafe {
-            gl.use_program(opt.map(||self.prog() ) )
-        }
+        unsafe { gl.use_program(opt.map(|| self.prog())) }
     }
 }
 #[derive(Debug)]

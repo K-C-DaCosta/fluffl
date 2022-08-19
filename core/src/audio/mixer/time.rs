@@ -24,13 +24,16 @@ impl SampleTime {
         self.samples_count = sample_count;
         self
     }
+
     pub fn with_sample_rate(mut self, sample_rate: u32) -> Self {
         self.sample_rate = sample_rate;
         self
     }
+
     pub fn elapsed_in_ms_fp(&self) -> FP64 {
         FP64::from(self.samples_count * 1000) / FP64::from(self.sample_rate)
     }
+
     pub fn elapsed_in_ms_f32(&self) -> f32 {
         (self.samples_count as f32 * 1000.0) / self.sample_rate as f32
     }
@@ -75,6 +78,7 @@ impl SampleTime {
             sample_rate,
         }
     }
+
     /// ## Description
     /// subs two times together
     /// ### Comments  
@@ -97,6 +101,7 @@ impl SampleTime {
             sample_rate,
         }
     }
+    
     /// Computes a new SampleTime,with info from `self`, given `dt` in milliseconds
     pub fn from_time_in_ms_u64(&self, dt: u64) -> Self {
         let sample_rate = self.sample_rate;

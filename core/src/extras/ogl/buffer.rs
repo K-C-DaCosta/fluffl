@@ -1,10 +1,7 @@
-use std::{
-    any::Any,
-    ops::{Index, IndexMut},
-};
+use std::any::Any;
 
 use super::*;
-use crate::{math::Vector, *};
+use crate::*;
 
 #[derive(Copy, Clone)]
 pub struct BufferInfo {
@@ -34,7 +31,7 @@ pub struct OglBuf<T> {
 
 pub trait HasBufferObj: HasData + Bindable {
     fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self)->&mut dyn Any;
+    fn as_any_mut(&mut self) -> &mut dyn Any;
     fn info(&self) -> &BufferInfo;
     fn update(&self);
 }
@@ -108,7 +105,6 @@ where
             info: BufferInfo::default(),
         })
     }
-    
 }
 
 impl<T> Bindable for OglBuf<T> {
@@ -128,8 +124,8 @@ where
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
-    fn as_any_mut(&mut self)->&mut dyn Any {
+
+    fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
 

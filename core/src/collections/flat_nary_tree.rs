@@ -5,6 +5,7 @@ mod iterators;
 mod sort_util;
 mod swappable;
 
+pub use self::iterators::StackSignal;
 use self::{iterators::*, sort_util::*, swappable::*};
 
 /// ## Description
@@ -178,7 +179,7 @@ where
         let mut indents = String::new();
         let indent = "--";
 
-        for (signal, item) in StackSignalIterator::new(self) {
+        for (signal, item) in StackSignalIteratorMut::new(self) {
             match signal {
                 StackSignal::Push => indents.push_str(indent),
                 StackSignal::Pop { n_times } => (0..indent.len() * n_times).for_each(|_| {
@@ -223,9 +224,14 @@ where
         }
     }
 
-    pub fn iter_mut_stack_signals(&mut self) -> StackSignalIterator<'_, T> {
+    pub fn iter_mut_stack_signals(&mut self) -> StackSignalIteratorMut<'_, T> {
+        StackSignalIteratorMut::new(self)
+    }
+
+    pub fn iter_stack_signals(&self) -> StackSignalIterator<'_, T> {
         StackSignalIterator::new(self)
     }
+    
 
     fn get_child_nodes<PTR>(&self, root: PTR) -> impl Iterator<Item = Ptr> + '_
     where

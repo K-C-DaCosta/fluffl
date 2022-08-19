@@ -4,7 +4,7 @@ pub struct Button {
     key: GuiComponentKey,
     width: f32,
     height: f32,
-    rel_position: Vec2<FP32>,
+    rel_position: Vec2<f32>,
     color: Vec4<f32>,
     is_visible: bool,
 }
@@ -13,13 +13,28 @@ impl GUIComponent for Button {
     fn as_any(&self) -> &dyn Any {
         self
     }
+
+    fn rel_position(&self)->&Vec2<f32> {
+        &self.rel_position
+    }
+
     fn key(&self) -> GuiComponentKey {
         self.key
+    }
+
+    fn set_key(&mut self,key:GuiComponentKey) {
+        self.key = key;
+    }
+    
+    fn set_rel_position(&mut self,pos:Vec2<f32>) {
+        self.rel_position = pos;     
     }
 
     fn window_event(&mut self, manager: &mut GUIManager, event: EventKind) {
         
     }
 
-    fn render(&self, gl: &GlowGL) {}
+    fn render(&self, gl: &GlowGL, r: &GuiRenderer, s: &MatStack<f32>, win_w: f32, win_h: f32) {
+        
+    }
 }

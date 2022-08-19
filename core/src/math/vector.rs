@@ -16,21 +16,38 @@ pub struct Vector<const N: usize, T> {
 
 impl<const N: usize, T> Display for Vector<N, T>
 where
-    T: Debug,
+    T: Display,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "{:?}", self)
+        write!(f, "[{:3}", self.data[0])?;
+        for k in 1..N {
+            write!(f, ",{:3}", self.data[k])?;
+        }
+        write!(f, "]")
     }
 }
 
 impl<const N: usize, T> Vector<N, T>
 where
-    T: Default + Copy,
+    T: Default + Copy + HasScalar,
 {
     pub fn zero() -> Self {
         Self {
             data: [T::default(); N],
         }
+    }
+
+    pub fn data(&self) -> &[T; N] {
+        &self.data
+    }
+
+    pub fn to_pos<const M: usize>(b: Vector<M, T>) -> Self {
+        let mut res = Self::zero();
+        for k in 0..M.min(N - 1) {
+            res[k] = b[k];
+        }
+        res[N - 1] = T::one();
+        res
     }
 
     pub fn from_array(data: [T; N]) -> Self {
@@ -42,7 +59,7 @@ impl<T> Vector<4, T>
 where
     T: HasScalar + Copy + Default + Div<Output = T> + Mul<Output = T>,
 {
-    pub fn from_rgba_hex_color_u32(color: u32) -> Self {
+    pub fn rgba_u32(color: u32) -> Self {
         let mut result = Self::zero();
         let inv_denom = T::from_i32(1) / T::from_i32(255);
         for k in 0..4 {
@@ -51,6 +68,10 @@ where
             result[k] = comp;
         }
         result
+    }
+
+    pub fn rgb_u32(color: u32) -> Self {
+        Self::rgba_u32((color << 8) | 0xff)
     }
 }
 
@@ -171,6 +192,22 @@ impl<const N: usize, T> IndexMut<usize> for Vector<N, T> {
     }
 }
 
+impl<const N: usize> From<[f32; N]> for Vector<N, f32> {
+    fn from(arr: [f32; N]) -> Self {
+        Self::from_array(arr)
+    }
+}
+impl From<[f32; 2]> for Vector<4, f32> {
+    fn from(arr: [f32; 2]) -> Self {
+        Self::from_array([arr[0], arr[1], 0.0, 0.0])
+    }
+}
+impl From<[f32; 3]> for Vector<4, f32> {
+    fn from(arr: [f32; 3]) -> Self {
+        Self::from_array([arr[0], arr[1], arr[2], 0.0])
+    }
+}
+
 /// ## Description
 /// Used to write vector components into arrays
 pub struct ComponentWriter<'a, T, Len, Push> {
@@ -268,7 +305,18 @@ pub fn writer_test() {
 
 #[test]
 pub fn color_test() {
-    use super::FP32; 
-    let x = Vec4::<f32>::from_rgba_hex_color_u32(0xffffffff);
+    use super::FP32;
+    let x = Vec4::<f32>::rgba_u32(0xffffffff);
     println!("{}", x);
+}
+
+#[test]
+pub fn position_test() {
+    let a = Vec2::<f32>::from_array([0.1, 0.2]);
+    let b = Vec4::to_pos(a);
+    println!("{}\nto\n{}", a, b);
+
+    let a = Vec3::<f32>::from_array([3., 5., 9.5]);
+    let b = Vec4::to_pos(a);
+    println!("{}\nto\n{}", a, b);
 }

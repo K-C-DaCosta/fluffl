@@ -1,5 +1,5 @@
-use super::*; 
-use crate::{window::*, *};
+use super::*;
+use crate::*;
 
 pub struct OglTexture {
     inner: Box<dyn HasTextureObj>,

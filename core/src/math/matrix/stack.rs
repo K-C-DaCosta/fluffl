@@ -2,6 +2,9 @@ use super::*;
 
 pub type MatStack<T> = MatrixStack<32, T>;
 
+
+/// # Description
+/// Used for scene-graphs and GUI stuff  
 pub struct MatrixStack<const N: usize, T> {
     cursor: usize,
     stack: [Mat4<T>; N],
@@ -16,6 +19,10 @@ where
             cursor: 1,
             stack: [Mat4::identity(); N],
         }
+    }
+
+    pub fn clear(&mut self) {
+        self.cursor = 1;
     }
 
     pub fn is_full(&self) -> bool {
