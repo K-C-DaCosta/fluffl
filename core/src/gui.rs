@@ -135,7 +135,7 @@ impl GUIManager {
             );
         }
 
-        manager.focused_component = Some(frame.0);
+        // manager.focused_component = Some(frame.0);
 
         manager
     }
@@ -156,11 +156,8 @@ impl GUIManager {
         self.window_events.push_back(event);
     }
 
-    pub fn render(&mut self, window_width: f32, window_height: f32) {
-        let gl = &self.gl;
-
-        let mut mouse_inside = vec![];
-
+    fn handle_incoming_events(&mut self){
+        let mut local_focused = None;
         while let Some(event) = self.window_events.pop_front() {
             match event {
                 EventKind::Resize { width, height } => {
@@ -171,59 +168,52 @@ impl GUIManager {
                     //     height as f32,
                     // );
                 }
+                EventKind::MouseUp { x, y, .. } => {
+                    self.focused_component = None;
+                }
                 EventKind::MouseDown { x, y, .. } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
-
-                    self.component_global_position_bottom_up(|key, mat| {
+                    for (_, key, mat) in self.component_global_position_top_down() {
                         let aabb = {
                             let comp = self.key_to_component_table.get(&key).unwrap();
                             let global_pos = mat * Vec4::from([0., 0., 0., 1.]);
                             comp.get_aabb(global_pos)
                         };
-                        let is_point_inside = aabb.is_point_inside(mouse_pos);
-                        if is_point_inside {
-                            mouse_inside.push(key);
+
+                        if aabb.is_point_inside(mouse_pos) {
+                            local_focused = Some(key);
                         }
-                        is_point_inside
-                    });
-
-                    // for (_, key, mat) in self.component_global_position_iter() {
-                    //     let aabb = {
-                    //         let comp = self.key_to_component_table.get(&key).unwrap();
-                    //         let global_pos = mat * Vec4::from([0., 0., 0., 1.]);
-                    //         comp.get_aabb(global_pos)
-                    //     };
-
-                    //     if aabb.is_point_inside(mouse_pos) {
-                    //         mouse_inside.push(key);
-                    //         break;
-                    //     }
-                    // }
+                    }
                 }
-                EventKind::MouseMove { x, y, .. } => {
-                    let pos = Vec2::from([x as f32, y as f32]);
-
-                    // if let Some(fkey) = self.focused_component {
-                    //     self.key_to_component_table
-                    //         .get_mut(&fkey)
-                    //         .unwrap()
-                    //         .set_rel_position(pos);
-                    // }
+                EventKind::MouseMove { dx, dy, .. } => {
+                    let disp = Vec2::from([dx as f32, dy as f32]);
+                    if let Some(fkey) = self.focused_component {
+                        self.key_to_component_table
+                            .get_mut(&fkey)
+                            .unwrap()
+                            .translate(disp);
+                    }
                 }
                 _ => (),
             }
         }
-
-        if let Some(key) = mouse_inside.pop() {
-            self.key_to_component_table
-                .get_mut(&key)
-                .unwrap()
-                .as_any_mut()
-                .downcast_mut::<Frame>()
-                .unwrap()
-                .color = Vec4::rgb_u32(0xff0000);
+        
+        if let Some(key) = local_focused {
+            self.focused_component = Some(key);
+            // self.key_to_component_table
+            //     .get_mut(&key)
+            //     .unwrap()
+            //     .as_any_mut()
+            //     .downcast_mut::<Frame>()
+            //     .unwrap()
+            //     .color = Vec4::rgb_u32(0xff0000);
         }
+    }
 
+    pub fn render(&mut self, window_width: f32, window_height: f32) {
+        self.handle_incoming_events();
+        
+        let gl = &self.gl;
         let s = &mut self.stack;
         let r = &mut self.renderer;
         let gui_component_tree = &mut self.gui_component_tree;

@@ -92,7 +92,7 @@ pub enum EventKind {
     },
 }
 
-#[derive(Copy, Clone, PartialEq,Eq, Serialize, Deserialize, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
 #[allow(non_camel_case_types)]
 pub enum KeyCode {
     KEY_A = 'a' as isize,
@@ -233,8 +233,7 @@ impl KeyCode {
 
 impl Into<i128> for KeyCode {
     fn into(self) -> i128 {
-        use std::mem::transmute_copy;
-        unsafe { transmute_copy(&self) }
+        self as i128
     }
 }
 #[allow(non_camel_case_types)]

@@ -132,6 +132,8 @@ impl WindowManager for FlufflWindow {
         let audio = sdl.audio()?;
         let video = sdl.video()?;
 
+      
+
         let gl_attr = video.gl_attr();
         gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
         gl_attr.set_context_version(settings.context_major, settings.context_minor);
@@ -146,6 +148,7 @@ impl WindowManager for FlufflWindow {
             if settings.resizable == false && settings.fullscreen {
                 builder_ref = builder.fullscreen();
             }
+
             builder_ref.build()
         };
 
@@ -164,10 +167,12 @@ impl WindowManager for FlufflWindow {
         let render_loop = Some(glow::RenderLoop::<sdl2::video::Window>::from_sdl_window(
             window,
         ));
-
         let event_loop = sdl.event_pump()?;
 
         TouchTracker::init();
+
+        // disable vsync 
+        video.gl_set_swap_interval(0).expect("failed to disable vsync");
 
         let fluffl_window = Self {
             sdl_gl_context: gl_context,
