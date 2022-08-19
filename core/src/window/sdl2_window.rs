@@ -172,8 +172,8 @@ impl WindowManager for FlufflWindow {
         TouchTracker::init();
 
         // disable vsync 
-        video.gl_set_swap_interval(0).expect("failed to disable vsync");
-
+        video.gl_set_swap_interval(0).expect("failed to disable vsync:");
+        
         let fluffl_window = Self {
             sdl_gl_context: gl_context,
             sdl_event_pump: event_loop,
