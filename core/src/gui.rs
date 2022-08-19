@@ -79,6 +79,17 @@ impl GUIManager {
 
         let root = manager.add_component(Box::new(Origin::new()), NodeID::default());
 
+
+        let frame2 = manager.add_component(
+            Box::new(
+                Frame::new()
+                    .with_bounds([200., 100.])
+                    .with_roundness([0., 0., 10.0, 10.0])
+                    .with_position([64.0, 400.0]),
+            ),
+            root.1,
+        );
+
         let frame = manager.add_component(
             Box::new(
                 Frame::new()

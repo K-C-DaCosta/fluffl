@@ -54,7 +54,7 @@ const GUI_FRAME_SHADER_SOURCE: &'static str = r"
 
         void main(){
             float max_depth = -5.0;
-            float band = 0.1;
+            float band = 2.0;
 
             //use modelview matrix to compute width and height bounding box 
             //by using the fact that the geometry is ALWAYS a unit-square in the bottom-right quadrant 
