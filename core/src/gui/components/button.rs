@@ -23,8 +23,6 @@ impl GUIComponent for Button {
         Vec2::from([self.width,self.height])
     }
 
-    
-
     fn rel_position(&self)->&Vec2<f32> {
         &self.rel_position
     }

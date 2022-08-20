@@ -3,6 +3,7 @@ use crate::math::AABB2;
 mod button;
 mod frame;
 mod origin;
+mod slider;
 
 use std::any::Any;
 
@@ -23,14 +24,16 @@ pub trait GUIComponent {
     fn set_rel_position(&mut self, pos: Vec2<f32>);
     fn key(&self) -> GuiComponentKey;
     fn set_key(&mut self, key: GuiComponentKey);
+    
     fn window_event(&mut self, manager: &mut GUIManager, event: EventKind);
+    
     fn render(&self, gl: &GlowGL, r: &GuiRenderer, s: &MatStack<f32>, win_w: f32, win_h: f32);
 
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
         let bounds = self.get_bounds();
         AABB2::from_point_and_lengths(Vec2::convert(global_x0), bounds)
     }
-
+    
     fn translate(&mut self, disp: Vec2<f32>) {
         let &pos = self.rel_position();
         self.set_rel_position(pos + disp);

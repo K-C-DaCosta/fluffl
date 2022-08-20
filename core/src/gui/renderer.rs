@@ -34,12 +34,6 @@ const GUI_FRAME_SHADER_SOURCE: &'static str = r"
         in vec4 world_space_pos;
         out vec4 final_color; 
 
-        float smoothedge(float e0, float e1,float x){
-            float t =(x-e0)/(e1-e0);
-            float mask = max(sign(1.0-t),0.0);
-            return ( t * t * (3. - 2. * t))*mask;
-        }
-
         float sdRoundBox( in vec2 p, in vec2 b, in vec4 r ) 
         {            
             //make sure position is in the top-right
@@ -324,7 +318,7 @@ impl GuiRenderer {
 
         uniforms.set_roundness(&gl, &frame_program, 1., 1., 20., 20.);
 
-        uniforms.set_edge_color(&gl, &frame_program, Vec4::rgba_u32(0xB1E1FF00));
+        uniforms.set_edge_color(&gl, &frame_program, Vec4::rgb_u32(0xB1E1FF));
 
         Self {
             unit_square_vao,

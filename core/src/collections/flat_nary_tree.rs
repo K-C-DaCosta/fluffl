@@ -1,5 +1,5 @@
 use super::*;
-use std::fmt::Debug;
+use std::{collections::HashMap, fmt::Debug};
 
 mod iterators;
 mod sort_util;
@@ -24,9 +24,10 @@ pub struct LinearTree<T> {
     node_id_counter: usize,
     has_child: Vec<bool>,
     nodes_deleted: usize,
+    id_to_ptr_table: HashMap<NodeID, Ptr>,
 }
 
-#[derive(Copy, Clone, Default, Debug, PartialEq, Eq)]
+#[derive(Copy, Clone, Hash, Default, Debug, PartialEq, Eq)]
 pub struct NodeID(usize);
 
 impl<T> LinearTree<T>
@@ -44,6 +45,7 @@ where
             node_id_counter: 0,
             has_child: vec![],
             nodes_deleted: 0,
+            id_to_ptr_table: HashMap::new(),
         }
     }
 
@@ -65,7 +67,28 @@ where
             .map(|(idx, data)| (Ptr::from(idx), data))
     }
 
+    pub fn get_parent_id(&self, id: NodeID) -> Option<NodeID> {
+        let node_ptr = self.resolve_id_to_ptr(id);
+
+        if node_ptr == Ptr::null() {
+            return None;
+        }
+
+        let parent_ptr = self.parent[node_ptr.as_usize()];
+        Some(self.node_id[parent_ptr.as_usize()])
+    }
+
     fn resolve_id_to_ptr(&self, id: NodeID) -> Ptr {
+        self.id_to_ptr_table
+            .get(&id)
+            .map(|&a| a)
+            .unwrap_or(Ptr::null())
+    }
+
+    #[allow(dead_code)]
+    /// the old way I used to do it, slow AF. The new way uses
+    /// a hashtable to avoid the crawl
+    fn resolve_id_to_ptr_slow(&self, id: NodeID) -> Ptr {
         self.node_id
             .iter()
             .enumerate()
@@ -135,6 +158,19 @@ where
         self.recompute_has_child_table();
 
         self.reconstruct_parent_pointers();
+
+        // after the above functions are called, 
+        // all (nid,ptr) pairs are invalid and must be recomputed
+        self.reconstruct_id_to_ptr_table();
+    }
+
+    fn reconstruct_id_to_ptr_table(&mut self) {
+        self.id_to_ptr_table.clear();
+        for k in 0..self.data.len() {
+            let ptr = Ptr::from(k);
+            let nid = self.node_id[k];
+            self.id_to_ptr_table.insert(nid, ptr);
+        }
     }
 
     fn reconstruct_parent_pointers(&mut self) {
@@ -231,7 +267,6 @@ where
     pub fn iter_stack_signals(&self) -> StackSignalIterator<'_, T> {
         StackSignalIterator::new(self)
     }
-    
 
     fn get_child_nodes<PTR>(&self, root: PTR) -> impl Iterator<Item = Ptr> + '_
     where
