@@ -42,6 +42,13 @@ impl GUIComponent for Origin {
         self.key = key;
     }
 
-    fn render(&self, gl: &GlowGL, r: &GuiRenderer, s: &MatStack<f32>, win_w: f32, win_h: f32) {}
-    fn window_event(&mut self, manager: &mut GUIManager, event: EventKind) {}
+    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {}
+    
+    fn handle_window_event(&mut self, manager: &mut GUIManager,signal:ComponentEventSignal) {
+        
+    }
+
+    fn set_listener<'a>(&mut self, listener:ComponentEventListener<'a>) {
+        
+    }
 }

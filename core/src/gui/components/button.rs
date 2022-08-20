@@ -38,12 +38,16 @@ impl GUIComponent for Button {
     fn set_rel_position(&mut self,pos:Vec2<f32>) {
         self.rel_position = pos;     
     }
-
-    fn window_event(&mut self, manager: &mut GUIManager, event: EventKind) {
+    
+    fn handle_window_event(&mut self, manager: &mut GUIManager,signal:ComponentEventSignal) {
         
     }
 
-    fn render(&self, gl: &GlowGL, r: &GuiRenderer, s: &MatStack<f32>, win_w: f32, win_h: f32) {
+    fn render<'a>(&self, gl: &GlowGL,state:RenderState<'a>, win_w: f32, win_h: f32) {
+        
+    }
+
+    fn set_listener<'a>(&mut self, listener:ComponentEventListener<'a>) {
         
     }
 }

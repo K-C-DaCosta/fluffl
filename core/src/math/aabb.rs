@@ -2,15 +2,15 @@ use super::*;
 
 use std::ops::{Add, AddAssign, Sub};
 
-/// 2D aabb 
+/// 2D aabb
 pub type AABB2<T> = AABB<2, T>;
 
-/// 3D aabb 
+/// 3D aabb
 pub type AABB3<T> = AABB<3, T>;
-
 
 /// ## Description
 /// A representation of an axis-alligned rectangle
+#[derive(Copy, Clone)]
 pub struct AABB<const DIM: usize, T> {
     s0: Vector<DIM, T>,
     s1: Vector<DIM, T>,
@@ -30,7 +30,7 @@ where
             s1: x0 + dim,
         }
     }
-    
+
     pub fn dims(&self) -> Vector<DIM, T> {
         self.s1 - self.s0
     }

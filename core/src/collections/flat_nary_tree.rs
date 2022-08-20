@@ -8,6 +8,22 @@ mod swappable;
 pub use self::iterators::StackSignal;
 use self::{iterators::*, sort_util::*, swappable::*};
 
+#[derive(Copy, Clone, Hash, Default, Debug, PartialEq, Eq)]
+pub struct NodeID(usize);
+
+#[derive(Copy, Clone)]
+pub struct NodeInfo<'a, T> {
+    pub parent: Option<NodeID>,
+    pub id: NodeID,
+    pub val: &'a T,
+}
+
+pub struct NodeInfoMut<'a, T> {
+    pub parent: Option<NodeID>,
+    pub id: NodeID,
+    pub val: &'a mut T,
+}
+
 /// ## Description
 /// stores a tree by keeping nodes in pre-order traversal in a vector for fast traversal.
 /// I call this a "linear" tree because this data structure only stores the parent info
@@ -26,9 +42,6 @@ pub struct LinearTree<T> {
     nodes_deleted: usize,
     id_to_ptr_table: HashMap<NodeID, Ptr>,
 }
-
-#[derive(Copy, Clone, Hash, Default, Debug, PartialEq, Eq)]
-pub struct NodeID(usize);
 
 impl<T> LinearTree<T>
 where
@@ -49,33 +62,59 @@ where
         }
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = (Ptr, &T)> + '_ {
-        self.data
-            .iter()
+    pub fn iter<'a>(&'a self) -> impl Iterator<Item = NodeInfo<'a, T>> {
+        let len = self.len();
+
+        let data = &self.data;
+        let parent = &self.parent;
+        let node_id = &self.node_id;
+
+        data.iter()
+            .zip(parent.iter())
             .enumerate()
-            .map(|(k, i)| Some(k).zip(i.as_ref()))
+            .take(len)
+            .map(|(cur_ptr_usize, (val, &parent_ptr))| {
+                Some((cur_ptr_usize, parent_ptr)).zip(val.as_ref())
+            })
             .filter_map(|a| a)
-            .map(|(idx, data)| (Ptr::from(idx), data))
+            .map(|((cur_ptr_usize, parent_ptr), val)| (cur_ptr_usize, parent_ptr, val))
+            .map(move |(cur_ptr_usize, parent_ptr, val)| NodeInfo {
+                val,
+                id: node_id[cur_ptr_usize],
+                parent: (parent_ptr != Ptr::null()).then(|| node_id[parent_ptr.as_usize()]),
+            })
     }
 
-    pub fn iter_mut(&mut self) -> impl Iterator<Item = (Ptr, &mut T)> + '_ {
-        self.data
-            .iter_mut()
+    pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = NodeInfoMut<'a, T>> {
+        let len = self.len();
+        let data = &mut self.data;
+        let parent = &mut self.parent;
+        let node_id = &mut self.node_id;
+
+        let parent_alias = unsafe { crate::mem::force_borrow_mut(parent) };
+
+        data.iter_mut()
+            .zip(parent.iter_mut())
             .enumerate()
-            .map(|(k, i)| Some(k).zip(i.as_mut()))
+            .take(len)
+            .map(|(cur_ptr_usize, (val, &mut parent_ptr))| {
+                Some((cur_ptr_usize, parent_ptr)).zip(val.as_mut())
+            })
             .filter_map(|a| a)
-            .map(|(idx, data)| (Ptr::from(idx), data))
+            .map(|((cur_ptr_usize, parent_ptr), val)| (cur_ptr_usize, parent_ptr, val))
+            .map(move |(cur_ptr_usize, parent_ptr, val)| NodeInfoMut {
+                val,
+                id: node_id[cur_ptr_usize],
+                parent: (parent_ptr != Ptr::null()).then(|| node_id[parent_ptr.as_usize()]),
+            })
     }
 
     pub fn get_parent_id(&self, id: NodeID) -> Option<NodeID> {
         let node_ptr = self.resolve_id_to_ptr(id);
-
-        if node_ptr == Ptr::null() {
-            return None;
-        }
-
-        let parent_ptr = self.parent[node_ptr.as_usize()];
-        Some(self.node_id[parent_ptr.as_usize()])
+        (node_ptr != Ptr::null()).then(|| {
+            let parent_ptr = self.parent[node_ptr.as_usize()];
+            self.node_id[parent_ptr.as_usize()]
+        })
     }
 
     fn resolve_id_to_ptr(&self, id: NodeID) -> Ptr {
@@ -159,7 +198,7 @@ where
 
         self.reconstruct_parent_pointers();
 
-        // after the above functions are called, 
+        // after the above functions are called,
         // all (nid,ptr) pairs are invalid and must be recomputed
         self.reconstruct_id_to_ptr_table();
     }

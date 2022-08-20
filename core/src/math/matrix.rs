@@ -1,5 +1,5 @@
 use super::*;
-pub mod stack; 
+pub mod stack;
 use std::{
     fmt::Display,
     ops::{Add, AddAssign, Mul},
@@ -163,10 +163,10 @@ where T:HasScalar+Default+Copy,
 #[rustfmt::skip]
 pub fn calc_ortho_window_f32(w: f32, h: f32) -> Mat4<f32> {
     let data = [
-        2.0 / w,0.      ,0.,-1.0, 
-        0.     ,-2.0 / h,0., 1.0,
-        0.     ,0.      ,1.,  0.,
-        0.     ,0.      ,0., 1.0,
+        2.0 / w,0.      ,0.  ,-1.0, 
+        0.     ,-2.0 / h,0.  , 1.0,
+        0.     ,0.      ,0.01,  0.,
+        0.     ,0.      ,0.  , 1.0,
     ];
     Mat4::new().with_data(data)
 }

@@ -72,7 +72,7 @@ impl GUIComponent for Frame {
         self
     }
 
-    fn get_bounds(&self)-> Vec2<f32> {
+    fn get_bounds(&self) -> Vec2<f32> {
         self.bounds
     }
 
@@ -92,17 +92,17 @@ impl GUIComponent for Frame {
         &self.rel_pos
     }
 
-    fn window_event(&mut self, manager: &mut GUIManager, event: EventKind) {}
+    fn handle_window_event(&mut self, manager: &mut GUIManager,signal:ComponentEventSignal) {
+        
+    }
 
-    fn render(&self, gl: &GlowGL, r: &GuiRenderer, s: &MatStack<f32>, win_w: f32, win_h: f32) {
+
+    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {
         if self.is_visible == false {
             return;
         }
 
-        let pos = Vec4::to_pos(self.rel_pos);
-        let &transform = s.peek();
-        let global_pos = transform * pos;
-
+        let r = state.renderer;
         r.builder(gl, GuiShaderKind::Frame)
             .set_window(win_w, win_h)
             .set_roundness_vec(self.roundness)
@@ -110,7 +110,11 @@ impl GUIComponent for Frame {
             .set_background_color(self.color)
             .set_null_color([0., 0., 0., 0.0])
             .set_bounds(self.bounds)
-            .set_position(global_pos, Vec4::to_pos(self.bounds))
+            .set_position(state.global_position, Vec4::to_pos(self.bounds))
             .render();
+    }
+
+    fn set_listener<'a>(&mut self, listener:ComponentEventListener<'a>) {
+        
     }
 }
