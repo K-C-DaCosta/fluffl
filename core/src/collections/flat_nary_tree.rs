@@ -9,7 +9,7 @@ pub use self::iterators::StackSignal;
 use self::{iterators::*, sort_util::*, swappable::*};
 
 #[derive(Copy, Clone, Hash, Default, Debug, PartialEq, Eq)]
-pub struct NodeID(usize);
+pub struct NodeID(pub usize);
 
 #[derive(Copy, Clone)]
 pub struct NodeInfo<'a, T> {
@@ -43,10 +43,7 @@ pub struct LinearTree<T> {
     id_to_ptr_table: HashMap<NodeID, Ptr>,
 }
 
-impl<T> LinearTree<T>
-where
-    T: Display + Debug,
-{
+impl<T> LinearTree<T> {
     pub fn new() -> Self {
         Self {
             order: vec![],
@@ -91,8 +88,6 @@ where
         let parent = &mut self.parent;
         let node_id = &mut self.node_id;
 
-        let parent_alias = unsafe { crate::mem::force_borrow_mut(parent) };
-
         data.iter_mut()
             .zip(parent.iter_mut())
             .enumerate()
@@ -107,6 +102,22 @@ where
                 id: node_id[cur_ptr_usize],
                 parent: (parent_ptr != Ptr::null()).then(|| node_id[parent_ptr.as_usize()]),
             })
+    }
+
+    pub fn get<NID>(&self, node_id: NID) -> Option<&T>
+    where
+        NID: Copy + Into<NodeID>,
+    {
+        let node_ptr = self.resolve_id_to_ptr(node_id.into());
+        self.data.get(node_ptr.as_usize())?.as_ref()
+    }
+
+    pub fn get_mut<NID>(&mut self, node_id: NID) -> Option<&mut T>
+    where
+        NID: Copy + Into<NodeID>,
+    {
+        let node_ptr = self.resolve_id_to_ptr(node_id.into());
+        self.data.get_mut(node_ptr.as_usize())?.as_mut()
     }
 
     pub fn get_parent_id(&self, id: NodeID) -> Option<NodeID> {
@@ -163,7 +174,7 @@ where
         let node_id = &mut self.node_id;
         let level = &mut self.level;
 
-        //sort everything in post_order_traversal
+        // sort everything in post_order_traversal
         quick_co_sort(
             order,
             [
@@ -248,30 +259,6 @@ where
 
     pub fn len(&self) -> usize {
         self.data.len() - self.nodes_deleted
-    }
-
-    pub fn print(&mut self) {
-        let mut indents = String::new();
-        let indent = "--";
-
-        for (signal, item) in StackSignalIteratorMut::new(self) {
-            match signal {
-                StackSignal::Push => indents.push_str(indent),
-                StackSignal::Pop { n_times } => (0..indent.len() * n_times).for_each(|_| {
-                    indents.pop();
-                }),
-                StackSignal::Nop => {}
-            }
-            if indents.len() > 0 {
-                indents.pop();
-                indents.push('>');
-                println!("{}{}", indents, item);
-                indents.pop();
-                indents.push('-');
-            } else {
-                println!("{}{}", indents, item);
-            }
-        }
     }
 
     fn compute_post_order_traversal(&mut self, root: Ptr) {
@@ -382,6 +369,35 @@ where
             removed_vals.push(item);
         }
         self.nodes_deleted += 1;
+    }
+}
+
+impl<T> LinearTree<T>
+where
+    T: Debug + Display,
+{
+    pub fn print(&mut self) {
+        let mut indents = String::new();
+        let indent = "--";
+
+        for (signal, item) in StackSignalIteratorMut::new(self) {
+            match signal {
+                StackSignal::Push => indents.push_str(indent),
+                StackSignal::Pop { n_times } => (0..indent.len() * n_times).for_each(|_| {
+                    indents.pop();
+                }),
+                StackSignal::Nop => {}
+            }
+            if indents.len() > 0 {
+                indents.pop();
+                indents.push('>');
+                println!("{}{}", indents, item);
+                indents.pop();
+                indents.push('-');
+            } else {
+                println!("{}{}", indents, item);
+            }
+        }
     }
 }
 

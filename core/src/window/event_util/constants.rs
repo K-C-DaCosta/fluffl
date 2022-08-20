@@ -5,7 +5,7 @@ pub const KP_OFFSET: isize = 1000;
 
 //the whole point of this module is to provide a generic interface for events in the code.
 //Every target needs to map its native events to these.
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize,Debug)]
 pub enum EventKind {
     /// # Description
     /// This event fires only when the user clicks on the "x" button on desktop.
@@ -92,7 +92,7 @@ pub enum EventKind {
     },
 }
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash)]
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash,Debug)]
 #[allow(non_camel_case_types)]
 pub enum KeyCode {
     KEY_A = 'a' as isize,
@@ -237,7 +237,7 @@ impl Into<i128> for KeyCode {
     }
 }
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone, Serialize, Deserialize,Debug)]
 pub enum MouseCode {
     LEFT_BUTTON,
     RIGHT_BUTTON,

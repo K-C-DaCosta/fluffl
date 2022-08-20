@@ -18,7 +18,7 @@ pub enum ComponentEventListener<'a> {
     OnRelease(fn(MouseEventInfo<'a>)),
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone,Debug)]
 pub enum ComponentEventSignal {
     HoverIn(GuiComponentKey, EventKind),
     HoverOut(GuiComponentKey, EventKind),
@@ -31,8 +31,7 @@ pub enum ComponentEventSignal {
 pub struct RenderState<'a> {
     pub global_position: Vec4<f32>,
     pub renderer: &'a GuiRenderer,
-    pub gui_component_tree: &'a LinearTree<GuiComponentKey>,
-    pub key_to_node_table: &'a HashMap<GuiComponentKey, NodeID>,
+    pub gui_component_tree: &'a LinearTree<Box<dyn GUIComponent>>,
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
 

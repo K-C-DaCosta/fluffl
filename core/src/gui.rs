@@ -29,7 +29,18 @@ pub enum GuiShaderKind {
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Default)]
-pub struct GuiComponentKey(u32);
+pub struct GuiComponentKey(usize);
+
+impl From<NodeID> for GuiComponentKey {
+    fn from(nid: NodeID) -> Self {
+        unsafe { std::mem::transmute_copy(&nid) }
+    }
+}
+impl Into<NodeID> for GuiComponentKey {
+    fn into(self) -> NodeID {
+        unsafe { std::mem::transmute_copy(&self) }
+    }
+}
 
 impl fmt::Display for GuiComponentKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -53,15 +64,8 @@ pub struct GUIManager {
     hover_component: Option<GuiComponentKey>,
 
     ///encodes the parent child relationship between nodes
-    gui_component_tree: LinearTree<GuiComponentKey>,
-
-    ///stores the position given component key
-    key_to_node_table: HashMap<GuiComponentKey, NodeID>,
-
+    gui_component_tree: LinearTree<Box<dyn GUIComponent>>,
     key_to_aabb_table: HashMap<GuiComponentKey, AABB2<f32>>,
-
-    ///used to resolve component key to `GUIComponent`
-    key_to_component_table: HashMap<GuiComponentKey, Box<dyn GUIComponent>>,
     component_signal_queue: VecDeque<components::ComponentEventSignal>,
 
     window_events: VecDeque<EventKind>,
@@ -73,20 +77,17 @@ impl GUIManager {
             renderer: GuiRenderer::new(&gl),
             focused_component: None,
             hover_component: None,
-
             gui_component_tree: LinearTree::new(),
-            key_to_node_table: HashMap::new(),
             component_key_state: 0,
             component_signal_queue: VecDeque::new(),
             window_events: VecDeque::new(),
             stack: MatStack::new(),
             position: Vec4::zero(),
-            key_to_component_table: HashMap::new(),
             key_to_aabb_table: HashMap::new(),
             gl,
         };
 
-        let root = manager.add_component(Box::new(Origin::new()), NodeID::default());
+        let root = manager.add_component(Box::new(Origin::new()), GuiComponentKey::default());
 
         let frame2 = manager.add_component(
             Box::new(
@@ -95,7 +96,7 @@ impl GUIManager {
                     .with_roundness([0., 0., 10.0, 10.0])
                     .with_position([64.0, 400.0]),
             ),
-            root.1,
+            root,
         );
 
         let frame = manager.add_component(
@@ -105,7 +106,7 @@ impl GUIManager {
                     .with_roundness([0., 0., 30.0, 30.0])
                     .with_position([64.0, 32.0]),
             ),
-            root.1,
+            root,
         );
 
         let red_frame = manager.add_component(
@@ -115,7 +116,7 @@ impl GUIManager {
                     .with_color([0.7, 0.2, 0., 1.0])
                     .with_position([63.0, 33.0]),
             ),
-            frame.1,
+            frame,
         );
 
         manager.add_component(
@@ -125,7 +126,7 @@ impl GUIManager {
                     .with_color(Vec4::rgb_u32(0x277BC0))
                     .with_position([8.0, 8.0]),
             ),
-            red_frame.1,
+            red_frame,
         );
 
         let orange_frame = manager.add_component(
@@ -137,7 +138,7 @@ impl GUIManager {
                     .with_edge_color([0., 0., 0., 1.0])
                     .with_position([128.0, 64.0]),
             ),
-            frame.1,
+            frame,
         );
 
         for k in 0..6 {
@@ -149,7 +150,7 @@ impl GUIManager {
                     .with_edge_color([0., 0., 0., 1.0])
                     .with_position([10.0 + 35.0 * (k as f32), 10.0]),
             );
-            manager.add_component(comp, orange_frame.1);
+            manager.add_component(comp, orange_frame);
         }
 
         manager
@@ -158,13 +159,11 @@ impl GUIManager {
     pub fn add_component(
         &mut self,
         comp: Box<dyn GUIComponent>,
-        parent: NodeID,
-    ) -> (GuiComponentKey, NodeID) {
-        let key = self.gen_component_key();
-        let id = self.gui_component_tree.add(key, parent);
-        self.key_to_component_table.insert(key, comp);
-        self.key_to_node_table.insert(key, id);
-        (key, id)
+        parent: GuiComponentKey,
+    ) -> GuiComponentKey {
+        let id = self.gui_component_tree.add(comp, parent.into());
+        let key = GuiComponentKey::from(id);
+        key
     }
 
     pub fn push_event(&mut self, event: EventKind) {
@@ -182,9 +181,9 @@ impl GUIManager {
         let component_signal_queue = &mut self.component_signal_queue;
 
         while let Some(event) = window_events.pop_front() {
+            let old_signal_len = component_signal_queue.len();
             match event {
                 EventKind::Resize { width, height } => {}
-
                 EventKind::MouseUp { x, y, .. } => {
                     if let &mut Some(gui_comp_key) = focused_component {
                         component_signal_queue
@@ -203,25 +202,60 @@ impl GUIManager {
                     }
                 }
 
-                EventKind::MouseMove { x, y, .. } => {
+                EventKind::MouseMove { x, y, dx, dy } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
+                    let _disp = Vec2::from([dx as f32, dy as f32]);
 
                     if let &mut Some(fkey) = focused_component {
                         component_signal_queue.push_back(ComponentEventSignal::Drag(fkey, event));
+
+                        gui_component_tree.get_mut(fkey).unwrap().translate(_disp);
                     }
 
                     match hover_component {
                         // if something is being hovered check if mouse has left the component
-                        &mut Some(key) => {
-                            let &aabb = key_to_aabb_table.get(&key).unwrap();
-                            if aabb.is_point_inside(mouse_pos) == false {
-                                component_signal_queue
-                                    .push_back(ComponentEventSignal::HoverOut(key, event));
+                        &mut Some(current_hover_key) => {
+                            let mut local_hover = None;
 
-                                //nothing is being hovered so set pointer to None
-                                *hover_component = None;
+                            for (key, aabb) in
+                                Self::aabb_iter(gui_component_tree, key_to_aabb_table)
+                            {
+                                if aabb.is_point_inside(mouse_pos) {
+                                    local_hover = Some(key);
+                                }
+                            }
+
+                            match local_hover {
+                                Some(local_hover_key) => {
+                                    //mouse has left the current component and has entered another component
+                                    if local_hover_key != current_hover_key {
+                                        component_signal_queue.push_back(
+                                            ComponentEventSignal::HoverOut(
+                                                current_hover_key,
+                                                event,
+                                            ),
+                                        );
+
+                                        component_signal_queue.push_back(
+                                            ComponentEventSignal::HoverIn(local_hover_key, event),
+                                        );
+
+                                        *hover_component = Some(local_hover_key);
+                                    }
+                                }
+
+                                //mouse has left the current component and is hovering over nothing
+                                None => {
+                                    component_signal_queue.push_back(
+                                        ComponentEventSignal::HoverOut(current_hover_key, event),
+                                    );
+
+                                    //nothing is being hovered so set pointer to None
+                                    *hover_component = None;
+                                }
                             }
                         }
+
                         //if nothing is being hovered check if mouse is inside hovering a component
                         None => {
                             //run through aabbs in pre-order traversal
@@ -242,6 +276,10 @@ impl GUIManager {
                 }
                 _ => (),
             }
+
+            // if component_signal_queue.len() > old_signal_len {
+            //     println!("signal added: {:?}", &component_signal_queue.make_contiguous()[old_signal_len..] );
+            // }
         }
 
         // if let Some(key) = local_focused {
@@ -254,13 +292,14 @@ impl GUIManager {
         //     //     .color = Vec4::rgb_u32(0xff0000);
         // }
     }
+    fn send_component_signals() {}
 
     pub fn aabb_iter<'a>(
-        gui_component_tree: &'a LinearTree<GuiComponentKey>,
+        gui_component_tree: &'a LinearTree<Box<dyn GUIComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
     ) -> impl Iterator<Item = (GuiComponentKey, AABB2<f32>)> + 'a {
         gui_component_tree.iter().map(move |node_info| {
-            let &key = node_info.val;
+            let &key = &GuiComponentKey::from(node_info.id);
             let &aabb = key_to_aabb_table.get(&key).unwrap();
             (key, aabb)
         })
@@ -274,7 +313,7 @@ impl GUIManager {
 
         for (_, key, mat) in self.component_global_position_top_down() {
             let aabb = {
-                let comp = self.key_to_component_table.get(&key).unwrap();
+                let comp = self.gui_component_tree.get(key).unwrap();
                 let global_pos = mat * Vec4::from([0., 0., 0., 1.]);
                 comp.get_aabb(global_pos)
             };
@@ -291,8 +330,6 @@ impl GUIManager {
         let renderer = &self.renderer;
         let gui_component_tree = &self.gui_component_tree;
         let key_to_aabb_table = &self.key_to_aabb_table;
-        let key_to_node_table = &self.key_to_node_table;
-        let key_to_component_table = &self.key_to_component_table;
 
         let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
             let s = stack;
@@ -306,7 +343,6 @@ impl GUIManager {
             renderer,
             gui_component_tree,
             key_to_aabb_table,
-            key_to_node_table,
         };
 
         unsafe {
@@ -315,8 +351,7 @@ impl GUIManager {
         }
 
         stack.clear();
-        for (sig, &key) in gui_component_tree.iter_stack_signals() {
-            let comp = key_to_component_table.get(&key).unwrap();
+        for (sig, _key, comp) in gui_component_tree.iter_stack_signals() {
             let &rel_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(rel_pos));
             // println!("sig:{:?}",sig);
@@ -350,12 +385,9 @@ impl GUIManager {
         &self,
     ) -> impl Iterator<Item = (StackSignal, GuiComponentKey, Mat4<f32>)> + '_ {
         let mut s = MatStack::new();
-        let key_to_component_table = &self.key_to_component_table;
-
         self.gui_component_tree
             .iter_stack_signals()
-            .map(move |(sig, &key)| {
-                let comp = key_to_component_table.get(&key).unwrap();
+            .map(move |(sig, key, comp)| {
                 let &comp_pos = comp.rel_position();
                 let transform = translate4(Vec4::to_pos(comp_pos));
                 match sig {
@@ -371,7 +403,7 @@ impl GUIManager {
                         s.push(transform);
                     }
                 }
-                (sig, key, *s.peek())
+                (sig, GuiComponentKey::from(key), *s.peek())
             })
     }
 
@@ -383,7 +415,6 @@ impl GUIManager {
         let mut key_stack = FixedStack::<32, GuiComponentKey>::new();
 
         let mut it = self.gui_component_tree.iter_stack_signals();
-        let key_to_component_table = &self.key_to_component_table;
 
         let mut peek_and_prop = |matstack: &MatStack<_>, keystack: &FixedStack<32, _>| {
             let &mat = matstack.peek();
@@ -391,8 +422,7 @@ impl GUIManager {
             cb(key, mat)
         };
 
-        while let Some((sig, &key)) = it.next() {
-            let comp = key_to_component_table.get(&key).unwrap();
+        while let Some((sig, key, comp)) = it.next() {
             let &comp_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(comp_pos));
 
@@ -405,7 +435,7 @@ impl GUIManager {
                     key_stack.pop();
 
                     mat_stack.push(transform);
-                    key_stack.push(key);
+                    key_stack.push(key.into());
                 }
                 StackSignal::Pop { n_times } => {
                     for _ in 0..n_times + 1 {
@@ -417,11 +447,11 @@ impl GUIManager {
                     }
 
                     mat_stack.push(transform);
-                    key_stack.push(key);
+                    key_stack.push(key.into());
                 }
                 StackSignal::Push => {
                     mat_stack.push(transform);
-                    key_stack.push(key);
+                    key_stack.push(key.into());
                 }
             }
         }
@@ -434,15 +464,6 @@ impl GUIManager {
             mat_stack.pop();
             key_stack.pop();
         }
-    }
-
-    fn gen_component_key(&mut self) -> GuiComponentKey {
-        let generated_key = GuiComponentKey(self.component_key_state);
-
-        //increment state
-        self.component_key_state += 1;
-
-        generated_key
     }
 }
 

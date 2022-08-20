@@ -2,7 +2,7 @@ use super::*;
 
 pub fn quick_co_sort<const N: usize, T>(list: &mut [T], mut co_lists: [&mut dyn CanSwap; N])
 where
-    T: PartialOrd + Copy + Debug,
+    T: PartialOrd + Copy,
 {
     // let list_ptr = list as *mut [T];
     let co_lists_ptr = &mut co_lists as *mut [&mut dyn CanSwap; N];

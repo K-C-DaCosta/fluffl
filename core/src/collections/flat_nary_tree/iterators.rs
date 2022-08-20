@@ -18,10 +18,7 @@ pub struct StackSignalIterator<'a, T> {
     cur_node: usize,
     node_len: usize,
 }
-impl<'a, T> StackSignalIterator<'a, T>
-where
-    T: Display + Debug,
-{
+impl<'a, T> StackSignalIterator<'a, T> {
     pub fn new(tree: &'a LinearTree<T>) -> Self {
         let len = tree.len();
         Self {
@@ -33,14 +30,18 @@ where
     }
 }
 impl<'a, T> Iterator for StackSignalIterator<'a, T> {
-    type Item = (StackSignal, &'a T);
+    type Item = (StackSignal, NodeID, &'a T);
 
     fn next(&mut self) -> Option<Self::Item> {
         let tree = self.tree;
 
         if self.covered_root == false {
             self.covered_root = true;
-            return Some((StackSignal::Nop, tree.data[0].as_ref().unwrap()));
+            return Some((
+                StackSignal::Nop,
+                tree.node_id[0],
+                tree.data[0].as_ref().unwrap(),
+            ));
         }
 
         let level = &tree.level;
@@ -64,8 +65,12 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
                     n_times: diff.abs() as usize,
                 }
             };
-
-            (signal, data[cur_node].as_ref().unwrap())
+            
+            (
+                signal,
+                tree.node_id[cur_node],
+                data[cur_node].as_ref().unwrap(),
+            )
         })
     }
 }
@@ -77,10 +82,7 @@ pub struct StackSignalIteratorMut<'a, T> {
     cur_node: usize,
     node_len: usize,
 }
-impl<'a, T> StackSignalIteratorMut<'a, T>
-where
-    T: Display + Debug,
-{
+impl<'a, T> StackSignalIteratorMut<'a, T> {
     pub fn new(tree: &'a mut LinearTree<T>) -> Self {
         let len = tree.len();
         Self {
