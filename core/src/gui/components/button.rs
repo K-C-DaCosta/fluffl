@@ -39,10 +39,6 @@ impl GuiComponent for Button {
         self.rel_position = pos;     
     }
     
-    fn handle_window_event(&mut self, manager: &mut GUIManager,signal:ComponentEventSignal) {
-        
-    }
-
     fn render<'a>(&self, gl: &GlowGL,state:RenderState<'a>, win_w: f32, win_h: f32) {
         
     }

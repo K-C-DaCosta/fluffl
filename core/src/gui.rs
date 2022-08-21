@@ -9,27 +9,23 @@ use crate::{
     collections::{
         fixed_stack::FixedStack,
         flat_nary_tree::{LinearTree, NodeID, StackSignal},
-        linked_list::{LinkedList, PackedLinkedList},
     },
     extras::ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
-    math::{self, stack::MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2, FP32},
+    math::{self, stack::MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
     window::event_util::EventKind,
     GlowGL,
 };
 
-pub mod components;
-pub mod renderer;
+mod builders;
+mod components;
+mod renderer;
 
-use self::{components::*, renderer::*};
+use self::{builders::*, components::*, renderer::*};
 
 const MAX_EVENT_LISTENERS: usize = 16;
-pub type ListenerCallBack = fn(EventListenerInfo<'_>) -> Option<()>;
-
-#[derive(Copy, Clone, Eq, Hash, PartialEq)]
-pub enum GuiShaderKind {
-    Frame = 0,
-}
+pub type ListenerCallBack<ProgramState> =
+    Box<dyn FnMut(EventListenerInfo<'_, ProgramState>) -> Option<()>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Default)]
 pub struct GuiComponentKey(usize);
@@ -51,28 +47,31 @@ impl fmt::Display for GuiComponentKey {
     }
 }
 
-struct HandlersBlock {
-    handlers: [ListenerCallBack; MAX_EVENT_LISTENERS],
+/// User defined handlers for all events
+struct ComponentHandlerBlock<ProgramState> {
+    handlers: Vec<ListenerCallBack<ProgramState>>,
 }
 
-impl HandlersBlock {
+impl<ProgramState> ComponentHandlerBlock<ProgramState> {
     fn new() -> Self {
-        Self {
-            handlers: [|_| None; MAX_EVENT_LISTENERS],
+        let mut handlers: Vec<ListenerCallBack<ProgramState>> = vec![];
+        for _ in 0..MAX_EVENT_LISTENERS {
+            handlers.push(Box::new(|_| None));
         }
+        Self { handlers }
     }
-
-    fn set_handler(&mut self, listener: ComponentEventListener) {
+    fn set_handler(&mut self, listener: ComponentEventListener<ProgramState>) {
         self.handlers[listener.kind as usize] = listener.callback;
     }
 
-    fn fire_handler<'a>(&self, kind: CompSignalKind, state: EventListenerInfo<'a>) {
+    fn fire_handler<'a>(&mut self, kind: GuiEventKind, state: EventListenerInfo<'a, ProgramState>) {
         self.handlers[kind as usize](state);
     }
 }
 
-pub struct GUIManager {
+pub struct GuiManager<ProgramState> {
     gl: GlowGL,
+    state: Option<ProgramState>,
     renderer: GuiRenderer,
     stack: MatStack<f32>,
 
@@ -87,16 +86,16 @@ pub struct GUIManager {
     // key_to_event_handlers_table: HashMap<GuiComponentKey>
     key_to_aabb_table: HashMap<GuiComponentKey, AABB2<f32>>,
 
-    key_to_handler_block_table: HashMap<GuiComponentKey, HandlersBlock>,
+    key_to_handler_block_table: HashMap<GuiComponentKey, ComponentHandlerBlock<ProgramState>>,
 
     component_signal_queue: VecDeque<components::ComponentEventSignal>,
 
     window_events: VecDeque<EventKind>,
 }
 
-impl GUIManager {
+impl<ProgramState> GuiManager<ProgramState> {
     pub fn new(gl: GlowGL) -> Self {
-        let mut manager = Self {
+        Self {
             renderer: GuiRenderer::new(&gl),
             focused_component: None,
             hover_component: None,
@@ -107,39 +106,54 @@ impl GUIManager {
             key_to_aabb_table: HashMap::new(),
             key_to_handler_block_table: HashMap::new(),
             gl,
-        };
+            state: None,
+        }
+        .setup_test_gui()
+    }
 
+    pub fn init_state(&mut self, state: ProgramState) {
+        self.state = Some(state);
+    }
+
+    fn setup_test_gui(self) -> Self {
+        let mut manager = self;
         let root = manager.add_component(GuiComponentKey::default(), Box::new(Origin::new()));
 
-        let frame2 = manager.add_component(
-            root,
-            Box::new(
+        let alt_frame = manager
+            .add_component_with_builder()
+            .with_component(
                 Frame::new()
                     .with_bounds([200., 100.])
                     .with_roundness([0., 0., 10.0, 10.0])
                     .with_position([64.0, 400.0]),
-            ),
-        );
+            )
+            .with_parent(root)
+            .with_drag(true)
+            .build();
 
-        let frame = manager.add_component(
-            root,
-            Box::new(
+        let frame = manager
+            .add_component_with_builder()
+            .with_component(
                 Frame::new()
                     .with_bounds([400., 200.])
                     .with_roundness([0., 0., 30.0, 30.0])
                     .with_position([64.0, 32.0]),
-            ),
-        );
+            )
+            .with_parent(root)
+            .with_drag(true)
+            .build();
 
-        let red_frame = manager.add_component(
-            frame,
-            Box::new(
+        let red_frame = manager
+            .add_component_with_builder()
+            .with_component(
                 Frame::new()
                     .with_bounds([128., 64.])
                     .with_color([0.7, 0.2, 0., 1.0])
                     .with_position([63.0, 33.0]),
-            ),
-        );
+            )
+            .with_parent(frame)
+            .with_drag(true)
+            .build();
 
         manager.add_component(
             red_frame,
@@ -151,65 +165,64 @@ impl GUIManager {
             ),
         );
 
-        let orange_frame = manager.add_component(
-            frame,
-            Box::new(
+        let orange_frame = manager
+            .add_component_with_builder()
+            .with_parent(frame)
+            .with_component(
                 Frame::new()
                     .with_bounds([256., 128.])
                     .with_color(Vec4::rgb_u32(0xFF7F3F))
                     .with_roundness(Vec4::from([1., 1., 30., 30.]))
                     .with_edge_color([0., 0., 0., 1.0])
                     .with_position([128.0, 64.0]),
-            ),
-        );
+            )
+            .with_drag(true)
+            .build();
 
         for k in 0..6 {
-            let id = manager.add_component(
-                orange_frame,
-                Box::new(
+            manager
+                .add_component_with_builder()
+                .with_parent(orange_frame)
+                .with_component(
                     Frame::new()
                         .with_bounds([32., 32.])
                         .with_color(Vec4::rgb_u32(0x277BC0))
                         .with_roundness(Vec4::from([1., 1., 1., 1.]))
                         .with_edge_color([0., 0., 0., 1.0])
                         .with_position([10.0 + 35.0 * (k as f32), 10.0]),
-                ),
-            );
-
-            manager.set_listener(
-                id,
-                ComponentEventListener::new(CompSignalKind::OnHoverIn, |event_state| {
-                    let key = event_state.key;
-                    let comp_tree = event_state.gui_comp_tree;
-                    let comp = comp_tree.get_mut(key).unwrap();
-                    let frame = comp.as_any_mut().downcast_mut::<Frame>()?;
+                )
+                .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
                     frame.color *= 0.5;
-                    Some(())
-                }),
-            );
-
-            manager.set_listener(
-                id,
-                ComponentEventListener::new(CompSignalKind::OnHoverOut, |event_state| {
-                    let key = event_state.key;
-                    let comp_tree = event_state.gui_comp_tree;
-                    let comp = comp_tree.get_mut(key).unwrap();
-                    let frame = comp.as_any_mut().downcast_mut::<Frame>()?;
+                    frame.color[3] = 1.0;
+                    None
+                })
+                .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _e| {
                     frame.color *= 2.0;
-                    Some(())
-                }),
-            );
+                    frame.color[3] = 1.0;
+                    None
+                })
+                .with_drag(true)
+                .build();
         }
-
         manager
     }
 
-    pub fn set_listener(&mut self, key: GuiComponentKey, listener: ComponentEventListener) {
+    pub fn set_listener(
+        &mut self,
+        key: GuiComponentKey,
+        listener: ComponentEventListener<ProgramState>,
+    ) {
         let key_to_handler_block_table = &mut self.key_to_handler_block_table;
         key_to_handler_block_table
             .get_mut(&key)
             .expect("key missing")
             .set_handler(listener);
+    }
+
+    pub fn add_component_with_builder<'a, CompKind: GuiComponent + 'static>(
+        &'a mut self,
+    ) -> ComponentBuilder<'a, CompKind, ProgramState> {
+        ComponentBuilder::new(self)
     }
 
     pub fn add_component(
@@ -220,7 +233,7 @@ impl GUIManager {
         let id = self.gui_component_tree.add(comp, parent.into());
         let key = GuiComponentKey::from(id);
         self.key_to_handler_block_table
-            .insert(key, HandlersBlock::new());
+            .insert(key, ComponentHandlerBlock::new());
         key
     }
 
@@ -230,22 +243,26 @@ impl GUIManager {
 
     fn handle_incoming_events(&mut self) {
         self.recompute_aabb_table();
-        self.send_component_signals();
-        self.execute_listeners();
+        self.process_window_events_to_generate_signals_and_queue_them_for_processing();
+        self.process_signal_queue();
+        self.recompute_aabb_table();
     }
 
-    fn execute_listeners(&mut self) {
+    fn process_signal_queue(&mut self) {
         let gui_component_tree = &mut self.gui_component_tree;
         let component_signal_queue = &mut self.component_signal_queue;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let key_to_handler_block_table = &mut self.key_to_handler_block_table;
+        let program_state = self
+            .state
+            .as_ref()
+            .expect("GuiManager state not initalized!");
 
         while let Some(signal) = component_signal_queue.pop_front() {
             let key = signal.component_key;
-            let block = key_to_handler_block_table.get(&key).unwrap();
+            let block = key_to_handler_block_table.get_mut(&key).unwrap();
             let event = signal.window_event_kind;
             let kind = signal.listener_kind;
-
             block.fire_handler(
                 kind,
                 EventListenerInfo {
@@ -253,12 +270,13 @@ impl GUIManager {
                     key,
                     gui_comp_tree: gui_component_tree,
                     key_to_aabb_table,
+                    state: program_state,
                 },
             );
         }
     }
 
-    fn send_component_signals(&mut self) {
+    fn process_window_events_to_generate_signals_and_queue_them_for_processing(&mut self) {
         let window_events = &mut self.window_events;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let gui_component_tree = &mut self.gui_component_tree;
@@ -269,18 +287,16 @@ impl GUIManager {
         while let Some(event) = window_events.pop_front() {
             let _old_signal_len = component_signal_queue.len();
             match event {
-                EventKind::Resize { width, height } => {}
                 EventKind::MouseUp { x, y, .. } => {
                     if let &mut Some(gui_comp_key) = focused_component {
                         component_signal_queue.push_back(ComponentEventSignal::new(
-                            CompSignalKind::OnRelease,
+                            GuiEventKind::OnRelease,
                             gui_comp_key,
                             event,
                         ));
                     }
                     *focused_component = None;
                 }
-
                 EventKind::MouseDown { x, y, .. } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     *focused_component = None;
@@ -290,111 +306,24 @@ impl GUIManager {
                         }
                     }
                 }
-
                 EventKind::MouseMove { x, y, dx, dy } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     let _disp = Vec2::from([dx as f32, dy as f32]);
-
-                    if let &mut Some(fkey) = focused_component {
-                        // component_signal_queue.push_back(ComponentEventSignal::Drag(fkey, event));
-
-                        component_signal_queue.push_back(ComponentEventSignal::new(
-                            CompSignalKind::OnDrag,
-                            fkey,
+                    if let &mut Some(focused_key) = focused_component {
+                        Self::object_is_focused_so_send_drag_signal_to_focused_component(
+                            component_signal_queue,
+                            focused_key,
                             event,
-                        ));
-
-                        gui_component_tree.get_mut(fkey).unwrap().translate(_disp);
-                    }
-
-                    match hover_component {
-                        // if something is being hovered check if mouse has left the component
-                        &mut Some(current_hover_key) => {
-                            let mut local_hover = None;
-
-                            for (key, aabb) in
-                                Self::aabb_iter(gui_component_tree, key_to_aabb_table)
-                            {
-                                if aabb.is_point_inside(mouse_pos) {
-                                    local_hover = Some(key);
-                                }
-                            }
-
-                            match local_hover {
-                                Some(local_hover_key) => {
-                                    //mouse has left the current component and has entered another component
-                                    if local_hover_key != current_hover_key {
-                                        // component_signal_queue.push_back(
-                                        //     ComponentEventSignal::HoverOut(
-                                        //         current_hover_key,
-                                        //         event,
-                                        //     ),
-                                        // );
-
-                                        component_signal_queue.push_back(
-                                            ComponentEventSignal::new(
-                                                CompSignalKind::OnHoverOut,
-                                                current_hover_key,
-                                                event,
-                                            ),
-                                        );
-
-                                        // component_signal_queue.push_back(
-                                        //     ComponentEventSignal::HoverIn(local_hover_key, event),
-                                        // );
-
-                                        component_signal_queue.push_back(
-                                            ComponentEventSignal::new(
-                                                CompSignalKind::OnHoverIn,
-                                                local_hover_key,
-                                                event,
-                                            ),
-                                        );
-
-                                        *hover_component = Some(local_hover_key);
-                                    }
-                                }
-
-                                //mouse has left the current component and is hovering over nothing
-                                None => {
-                                    // component_signal_queue.push_back(
-                                    //     ComponentEventSignal::HoverOut(current_hover_key, event),
-                                    // );
-
-                                    component_signal_queue.push_back(ComponentEventSignal::new(
-                                        CompSignalKind::OnHoverOut,
-                                        current_hover_key,
-                                        event,
-                                    ));
-
-                                    //nothing is being hovered so set pointer to None
-                                    *hover_component = None;
-                                }
-                            }
-                        }
-
-                        //if nothing is being hovered check if mouse is inside hovering a component
-                        None => {
-                            //run through aabbs in pre-order traversal
-                            for (key, aabb) in
-                                Self::aabb_iter(gui_component_tree, key_to_aabb_table)
-                            {
-                                if aabb.is_point_inside(mouse_pos) {
-                                    *hover_component = Some(key);
-                                }
-                            }
-
-                            if let &mut Some(key) = hover_component {
-                                // component_signal_queue
-                                //     .push_back(ComponentEventSignal::HoverIn(key, event));
-
-                                component_signal_queue.push_back(ComponentEventSignal::new(
-                                    CompSignalKind::OnHoverIn,
-                                    key,
-                                    event,
-                                ));
-                            }
-                        }
+                        );
+                    } else {
+                        Self::check_for_hover_signal_and_send_if_found(
+                            mouse_pos,
+                            hover_component,
+                            gui_component_tree,
+                            key_to_aabb_table,
+                            component_signal_queue,
+                            event,
+                        );
                     }
                 }
                 _ => (),
@@ -403,6 +332,85 @@ impl GUIManager {
             // if component_signal_queue.len() > _old_signal_len {
             //     println!("signal added: {:?}", &component_signal_queue.make_contiguous()[_old_signal_len..] );
             // }
+        }
+    }
+
+    fn object_is_focused_so_send_drag_signal_to_focused_component(
+        component_signal_queue: &mut VecDeque<ComponentEventSignal>,
+        focused_component: GuiComponentKey,
+        event: EventKind,
+    ) {
+        component_signal_queue.push_back(ComponentEventSignal::new(
+            GuiEventKind::OnDrag,
+            focused_component,
+            event,
+        ));
+    }
+
+    fn check_for_hover_signal_and_send_if_found<'a>(
+        mouse_pos: Vec2<f32>,
+        hover_component: &mut Option<GuiComponentKey>,
+        gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
+        key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+        component_signal_queue: &mut VecDeque<ComponentEventSignal>,
+        event: EventKind,
+    ) {
+        match hover_component {
+            // if something is being hovered check if mouse has left the component
+            &mut Some(current_hover_key) => {
+                let mut local_hover = None;
+
+                for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
+                    if aabb.is_point_inside(mouse_pos) {
+                        local_hover = Some(key);
+                    }
+                }
+
+                match local_hover {
+                    Some(local_hover_key) => {
+                        //mouse has left the current component and has entered another component
+                        if local_hover_key != current_hover_key {
+                            component_signal_queue.push_back(ComponentEventSignal::new(
+                                GuiEventKind::OnHoverOut,
+                                current_hover_key,
+                                event,
+                            ));
+                            component_signal_queue.push_back(ComponentEventSignal::new(
+                                GuiEventKind::OnHoverIn,
+                                local_hover_key,
+                                event,
+                            ));
+                            *hover_component = Some(local_hover_key);
+                        }
+                    }
+                    //mouse has left the current component and is hovering over nothing
+                    None => {
+                        component_signal_queue.push_back(ComponentEventSignal::new(
+                            GuiEventKind::OnHoverOut,
+                            current_hover_key,
+                            event,
+                        ));
+                        //nothing is being hovered so set pointer to None
+                        *hover_component = None;
+                    }
+                }
+            }
+            //if nothing is being hovered check if mouse is inside hovering a component
+            None => {
+                //run through aabbs in pre-order traversal
+                for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
+                    if aabb.is_point_inside(mouse_pos) {
+                        *hover_component = Some(key);
+                    }
+                }
+                if let &mut Some(key) = hover_component {
+                    component_signal_queue.push_back(ComponentEventSignal::new(
+                        GuiEventKind::OnHoverIn,
+                        key,
+                        event,
+                    ));
+                }
+            }
         }
     }
 

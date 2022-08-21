@@ -92,15 +92,13 @@ impl GuiComponent for Frame {
         &self.rel_pos
     }
 
-    fn handle_window_event(&mut self, manager: &mut GUIManager, signal: ComponentEventSignal) {}
-
     fn render<'b>(&self, gl: &GlowGL, state: RenderState<'b>, win_w: f32, win_h: f32) {
         if self.is_visible == false {
             return;
         }
 
         let r = state.renderer;
-        r.builder(gl, GuiShaderKind::Frame)
+        r.builder(gl, RendererShaderKind::Frame)
             .set_window(win_w, win_h)
             .set_roundness_vec(self.roundness)
             .set_edge_color(self.edge_color)

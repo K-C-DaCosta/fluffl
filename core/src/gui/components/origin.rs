@@ -43,6 +43,4 @@ impl GuiComponent for Origin {
     }
 
     fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {}
-    fn handle_window_event(&mut self, manager: &mut GUIManager, signal: ComponentEventSignal) {}
-
 }

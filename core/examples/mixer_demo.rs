@@ -16,7 +16,7 @@ use fluffl::{
     //playing music files requires more than what the base library provides
     //so here is my implementation of certain things like "text rendering" and music playing
     extras::{hiero_pack::*, text_writer::*},
-    gui::GUIManager,
+    gui::GuiManager,
     io::*,
     math::{WaveKind, FP64},
     prelude::*,
@@ -45,7 +45,7 @@ pub struct MainState {
     pub writer: TextWriter,
     pub init_route: bool,
     pub wave_type: WaveKind,
-    pub gui_manager: GUIManager,
+    pub gui_manager: GuiManager<FlufflState<MainState>>,
 }
 
 #[fluffl(Debug)]
@@ -78,7 +78,7 @@ pub async fn main() {
     FlufflWindow::main_loop(
         window,
         MainState {
-            gui_manager: GUIManager::new(gl.clone()),
+            gui_manager: GuiManager::new(gl.clone()),
             key_frequency_table: vec![
                 (KeyCode::KEY_A, 262.0),
                 (KeyCode::KEY_S, 294.0),
@@ -110,6 +110,8 @@ async fn main_loop(
     running: FlufflRunning,
     main_state: FlufflState<MainState>,
 ) {
+    let ms_clone = main_state.clone();
+
     let main_state = &mut *main_state.inner.borrow_mut();
     let mixer_device = &mut main_state.mixer_device;
     let writer = &mut main_state.writer;
@@ -121,6 +123,8 @@ async fn main_loop(
     let gui_manager = &mut main_state.gui_manager;
 
     let gl = win_ptr.window().gl();
+
+    gui_manager.init_state(ms_clone);
 
     mixer_device.send_request(MixerRequest::FetchMixerTime);
 
@@ -149,7 +153,6 @@ async fn main_loop(
 
     for event in win_ptr.window_mut().get_events().flush_iter_mut() {
         gui_manager.push_event(event);
-       
         match event {
             EventKind::Quit => running.set(false),
             EventKind::Resize { width, height } => {
@@ -228,7 +231,7 @@ async fn main_loop(
                             OffsetKind::current(),
                             Box::new(ImplicitWave::new(
                                 wave_type.as_fn(),
-                                Interval::from_length(FP64::from(1_000)),
+                                Interval::from_length(FP64::from(1000)),
                                 wave_frequency,
                             )),
                         ));
@@ -300,54 +303,52 @@ async fn main_loop(
     }
 
     //extend key  here
-    for &(c, id) in &key_extend_list[..] {
-        if is_key_down.contains(&c) {
-            mixer_device.send_request(MixerRequest::MutateMixer(id, |tid, mixer| {
-                let mut interval = mixer.track_get_interval(tid)?;
-
-                //extend the hi part of the interval by 10 milliseconds
-                interval.hi = interval.hi + 16;
-
-                mixer.track_set_interval(tid, interval)
-            }));
-        }
-    }
+    // for &(c, id) in &key_extend_list[..] {
+    //     if is_key_down.contains(&c) {
+    //         mixer_device.send_request(MixerRequest::MutateMixer(id, |tid, mixer| {
+    //             let mut interval = mixer.track_get_interval(tid)?;
+    //             //extend the hi part of the interval by 16 ms (because this callback is assumed to be called every 16 ms)
+    //             interval.hi = interval.hi + 16;
+    //             mixer.track_set_interval(tid, interval)
+    //         }));
+    //     }
+    // }
 
     unsafe {
         gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
     }
 
     let (win_width, win_height) = win_ptr.window().get_bounds_f32();
-    main_state.gui_manager.render(win_width, win_height);
+    let speed_t = ((FP64::from(x) - 0) / 200).clamp(FP64::from(0), FP64::from(1));
+    let speed = speed_t * 3;
 
-    // let speed_t = ((FP64::from(x) - 0) / 200).clamp(FP64::from(0), FP64::from(1));
-    // let speed = speed_t * 3;
+    //draw text here
+    let caption_list = [format!(
+        "{time:}x[{speed:.2}]",
+        time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_i64()),
+        speed = speed.as_f64()
+    )];
+    caption_list.iter().enumerate().for_each(|(k, caption)| {
+        // let size = (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.;
+        let size = 100.0;
+        writer.draw_text_line(
+            caption,
+            0.,
+            0. + 64. * k as f32,
+            size,
+            Some(win_ptr.window().get_bounds()),
+        );
+    });
 
-    // //draw text here
-    // let caption_list = [format!(
-    //     "{time:}x[{speed:.2}]",
-    //     time = time_to_string(main_state.mixer_time.elapsed_in_ms_fp().as_i64()),
-    //     speed = speed.as_f64()
-    // )];
-    // caption_list.iter().enumerate().for_each(|(k, caption)| {
-    //     // let size = (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.;
-    //     let size = 100.0;
-    //     writer.draw_text_line(
-    //         caption,
-    //         0.,
-    //         0. + 64. * k as f32,
-    //         size,
-    //         Some(win_ptr.window().get_bounds()),
-    //     );
-    // });
+    writer.draw_text_line(
+        &time_to_string(seek_time as i64),
+        x + 10.0,
+        y,
+        32.0,
+        Some(win_ptr.window().get_bounds()),
+    );
 
-    // writer.draw_text_line(
-    //     &time_to_string(seek_time as i64),
-    //     x + 10.0,
-    //     y,
-    //     32.0,
-    //     Some(win_ptr.window().get_bounds()),
-    // );
+    gui_manager.render(win_width, win_height);
 
     // mixer_device.modify_state(|state| {
     //     let mixer_state = state?;
@@ -355,8 +356,7 @@ async fn main_loop(
     //     Some(())
     // });
 
-    let responses_iter = main_state.mixer_device.recieve_responses();
-
+    let responses_iter = mixer_device.recieve_responses();
     for resp in responses_iter {
         match resp {
             MixerResponse::MixerTime(t) => {

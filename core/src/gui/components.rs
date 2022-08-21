@@ -9,7 +9,7 @@ pub use self::{button::Button, frame::Frame, origin::Origin};
 use std::any::Any;
 
 #[derive(Copy, Clone, Debug)]
-pub enum CompSignalKind {
+pub enum GuiEventKind {
     OnHoverIn = 0isize,
     OnHoverOut = 1,
     OnDrag = 2,
@@ -17,13 +17,14 @@ pub enum CompSignalKind {
     OnRelease = 4,
 }
 
-#[derive(Copy, Clone)]
-pub struct ComponentEventListener {
-    pub kind: CompSignalKind,
-    pub callback: ListenerCallBack,
+
+pub struct ComponentEventListener<ProgramState> {
+    pub kind: GuiEventKind,
+    pub callback: ListenerCallBack<ProgramState>,
 }
-impl ComponentEventListener {
-    pub fn new(kind: CompSignalKind, callback: ListenerCallBack) -> Self {
+
+impl <ProgramState> ComponentEventListener<ProgramState> {
+    pub const fn new(kind: GuiEventKind, callback: ListenerCallBack<ProgramState>) -> Self {
         Self { kind, callback }
     }
 }
@@ -31,11 +32,11 @@ impl ComponentEventListener {
 #[derive(Copy, Clone, Debug)]
 pub struct ComponentEventSignal {
     pub component_key: GuiComponentKey,
-    pub listener_kind: CompSignalKind,
+    pub listener_kind: GuiEventKind,
     pub window_event_kind: EventKind,
 }
 impl ComponentEventSignal {
-    pub fn new(sig_kind: CompSignalKind, comp_key: GuiComponentKey, win_event: EventKind) -> Self {
+    pub fn new(sig_kind: GuiEventKind, comp_key: GuiComponentKey, win_event: EventKind) -> Self {
         Self {
             component_key: comp_key,
             listener_kind: sig_kind,
@@ -52,7 +53,8 @@ pub struct RenderState<'a> {
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
 
-pub struct EventListenerInfo<'a> {
+pub struct EventListenerInfo<'a,ProgramState> {
+    pub state:&'a ProgramState,
     pub event: EventKind,
     pub key: GuiComponentKey,
     pub gui_comp_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
@@ -67,7 +69,6 @@ pub trait GuiComponent {
     fn set_rel_position(&mut self, pos: Vec2<f32>);
     fn key(&self) -> GuiComponentKey;
     fn set_key(&mut self, key: GuiComponentKey);
-    fn handle_window_event(&mut self, manager: &mut GUIManager, signal: ComponentEventSignal);
 
     fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32);
 
