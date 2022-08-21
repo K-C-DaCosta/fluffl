@@ -2,12 +2,12 @@ use super::*;
 
 pub struct Frame {
     key: GuiComponentKey,
-    bounds: Vec2<f32>,
-    rel_pos: Vec2<f32>,
+    pub bounds: Vec2<f32>,
+    pub rel_pos: Vec2<f32>,
     pub color: Vec4<f32>,
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
-    is_visible: bool,
+    pub is_visible: bool,
 }
 impl Frame {
     pub fn new() -> Self {
@@ -64,7 +64,7 @@ impl Frame {
     }
 }
 
-impl GUIComponent for Frame {
+impl GuiComponent for Frame {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -92,12 +92,9 @@ impl GUIComponent for Frame {
         &self.rel_pos
     }
 
-    fn handle_window_event(&mut self, manager: &mut GUIManager,signal:ComponentEventSignal) {
-        
-    }
+    fn handle_window_event(&mut self, manager: &mut GUIManager, signal: ComponentEventSignal) {}
 
-
-    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {
+    fn render<'b>(&self, gl: &GlowGL, state: RenderState<'b>, win_w: f32, win_h: f32) {
         if self.is_visible == false {
             return;
         }
@@ -112,9 +109,5 @@ impl GUIComponent for Frame {
             .set_bounds(self.bounds)
             .set_position(state.global_position, Vec4::to_pos(self.bounds))
             .render();
-    }
-
-    fn set_listener<'a>(&mut self, listener:ComponentEventListener<'a>) {
-        
     }
 }

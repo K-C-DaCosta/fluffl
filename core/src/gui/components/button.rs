@@ -9,7 +9,7 @@ pub struct Button {
     is_visible: bool,
 }
 
-impl GUIComponent for Button {
+impl GuiComponent for Button {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -44,10 +44,6 @@ impl GUIComponent for Button {
     }
 
     fn render<'a>(&self, gl: &GlowGL,state:RenderState<'a>, win_w: f32, win_h: f32) {
-        
-    }
-
-    fn set_listener<'a>(&mut self, listener:ComponentEventListener<'a>) {
         
     }
 }

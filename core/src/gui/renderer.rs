@@ -345,3 +345,22 @@ impl GuiRenderer {
         }
     }
 }
+
+fn write_rectangle(component_list: &mut Vec<f32>, x0: Vec4<f32>, w: f32, h: f32) {
+    let mut writer = ComponentWriter::from(component_list);
+
+    let dx = Vec4::from_array([w, 0.0, 0.0, 0.0]);
+    let dy = Vec4::from_array([0.0, h, 0.0, 0.0]);
+    let tl = x0;
+    let tr = x0 + dx;
+    let bl = x0 + dy;
+    let br = x0 + dx + dy;
+
+    writer.write(&tl);
+    writer.write(&tr);
+    writer.write(&bl);
+
+    writer.write(&tr);
+    writer.write(&br);
+    writer.write(&bl);
+}
