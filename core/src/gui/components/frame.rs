@@ -76,14 +76,6 @@ impl GuiComponent for Frame {
         self.bounds
     }
 
-    fn key(&self) -> GuiComponentKey {
-        self.key
-    }
-
-    fn set_key(&mut self, key: GuiComponentKey) {
-        self.key = key;
-    }
-
     fn set_rel_position(&mut self, pos: Vec2<f32>) {
         self.rel_pos = pos;
     }
@@ -98,7 +90,7 @@ impl GuiComponent for Frame {
         }
 
         let r = state.renderer;
-        r.builder(gl, RendererShaderKind::Frame)
+        r.builder(gl, GuiShaderKind::RoundedBox)
             .set_window(win_w, win_h)
             .set_roundness_vec(self.roundness)
             .set_edge_color(self.edge_color)

@@ -361,9 +361,9 @@ dependencies = [
 
 [[package]]
 name = "hiero_pack"
-version = "0.1.0"
+version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d650dd73a79d46256b65a837446b5c94bb3cb19b4ff2c1cac3ee4ba72322aba"
+checksum = "7474f47015222478686984b55904e4e5e5963dc6ddf90762eeead0ecffca2b90"
 dependencies = [
  "bincode",
  "png",

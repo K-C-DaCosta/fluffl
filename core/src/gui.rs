@@ -19,55 +19,14 @@ use crate::{
 
 mod builders;
 mod components;
+mod gui_key;
+mod handler_block;
 mod renderer;
 
-use self::{builders::*, components::*, renderer::*};
+use self::{builders::*, components::*, gui_key::*, handler_block::*, renderer::*};
 
-const MAX_EVENT_LISTENERS: usize = 16;
 pub type ListenerCallBack<ProgramState> =
     Box<dyn FnMut(EventListenerInfo<'_, ProgramState>) -> Option<()>>;
-
-#[derive(Copy, Clone, PartialEq, Eq, Hash, Debug, Default)]
-pub struct GuiComponentKey(usize);
-
-impl From<NodeID> for GuiComponentKey {
-    fn from(nid: NodeID) -> Self {
-        unsafe { std::mem::transmute_copy(&nid) }
-    }
-}
-impl Into<NodeID> for GuiComponentKey {
-    fn into(self) -> NodeID {
-        unsafe { std::mem::transmute_copy(&self) }
-    }
-}
-
-impl fmt::Display for GuiComponentKey {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:?}", self)
-    }
-}
-
-/// User defined handlers for all events
-struct ComponentHandlerBlock<ProgramState> {
-    handlers: Vec<ListenerCallBack<ProgramState>>,
-}
-
-impl<ProgramState> ComponentHandlerBlock<ProgramState> {
-    fn new() -> Self {
-        let mut handlers: Vec<ListenerCallBack<ProgramState>> = vec![];
-        for _ in 0..MAX_EVENT_LISTENERS {
-            handlers.push(Box::new(|_| None));
-        }
-        Self { handlers }
-    }
-    fn set_handler(&mut self, listener: ComponentEventListener<ProgramState>) {
-        self.handlers[listener.kind as usize] = listener.callback;
-    }
-
-    fn fire_handler<'a>(&mut self, kind: GuiEventKind, state: EventListenerInfo<'a, ProgramState>) {
-        self.handlers[kind as usize](state);
-    }
-}
 
 pub struct GuiManager<ProgramState> {
     gl: GlowGL,
@@ -115,6 +74,102 @@ impl<ProgramState> GuiManager<ProgramState> {
         self.state = Some(state);
     }
 
+    pub fn set_listener(
+        &mut self,
+        key: GuiComponentKey,
+        listener: ComponentEventListener<ProgramState>,
+    ) {
+        let key_to_handler_block_table = &mut self.key_to_handler_block_table;
+        key_to_handler_block_table
+            .get_mut(&key)
+            .expect("key missing")
+            .set_handler(listener);
+    }
+
+    pub fn add_component_with_builder<'a, CompKind: GuiComponent + 'static>(
+        &'a mut self,
+    ) -> ComponentBuilder<'a, CompKind, ProgramState> {
+        ComponentBuilder::new(self)
+    }
+
+    pub fn add_component(
+        &mut self,
+        parent: GuiComponentKey,
+        comp: Box<dyn GuiComponent>,
+    ) -> GuiComponentKey {
+        let id = self.gui_component_tree.add(comp, parent.into());
+        let key = GuiComponentKey::from(id);
+        self.key_to_handler_block_table
+            .insert(key, ComponentHandlerBlock::new());
+        key
+    }
+
+    pub fn push_event(&mut self, event: EventKind) {
+        self.window_events.push_back(event);
+    }
+
+    pub fn render(&mut self, window_width: f32, window_height: f32) {
+        self.handle_incoming_events();
+
+        let gl = &self.gl;
+        let stack = &mut self.stack;
+
+        let renderer = &self.renderer;
+        let gui_component_tree = &self.gui_component_tree;
+        let key_to_aabb_table = &self.key_to_aabb_table;
+
+        let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
+            let s = stack;
+            let pos = Vec4::to_pos(rel_pos);
+            let &transform = s.peek();
+            transform * pos
+        };
+
+        let build_state = |global_position| RenderState {
+            global_position,
+            renderer,
+            gui_component_tree,
+            key_to_aabb_table,
+        };
+
+        unsafe {
+            gl.enable(glow::BLEND);
+            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
+        }
+
+        stack.clear();
+        for (sig, _key, comp) in gui_component_tree.iter_stack_signals() {
+            let &rel_pos = comp.rel_position();
+            let transform = translate4(Vec4::to_pos(rel_pos));
+            // println!("sig:{:?}",sig);
+            match sig {
+                StackSignal::Nop => {
+                    stack.pop();
+                    let gpos = compute_global_position(rel_pos, stack);
+                    comp.render(gl, build_state(gpos), window_width, window_height);
+                    stack.push(transform);
+                }
+                StackSignal::Pop { n_times } => {
+                    stack.pop_multi(n_times + 1);
+                    let gpos = compute_global_position(rel_pos, stack);
+                    comp.render(gl, build_state(gpos), window_width, window_height);
+                    stack.push(transform);
+                }
+                StackSignal::Push => {
+                    let gpos = compute_global_position(rel_pos, stack);
+                    comp.render(gl, build_state(gpos), window_width, window_height);
+                    stack.push(transform);
+                }
+            }
+        }
+        
+        unsafe {
+            gl.disable(glow::BLEND);
+        }
+    }
+}
+
+impl<ProgramState> GuiManager<ProgramState> {
     fn setup_test_gui(self) -> Self {
         let mut manager = self;
         let root = manager.add_component(GuiComponentKey::default(), Box::new(Origin::new()));
@@ -180,25 +235,34 @@ impl<ProgramState> GuiManager<ProgramState> {
             .build();
 
         for k in 0..6 {
+            let col = Vec4::<f32>::rgb_u32(0x277BC0);
             manager
                 .add_component_with_builder()
                 .with_parent(orange_frame)
                 .with_component(
                     Frame::new()
                         .with_bounds([32., 32.])
-                        .with_color(Vec4::rgb_u32(0x277BC0))
+                        .with_color(col)
                         .with_roundness(Vec4::from([1., 1., 1., 1.]))
                         .with_edge_color([0., 0., 0., 1.0])
                         .with_position([10.0 + 35.0 * (k as f32), 10.0]),
                 )
                 .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
-                    frame.color *= 0.5;
-                    frame.color[3] = 1.0;
+                    // frame.color *= 0.5;
+                    // frame.color[3] = 1.0;
                     None
                 })
                 .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _e| {
-                    frame.color *= 2.0;
-                    frame.color[3] = 1.0;
+                    // frame.color *= 2.0;
+                    // frame.color[3] = 1.0;
+                    None
+                })
+                .with_listener(GuiEventKind::OnClick, |frame, _, _| {
+                    frame.color = Vec4::rgb_u32(0x000000);
+                    None
+                })
+                .with_listener(GuiEventKind::OnRelease, move |frame, _, _| {
+                    frame.color = col;
                     None
                 })
                 .with_drag(true)
@@ -207,45 +271,10 @@ impl<ProgramState> GuiManager<ProgramState> {
         manager
     }
 
-    pub fn set_listener(
-        &mut self,
-        key: GuiComponentKey,
-        listener: ComponentEventListener<ProgramState>,
-    ) {
-        let key_to_handler_block_table = &mut self.key_to_handler_block_table;
-        key_to_handler_block_table
-            .get_mut(&key)
-            .expect("key missing")
-            .set_handler(listener);
-    }
-
-    pub fn add_component_with_builder<'a, CompKind: GuiComponent + 'static>(
-        &'a mut self,
-    ) -> ComponentBuilder<'a, CompKind, ProgramState> {
-        ComponentBuilder::new(self)
-    }
-
-    pub fn add_component(
-        &mut self,
-        parent: GuiComponentKey,
-        comp: Box<dyn GuiComponent>,
-    ) -> GuiComponentKey {
-        let id = self.gui_component_tree.add(comp, parent.into());
-        let key = GuiComponentKey::from(id);
-        self.key_to_handler_block_table
-            .insert(key, ComponentHandlerBlock::new());
-        key
-    }
-
-    pub fn push_event(&mut self, event: EventKind) {
-        self.window_events.push_back(event);
-    }
-
     fn handle_incoming_events(&mut self) {
         self.recompute_aabb_table();
         self.process_window_events_to_generate_signals_and_queue_them_for_processing();
         self.process_signal_queue();
-        self.recompute_aabb_table();
     }
 
     fn process_signal_queue(&mut self) {
@@ -414,7 +443,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
     }
 
-    pub fn aabb_iter<'a>(
+    fn aabb_iter<'a>(
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
     ) -> impl Iterator<Item = (GuiComponentKey, AABB2<f32>)> + 'a {
@@ -425,9 +454,8 @@ impl<ProgramState> GuiManager<ProgramState> {
         })
     }
 
-    pub fn recompute_aabb_table(&mut self) {
+    fn recompute_aabb_table(&mut self) {
         self.key_to_aabb_table.clear();
-
         //force a split borrow, safe because key_to_aabb_table is never mutated in the component_global_position_top_down(..) function
         let key_to_aabb_table = unsafe { force_borrow_mut(&mut self.key_to_aabb_table) };
 
@@ -438,66 +466,6 @@ impl<ProgramState> GuiManager<ProgramState> {
                 comp.get_aabb(global_pos)
             };
             key_to_aabb_table.insert(key, aabb);
-        }
-    }
-
-    pub fn render(&mut self, window_width: f32, window_height: f32) {
-        self.handle_incoming_events();
-
-        let gl = &self.gl;
-        let stack = &mut self.stack;
-
-        let renderer = &self.renderer;
-        let gui_component_tree = &self.gui_component_tree;
-        let key_to_aabb_table = &self.key_to_aabb_table;
-
-        let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
-            let s = stack;
-            let pos = Vec4::to_pos(rel_pos);
-            let &transform = s.peek();
-            transform * pos
-        };
-
-        let build_state = |global_position| RenderState {
-            global_position,
-            renderer,
-            gui_component_tree,
-            key_to_aabb_table,
-        };
-
-        unsafe {
-            gl.enable(glow::BLEND);
-            gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
-        }
-
-        stack.clear();
-        for (sig, _key, comp) in gui_component_tree.iter_stack_signals() {
-            let &rel_pos = comp.rel_position();
-            let transform = translate4(Vec4::to_pos(rel_pos));
-            // println!("sig:{:?}",sig);
-            match sig {
-                StackSignal::Nop => {
-                    stack.pop();
-                    let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(gl, build_state(gpos), window_width, window_height);
-                    stack.push(transform);
-                }
-                StackSignal::Pop { n_times } => {
-                    stack.pop_multi(n_times + 1);
-                    let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(gl, build_state(gpos), window_width, window_height);
-                    stack.push(transform);
-                }
-                StackSignal::Push => {
-                    let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(gl, build_state(gpos), window_width, window_height);
-                    stack.push(transform);
-                }
-            }
-        }
-
-        unsafe {
-            gl.disable(glow::BLEND);
         }
     }
 
@@ -527,6 +495,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             })
     }
 
+    #[allow(dead_code)]
     fn component_global_position_bottom_up<CB>(&self, mut cb: CB)
     where
         CB: FnMut(GuiComponentKey, Mat4<f32>) -> bool,

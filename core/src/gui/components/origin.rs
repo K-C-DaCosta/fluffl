@@ -34,13 +34,7 @@ impl GuiComponent for Origin {
         self.rel_position = pos;
     }
 
-    fn key(&self) -> GuiComponentKey {
-        self.key
+    fn render<'a>(&self, _gl: &GlowGL, _state: RenderState<'a>, _win_w: f32, _win_h: f32) {
+        /* not implemented on purpose*/
     }
-
-    fn set_key(&mut self, key: GuiComponentKey) {
-        self.key = key;
-    }
-
-    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {}
 }

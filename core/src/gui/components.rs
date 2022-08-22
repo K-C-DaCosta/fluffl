@@ -10,7 +10,7 @@ use std::any::Any;
 
 #[derive(Copy, Clone, Debug)]
 pub enum GuiEventKind {
-    OnHoverIn = 0isize,
+    OnHoverIn = 0,
     OnHoverOut = 1,
     OnDrag = 2,
     OnClick = 3,
@@ -67,16 +67,13 @@ pub trait GuiComponent {
     fn get_bounds(&self) -> Vec2<f32>;
     fn rel_position(&self) -> &Vec2<f32>;
     fn set_rel_position(&mut self, pos: Vec2<f32>);
-    fn key(&self) -> GuiComponentKey;
-    fn set_key(&mut self, key: GuiComponentKey);
-
     fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32);
 
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
         let bounds = self.get_bounds();
         AABB2::from_point_and_lengths(Vec2::convert(global_x0), bounds)
     }
-
+    
     fn translate(&mut self, disp: Vec2<f32>) {
         let &pos = self.rel_position();
         self.set_rel_position(pos + disp);

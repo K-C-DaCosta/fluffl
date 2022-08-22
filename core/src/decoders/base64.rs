@@ -1,5 +1,5 @@
 #![allow(dead_code)]
-
+#[derive(Debug)]
 pub enum Error {
     InvalidBase64Digit,
 }
@@ -37,7 +37,8 @@ pub fn encode(data: &[u8]) -> String {
     output
 }
 
-pub fn decode(raw_text: String) -> Result<Vec<u8>, Error> {
+pub fn decode<S:AsRef<str>>(raw_text: S) -> Result<Vec<u8>, Error> {
+    let raw_text = raw_text.as_ref();
     let mut byte_buffer = vec![0; 64];
     let mut remaining_size = byte_buffer.len() * 8;
     let mut bit_cursor = 0;
@@ -80,8 +81,7 @@ fn map_b64_digit_to_binary(c: char) -> Option<u8> {
         b'0'..=b'9' => c - b'0' + 52,
         b'+' => 62,
         b'/' => 63,
-        b'=' => 0,
-        _ => return None,
+        b'=' | _ => 0,
     };
     Some(c)
 }

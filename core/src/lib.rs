@@ -18,7 +18,7 @@ pub mod time;
 /// private custom datastructures
 mod collections;
 /// private decodes
-mod decoders;
+pub mod decoders;
 /// private custom parsers
 mod parsers;
 

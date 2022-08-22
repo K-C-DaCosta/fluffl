@@ -15,7 +15,10 @@ use fluffl::{
     console::*,
     //playing music files requires more than what the base library provides
     //so here is my implementation of certain things like "text rendering" and music playing
-    extras::{hiero_pack::*, text_writer::*},
+    extras::{
+        hiero_pack::*,
+        text_writer::{HasTextWriterBuilder, TextWriter, PACKED_COURIER_NEW_ENCODED_TO_BASE64},
+    },
     gui::GuiManager,
     io::*,
     math::{WaveKind, FP64},
@@ -66,9 +69,11 @@ pub async fn main() {
     }
 
     let atlas_bytes = load_file!("./wasm_bins/resources/font.bcode").expect("file not found");
-    let atlas = HieroAtlas::deserialize(atlas_bytes)
-        .ok()
-        .expect("font parse failed");
+    let atlas = HieroAtlas::deserialize(
+        crate::decoders::base64::decode(PACKED_COURIER_NEW_ENCODED_TO_BASE64).unwrap(),
+    )
+    .ok()
+    .expect("font parse failed");
 
     let ctx = window.audio_context();
 
@@ -340,6 +345,9 @@ async fn main_loop(
         );
     });
 
+    
+    gui_manager.render(win_width, win_height);
+
     writer.draw_text_line(
         &time_to_string(seek_time as i64),
         x + 10.0,
@@ -348,7 +356,6 @@ async fn main_loop(
         Some(win_ptr.window().get_bounds()),
     );
 
-    gui_manager.render(win_width, win_height);
 
     // mixer_device.modify_state(|state| {
     //     let mixer_state = state?;

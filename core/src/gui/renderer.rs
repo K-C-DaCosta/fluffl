@@ -6,8 +6,8 @@ mod shader_sources;
 use shader_sources::*;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
-pub enum RendererShaderKind {
-    Frame = 0,
+pub enum GuiShaderKind {
+    RoundedBox = 0,
 }
 
 struct ShaderUniforms {
@@ -198,7 +198,7 @@ impl<'a> RenderBuilder<'a> {
 }
 
 pub struct GuiRenderer {
-    shader_program_table: HashMap<RendererShaderKind, OglProg>,
+    shader_program_table: HashMap<GuiShaderKind, OglProg>,
     unit_square_vao: ogl::OglArray,
     uniforms: ShaderUniforms,
 }
@@ -260,13 +260,13 @@ impl GuiRenderer {
         Self {
             unit_square_vao,
             uniforms,
-            shader_program_table: vec![(RendererShaderKind::Frame, frame_program)]
+            shader_program_table: vec![(GuiShaderKind::RoundedBox, frame_program)]
                 .into_iter()
                 .collect::<HashMap<_, _>>(),
         }
     }
 
-    pub fn builder<'a, 'b>(&'a self, gl: &'b GlowGL, kind: RendererShaderKind) -> RenderBuilder<'a>
+    pub fn builder<'a, 'b>(&'a self, gl: &'b GlowGL, kind: GuiShaderKind) -> RenderBuilder<'a>
     where
         'b: 'a,
     {

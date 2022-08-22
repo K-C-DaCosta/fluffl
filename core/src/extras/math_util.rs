@@ -39,11 +39,15 @@ pub fn compute_bounding_box_from_points_2d(points: &[Vec2]) -> AABB {
 /// # Comments
 /// - Its been a while since I wrote this function but I think this returns a column-major
 ///  style matrix, so no transpose is needed here
+#[rustfmt::skip]
 pub fn calc_proj(w: f32, h: f32) -> [f32; 16] {
     let PointInterceptLine { m: m1, b: b1 } = map_coefs(0., w, -1., 1.);
     let PointInterceptLine { m: m2, b: b2 } = map_coefs(0., h, 1., -1.);
     [
-        m1, 0., 0., 0., 0., m2, 0., 0., 0., 0., 1., 0., b1, b2, 0., 1.,
+        m1,  0. , 0., 0., 
+        0. , m2 , 0., 0.,
+        0. , 0. , 1., 0.,
+        b1 , b2 , 0., 1.,
     ]
 }
 /// # Description
@@ -55,15 +59,19 @@ pub struct PointInterceptLine {
 }
 
 #[allow(dead_code)]
+#[rustfmt::skip]
 pub fn translate(dx: f32, dy: f32) -> [f32; 16] {
     [
-        1., 0., 0., 0., 0., 1., 0., 0., 0., 0., 1., 0., dx, dy, 0., 1.,
+        1., 0., 0., 0.,
+        0., 1., 0., 0., 
+        0., 0., 1., 0., 
+        dx, dy, 0., 1.,
     ]
 }
-/// # Description 
+/// # Description
 /// computes local coordinate frame from line-segment
-/// # Returns 
-/// - returns (`world_to_local_matrix`,`rectangle_extents`,`half_width`) 
+/// # Returns
+/// - returns (`world_to_local_matrix`,`rectangle_extents`,`half_width`)
 pub fn compute_world_to_local_from_segment(
     a: Vec2,
     b: Vec2,
@@ -88,7 +96,7 @@ pub fn compute_world_to_local_from_segment(
         [q[0] * (-height) + o[0], q[1] * (-height) + o[1]],
     ];
 
-    (compute_world_to_local(p, q, o), rectangle_points, mag*0.5)
+    (compute_world_to_local(p, q, o), rectangle_points, mag * 0.5)
 }
 
 /// # Description
@@ -100,18 +108,19 @@ pub fn compute_world_to_local(p: Vec2, q: Vec2, o: Vec2) -> [f32; 9] {
     [p[0], q[0], 0., p[1], q[1], 0., -dot(p, o), -dot(q, o), 1.0]
 }
 
-/// # Description 
+/// # Description
 /// Computes a 4x4 matrix that resizes a region of `src` space  to `dst` space
-/// # Comments 
+/// # Comments
 /// - this matrix is in row-major format so a `transpose` is needed to pass into opengl
+#[rustfmt::skip]
 pub fn resize_region(src: AABB, dst: AABB) -> [f32; 16] {
     let scale_x = dst.w / src.w;
     let scale_y = dst.h / src.h;
     [
-        scale_x,0.,0.,-src.x * scale_x + dst.x,
-        0.,scale_y,0.,-src.y * scale_y + dst.y,
-        0.,0.,1.,0.,
-        0.,0.,0.,1.,
+        scale_x  ,  0.      ,   0.  ,-src.x * scale_x + dst.x,
+        0.       ,  scale_y ,   0.  ,-src.y * scale_y + dst.y,
+        0.       ,  0.      ,   1.  ,0.                      ,
+        0.       ,  0.      ,   0.  ,1.                      ,
     ]
 }
 
@@ -140,10 +149,10 @@ impl AABB {
     pub fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
         Self { x, y, w, h }
     }
-    pub fn get_top_left(&self)->[f32;2]{
-        [self.x,self.y]
+    pub fn get_top_left(&self) -> [f32; 2] {
+        [self.x, self.y]
     }
-    pub fn get_dims(&self)->[f32;2]{
-        [self.w,self.h]
+    pub fn get_dims(&self) -> [f32; 2] {
+        [self.w, self.h]
     }
 }

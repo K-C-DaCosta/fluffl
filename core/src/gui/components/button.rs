@@ -15,31 +15,31 @@ impl GuiComponent for Button {
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
-        self    
+        self
     }
 
-
-    fn get_bounds(&self)-> Vec2<f32> {
-        Vec2::from([self.width,self.height])
+    fn get_bounds(&self) -> Vec2<f32> {
+        Vec2::from([self.width, self.height])
     }
 
-    fn rel_position(&self)->&Vec2<f32> {
+    fn rel_position(&self) -> &Vec2<f32> {
         &self.rel_position
     }
 
-    fn key(&self) -> GuiComponentKey {
-        self.key
+    fn set_rel_position(&mut self, pos: Vec2<f32>) {
+        self.rel_position = pos;
     }
 
-    fn set_key(&mut self,key:GuiComponentKey) {
-        self.key = key;
-    }
-    
-    fn set_rel_position(&mut self,pos:Vec2<f32>) {
-        self.rel_position = pos;     
-    }
-    
-    fn render<'a>(&self, gl: &GlowGL,state:RenderState<'a>, win_w: f32, win_h: f32) {
-        
+    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {
+        let bounds = self.get_bounds();
+        let position = state.global_position;
+        let r = state.renderer;
+
+        r.builder(gl, GuiShaderKind::RoundedBox)
+            .set_window(win_w, win_h)
+            .set_background_color(self.color)
+            .set_position(position, Vec4::convert(bounds))
+            .set_bounds([self.width, self.height])
+            .render();
     }
 }
