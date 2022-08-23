@@ -1,6 +1,6 @@
 use super::*;
 
-use crate::math::AABB2;
+use crate::{extras::text_writer::TextWriter, math::AABB2};
 mod button;
 mod frame;
 mod origin;
@@ -17,13 +17,12 @@ pub enum GuiEventKind {
     OnRelease = 4,
 }
 
-
 pub struct ComponentEventListener<ProgramState> {
     pub kind: GuiEventKind,
     pub callback: ListenerCallBack<ProgramState>,
 }
 
-impl <ProgramState> ComponentEventListener<ProgramState> {
+impl<ProgramState> ComponentEventListener<ProgramState> {
     pub const fn new(kind: GuiEventKind, callback: ListenerCallBack<ProgramState>) -> Self {
         Self { kind, callback }
     }
@@ -53,8 +52,8 @@ pub struct RenderState<'a> {
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
 
-pub struct EventListenerInfo<'a,ProgramState> {
-    pub state:&'a ProgramState,
+pub struct EventListenerInfo<'a, ProgramState> {
+    pub state: &'a ProgramState,
     pub event: EventKind,
     pub key: GuiComponentKey,
     pub gui_comp_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
@@ -62,20 +61,39 @@ pub struct EventListenerInfo<'a,ProgramState> {
 }
 
 pub trait GuiComponent {
+    
     fn as_any(&self) -> &dyn Any;
+    
     fn as_any_mut(&mut self) -> &mut dyn Any;
+    
     fn get_bounds(&self) -> Vec2<f32>;
+    
+    fn set_bounds(&mut self, bounds:Vec2<f32>); 
+    
     fn rel_position(&self) -> &Vec2<f32>;
+    
     fn set_rel_position(&mut self, pos: Vec2<f32>);
-    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32);
+
+    fn render<'a>(
+        &self,
+        gl: &GlowGL,
+        state: RenderState<'a>,
+        text_writer: &mut TextWriter,
+        win_w: f32,
+        win_h: f32,
+    );
 
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
         let bounds = self.get_bounds();
         AABB2::from_point_and_lengths(Vec2::convert(global_x0), bounds)
     }
-    
+
     fn translate(&mut self, disp: Vec2<f32>) {
         let &pos = self.rel_position();
         self.set_rel_position(pos + disp);
+    }
+
+    fn is_origin(&self) -> bool {
+        self.as_any().downcast_ref::<Origin>().is_some()
     }
 }

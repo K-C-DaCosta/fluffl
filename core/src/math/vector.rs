@@ -193,7 +193,6 @@ impl<const N: usize, T> Index<usize> for Vector<N, T> {
         &self.data[index]
     }
 }
-
 impl<const N: usize, T> IndexMut<usize> for Vector<N, T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.data[index]
@@ -214,6 +213,27 @@ impl From<[f32; 3]> for Vector<4, f32> {
     fn from(arr: [f32; 3]) -> Self {
         Self::from_array([arr[0], arr[1], arr[2], 0.0])
     }
+}
+
+#[rustfmt::skip]
+impl <T:Copy> Vec4<T>{
+    pub fn x(&self)->T{self.data[0]}
+    pub fn y(&self)->T{self.data[1]}
+    pub fn z(&self)->T{self.data[2]}
+    pub fn w(&self)->T{self.data[3]}
+}
+
+#[rustfmt::skip]
+impl <T:Copy> Vec3<T>{
+    pub fn x(&self)->T{self.data[0]}
+    pub fn y(&self)->T{self.data[1]}
+    pub fn z(&self)->T{self.data[2]}
+}
+
+#[rustfmt::skip]
+impl <T:Copy> Vec2<T>{
+    pub fn x(&self)->T{self.data[0]}
+    pub fn y(&self)->T{self.data[1]}
 }
 
 /// ## Description

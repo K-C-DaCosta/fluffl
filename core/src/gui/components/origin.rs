@@ -26,6 +26,8 @@ impl GuiComponent for Origin {
         Vec2::zero()
     }
 
+    fn set_bounds(&mut self, _bounds: Vec2<f32>) {}
+
     fn rel_position(&self) -> &Vec2<f32> {
         &self.rel_position
     }
@@ -34,7 +36,14 @@ impl GuiComponent for Origin {
         self.rel_position = pos;
     }
 
-    fn render<'a>(&self, _gl: &GlowGL, _state: RenderState<'a>, _win_w: f32, _win_h: f32) {
+    fn render<'a>(
+        &self,
+        _gl: &GlowGL,
+        _state: RenderState<'a>,
+        _text_writer: &mut TextWriter,
+        _win_w: f32,
+        _win_h: f32,
+    ) {
         /* not implemented on purpose*/
     }
 }

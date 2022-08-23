@@ -10,7 +10,10 @@ use crate::{
         fixed_stack::FixedStack,
         flat_nary_tree::{LinearTree, NodeID, StackSignal},
     },
-    extras::ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
+    extras::{
+        ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
+        text_writer::TextWriter,
+    },
     math::{self, stack::MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
     window::event_util::EventKind,
@@ -108,7 +111,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         self.window_events.push_back(event);
     }
 
-    pub fn render(&mut self, window_width: f32, window_height: f32) {
+    pub fn render(&mut self, text_writer: &mut TextWriter, window_width: f32, window_height: f32) {
         self.handle_incoming_events();
 
         let gl = &self.gl;
@@ -146,23 +149,41 @@ impl<ProgramState> GuiManager<ProgramState> {
                 StackSignal::Nop => {
                     stack.pop();
                     let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(gl, build_state(gpos), window_width, window_height);
+                    comp.render(
+                        gl,
+                        build_state(gpos),
+                        text_writer,
+                        window_width,
+                        window_height,
+                    );
                     stack.push(transform);
                 }
                 StackSignal::Pop { n_times } => {
                     stack.pop_multi(n_times + 1);
                     let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(gl, build_state(gpos), window_width, window_height);
+                    comp.render(
+                        gl,
+                        build_state(gpos),
+                        text_writer,
+                        window_width,
+                        window_height,
+                    );
                     stack.push(transform);
                 }
                 StackSignal::Push => {
                     let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(gl, build_state(gpos), window_width, window_height);
+                    comp.render(
+                        gl,
+                        build_state(gpos),
+                        text_writer,
+                        window_width,
+                        window_height,
+                    );
                     stack.push(transform);
                 }
             }
         }
-        
+
         unsafe {
             gl.disable(glow::BLEND);
         }
@@ -195,19 +216,19 @@ impl<ProgramState> GuiManager<ProgramState> {
                     .with_position([64.0, 32.0]),
             )
             .with_parent(root)
-            .with_drag(true)
+            // .with_drag(true)
             .build();
 
         let red_frame = manager
             .add_component_with_builder()
+            .with_parent(frame)
             .with_component(
                 Frame::new()
-                    .with_bounds([128., 64.])
+                    .with_bounds([128., 45.])
                     .with_color([0.7, 0.2, 0., 1.0])
-                    .with_position([63.0, 33.0]),
+                    .with_position([0.0, 0.0]),
             )
-            .with_parent(frame)
-            .with_drag(true)
+            .with_drag_highest(true)
             .build();
 
         manager.add_component(
@@ -234,35 +255,39 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_drag(true)
             .build();
 
-        for k in 0..6 {
-            let col = Vec4::<f32>::rgb_u32(0x277BC0);
+        for k in 0..21 {
+            let row = k / 7;
+            let col = k % 7;
+
+            let color = Vec4::<f32>::rgb_u32(0x277BC0);
             manager
                 .add_component_with_builder()
                 .with_parent(orange_frame)
                 .with_component(
                     Frame::new()
                         .with_bounds([32., 32.])
-                        .with_color(col)
+                        .with_color(color)
                         .with_roundness(Vec4::from([1., 1., 1., 1.]))
                         .with_edge_color([0., 0., 0., 1.0])
-                        .with_position([10.0 + 35.0 * (k as f32), 10.0]),
+                        .with_position([10.0 + 35.0 * (col as f32), 10.0 + 33.0 * (row as f32)]),
                 )
                 .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
-                    // frame.color *= 0.5;
-                    // frame.color[3] = 1.0;
+                    frame.color *= 0.5;
+                    frame.color[3] = 1.0;
                     None
                 })
                 .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _e| {
-                    // frame.color *= 2.0;
-                    // frame.color[3] = 1.0;
+                    frame.color *= 2.0;
+                    frame.color[3] = 1.0;
                     None
                 })
                 .with_listener(GuiEventKind::OnClick, |frame, _, _| {
-                    frame.color = Vec4::rgb_u32(0x000000);
+                    frame.color = Vec4::rgb_u32(!0);
                     None
                 })
                 .with_listener(GuiEventKind::OnRelease, move |frame, _, _| {
-                    frame.color = col;
+                    frame.color = color * 0.5;
+                    frame.color[3] = 1.0;
                     None
                 })
                 .with_drag(true)
@@ -316,7 +341,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         while let Some(event) = window_events.pop_front() {
             let _old_signal_len = component_signal_queue.len();
             match event {
-                EventKind::MouseUp { x, y, .. } => {
+                EventKind::MouseUp { .. } => {
                     if let &mut Some(gui_comp_key) = focused_component {
                         component_signal_queue.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnRelease,
@@ -324,15 +349,25 @@ impl<ProgramState> GuiManager<ProgramState> {
                             event,
                         ));
                     }
+
                     *focused_component = None;
                 }
                 EventKind::MouseDown { x, y, .. } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     *focused_component = None;
+
                     for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
                         if aabb.is_point_inside(mouse_pos) {
                             *focused_component = Some(key);
                         }
+                    }
+
+                    if let &mut Some(clicked) = focused_component {
+                        component_signal_queue.push_front(ComponentEventSignal::new(
+                            GuiEventKind::OnClick,
+                            clicked,
+                            event,
+                        ));
                     }
                 }
                 EventKind::MouseMove { x, y, dx, dy } => {
@@ -359,7 +394,10 @@ impl<ProgramState> GuiManager<ProgramState> {
             }
 
             // if component_signal_queue.len() > _old_signal_len {
-            //     println!("signal added: {:?}", &component_signal_queue.make_contiguous()[_old_signal_len..] );
+            //     println!(
+            //         "signal added: {:?}",
+            //         &component_signal_queue.make_contiguous()[_old_signal_len..]
+            //     );
             // }
         }
     }

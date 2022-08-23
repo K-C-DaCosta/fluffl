@@ -1,3 +1,5 @@
+use crate::extras::text_writer;
+
 use super::*;
 
 pub struct Button {
@@ -22,6 +24,10 @@ impl GuiComponent for Button {
         Vec2::from([self.width, self.height])
     }
 
+    fn set_bounds(&mut self, bounds: Vec2<f32>) {
+        unimplemented!("not implemented")
+    }
+
     fn rel_position(&self) -> &Vec2<f32> {
         &self.rel_position
     }
@@ -30,7 +36,14 @@ impl GuiComponent for Button {
         self.rel_position = pos;
     }
 
-    fn render<'a>(&self, gl: &GlowGL, state: RenderState<'a>, win_w: f32, win_h: f32) {
+    fn render<'a>(
+        &self,
+        gl: &GlowGL,
+        state: RenderState<'a>,
+        text_writer: &mut TextWriter,
+        win_w: f32,
+        win_h: f32,
+    ) {
         let bounds = self.get_bounds();
         let position = state.global_position;
         let r = state.renderer;
@@ -41,5 +54,13 @@ impl GuiComponent for Button {
             .set_position(position, Vec4::convert(bounds))
             .set_bounds([self.width, self.height])
             .render();
+
+        text_writer.draw_text_line(
+            "HELLO",
+            position.x(),
+            position.y(),
+            12.0,
+            Some((win_w as u32, win_h as u32)),
+        );
     }
 }

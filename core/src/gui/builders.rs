@@ -103,6 +103,45 @@ where
             self
         }
     }
+    
+    /// drags the higest ancestor that ISN'T the origin
+    pub fn with_drag_highest(self, enable: bool) -> Self {
+        if enable {
+            self.with_listener_advanced(
+                GuiEventKind::OnDrag,
+                Box::new(|info| {
+                    let mut cur_node_key = info.key;
+                    let comp_tree = info.gui_comp_tree;
+                    let disp = info.event.disp();
+
+                    //walk up the tree to find the root component
+                    while let Some(parent) = comp_tree.get_parent_id(cur_node_key) {
+                        if comp_tree.get(parent).unwrap().is_origin() {
+                            break;
+                        }
+                        cur_node_key = parent.into();
+                    }
+
+                    let root_bounds = {
+                        let root = comp_tree.get_mut(cur_node_key).expect("root not found");
+                        root.translate(disp);
+                        root.get_bounds()
+                    };
+
+                    let cur_node = comp_tree
+                        .get_mut(info.key)
+                        .expect("gui manager somehow sent invalid key");
+                    let cur_bounds = cur_node.get_bounds();
+
+                    cur_node.set_bounds(Vec2::from([root_bounds[0], cur_bounds[1]]));
+
+                    None
+                }),
+            )
+        } else {
+            self
+        }
+    }
 
     pub fn build(mut self) -> GuiComponentKey {
         self.create_key_if_possible();

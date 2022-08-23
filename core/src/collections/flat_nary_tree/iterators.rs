@@ -11,7 +11,7 @@ pub enum StackSignal {
     Nop,
 }
 
-/// non-mutable signal iterator
+/// Iterates through the list but also tells you how many times you should push or pop from your stack
 pub struct StackSignalIterator<'a, T> {
     tree: &'a LinearTree<T>,
     covered_root: bool,

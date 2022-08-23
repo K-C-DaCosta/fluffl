@@ -345,8 +345,7 @@ async fn main_loop(
         );
     });
 
-    
-    gui_manager.render(win_width, win_height);
+    gui_manager.render(writer, win_width, win_height);
 
     writer.draw_text_line(
         &time_to_string(seek_time as i64),
@@ -355,7 +354,6 @@ async fn main_loop(
         32.0,
         Some(win_ptr.window().get_bounds()),
     );
-
 
     // mixer_device.modify_state(|state| {
     //     let mixer_state = state?;

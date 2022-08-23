@@ -1,3 +1,4 @@
+use crate::math::Vec2;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 
@@ -5,7 +6,7 @@ pub const KP_OFFSET: isize = 1000;
 
 //the whole point of this module is to provide a generic interface for events in the code.
 //Every target needs to map its native events to these.
-#[derive(Copy, Clone, Serialize, Deserialize,Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum EventKind {
     /// # Description
     /// This event fires only when the user clicks on the "x" button on desktop.
@@ -91,8 +92,24 @@ pub enum EventKind {
         code: KeyCode,
     },
 }
+impl EventKind {
+    pub fn disp(&self) -> Vec2<f32> {
+        match self {
+            &Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+            &Self::TouchMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+            _ => Vec2::zero(),
+        }
+    }
 
-#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash,Debug)]
+    pub fn disp_mouse_only(&self) -> Vec2<f32> {
+        match self {
+            &Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+            _ => Vec2::zero(),
+        }
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Serialize, Deserialize, Hash, Debug)]
 #[allow(non_camel_case_types)]
 pub enum KeyCode {
     KEY_A = 'a' as isize,
@@ -237,7 +254,7 @@ impl Into<i128> for KeyCode {
     }
 }
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Serialize, Deserialize,Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
 pub enum MouseCode {
     LEFT_BUTTON,
     RIGHT_BUTTON,

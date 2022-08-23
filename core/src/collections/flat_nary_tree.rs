@@ -120,10 +120,13 @@ impl<T> LinearTree<T> {
         self.data.get_mut(node_ptr.as_usize())?.as_mut()
     }
 
-    pub fn get_parent_id(&self, id: NodeID) -> Option<NodeID> {
-        let node_ptr = self.resolve_id_to_ptr(id);
-        (node_ptr != Ptr::null()).then(|| {
-            let parent_ptr = self.parent[node_ptr.as_usize()];
+    pub fn get_parent_id<NID>(&self, id: NID) -> Option<NodeID>
+    where
+        NID: Copy + Into<NodeID>,
+    {
+        let node_ptr = self.resolve_id_to_ptr(id.into());
+        let parent_ptr = self.parent[node_ptr.as_usize()];
+        (parent_ptr != Ptr::null()).then(|| {
             self.node_id[parent_ptr.as_usize()]
         })
     }
