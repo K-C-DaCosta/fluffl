@@ -65,7 +65,7 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
                     n_times: diff.abs() as usize,
                 }
             };
-            
+
             (
                 signal,
                 tree.node_id[cur_node],
@@ -94,7 +94,7 @@ impl<'a, T> StackSignalIteratorMut<'a, T> {
     }
 }
 impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
-    type Item = (StackSignal, &'a mut T);
+    type Item = (StackSignal, NodeID, &'a mut T);
 
     fn next(&mut self) -> Option<Self::Item> {
         //allows me to split-borrow the tree
@@ -102,14 +102,19 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
 
         if self.covered_root == false {
             self.covered_root = true;
-            return Some((StackSignal::Nop, tree.data[0].as_mut().unwrap()));
+            return Some((
+                StackSignal::Nop,
+                tree.node_id[0],
+                tree.data[0].as_mut().unwrap(),
+            ));
         }
 
         let level = &mut tree.level;
         let data = &mut tree.data;
+        let node_id = &mut tree.node_id;
+
         let node_len = self.node_len;
         let cur_node_ref = &mut self.cur_node;
-
         let cur_node = *cur_node_ref;
 
         (cur_node < node_len).then(move || {
@@ -127,7 +132,7 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
                 }
             };
 
-            (signal, data[cur_node].as_mut().unwrap())
+            (signal, node_id[cur_node], data[cur_node].as_mut().unwrap())
         })
     }
 }

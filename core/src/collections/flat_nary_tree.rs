@@ -10,6 +10,11 @@ use self::{iterators::*, sort_util::*, swappable::*};
 
 #[derive(Copy, Clone, Hash, Default, Debug, PartialEq, Eq)]
 pub struct NodeID(pub usize);
+impl NodeID {
+    pub fn as_usize(&self) -> usize {
+        self.0
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct NodeInfo<'a, T> {
@@ -40,7 +45,7 @@ pub struct LinearTree<T> {
     node_id_counter: usize,
     has_child: Vec<bool>,
     nodes_deleted: usize,
-    id_to_ptr_table: HashMap<NodeID, Ptr>,
+    id_to_ptr_table: Vec<Ptr>,
 }
 
 impl<T> LinearTree<T> {
@@ -55,7 +60,7 @@ impl<T> LinearTree<T> {
             node_id_counter: 0,
             has_child: vec![],
             nodes_deleted: 0,
-            id_to_ptr_table: HashMap::new(),
+            id_to_ptr_table: Vec::new(),
         }
     }
 
@@ -109,6 +114,9 @@ impl<T> LinearTree<T> {
         NID: Copy + Into<NodeID>,
     {
         let node_ptr = self.resolve_id_to_ptr(node_id.into());
+        if node_ptr == Ptr::null() {
+            return None;
+        }
         self.data.get(node_ptr.as_usize())?.as_ref()
     }
 
@@ -126,14 +134,12 @@ impl<T> LinearTree<T> {
     {
         let node_ptr = self.resolve_id_to_ptr(id.into());
         let parent_ptr = self.parent[node_ptr.as_usize()];
-        (parent_ptr != Ptr::null()).then(|| {
-            self.node_id[parent_ptr.as_usize()]
-        })
+        (parent_ptr != Ptr::null()).then(|| self.node_id[parent_ptr.as_usize()])
     }
 
     fn resolve_id_to_ptr(&self, id: NodeID) -> Ptr {
         self.id_to_ptr_table
-            .get(&id)
+            .get(id.as_usize())
             .map(|&a| a)
             .unwrap_or(Ptr::null())
     }
@@ -205,12 +211,11 @@ impl<T> LinearTree<T> {
     /// `O(|V|log(|V|))`
     /// ## Comments
     /// - index 0 in all the node attribute arrays ALWAYS means the root of the tree
-    fn reconstruct_parent_pointers_using_dfs_ordering_info(&mut self) {
+    pub fn reconstruct_parent_pointers_using_dfs_ordering_info(&mut self) {
         self.recompute_prefix_ordering();
-
+        self.reconstruct_parent_pointers();
         self.recompute_has_child_table();
 
-        self.reconstruct_parent_pointers();
 
         // after the above functions are called,
         // all (nid,ptr) pairs are invalid and must be recomputed
@@ -218,11 +223,10 @@ impl<T> LinearTree<T> {
     }
 
     fn reconstruct_id_to_ptr_table(&mut self) {
-        self.id_to_ptr_table.clear();
         for k in 0..self.data.len() {
-            let ptr = Ptr::from(k);
             let nid = self.node_id[k];
-            self.id_to_ptr_table.insert(nid, ptr);
+            let ptr = Ptr::from(k);
+            self.id_to_ptr_table[nid.as_usize()] = ptr;
         }
     }
 
@@ -231,7 +235,6 @@ impl<T> LinearTree<T> {
         let valid_nodes_len = self.len();
         let level = &mut self.level;
         let parent_stack = &mut self.parent_stack;
-        let has_child = &mut self.has_child;
         let parent = &mut self.parent;
 
         parent_stack.clear();
@@ -240,6 +243,37 @@ impl<T> LinearTree<T> {
 
         for cur_node in 1..valid_nodes_len {
             // println!("stack-{:?}", self.parent_stack);
+
+            let cur_level = level[cur_node] as usize;
+            let diff = cur_level as isize - level[cur_node - 1] as isize;
+
+            if diff <= 0 {
+                while parent_stack.last().is_some()
+                    && level[*parent_stack.last().unwrap()] as usize != cur_level
+                {
+                    parent_stack.pop();
+                }
+                parent_stack.pop();
+            }
+
+            parent[cur_node] = Ptr::from(*parent_stack.last().expect("root should exist"));
+            // if has_child[cur_node] {
+            parent_stack.push(cur_node);
+            // }
+        }
+    }
+
+    pub fn reconstruct_parent_pointers_fixed(&mut self) {
+        let root = Ptr::from(0);
+        let valid_nodes_len = self.len();
+        let level = &mut self.level;
+        let parent_stack = &mut self.parent_stack;
+        let parent = &mut self.parent;
+
+        parent_stack.clear();
+        parent_stack.push(root.as_usize());
+
+        for cur_node in 1..valid_nodes_len {
 
             let cur_level = level[cur_node] as usize;
             let diff = cur_level as isize - level[cur_node - 1] as isize;
@@ -254,9 +288,8 @@ impl<T> LinearTree<T> {
             }
 
             parent[cur_node] = Ptr::from(*parent_stack.last().expect("root should exist"));
-            if has_child[cur_node] {
-                parent_stack.push(cur_node);
-            }
+            println!("cur:{},parent:{}",cur_node,parent[cur_node]);
+            parent_stack.push(cur_node);
         }
     }
 
@@ -283,9 +316,9 @@ impl<T> LinearTree<T> {
 
         *order_idx += 1;
 
-        for root in self.get_child_nodes(root) {
+        for child in self.get_child_nodes(root) {
             let local_self = unsafe { &mut *self_ptr };
-            local_self.compute_post_order_traversal_helper(root, level + 1, order_idx);
+            local_self.compute_post_order_traversal_helper(child, level + 1, order_idx);
         }
     }
 
@@ -338,6 +371,7 @@ impl<T> LinearTree<T> {
             self.parent.push(parent);
             self.node_id.push(node_id);
             self.has_child.push(false);
+            self.id_to_ptr_table.push(Ptr::from(self.data.len()-1));
             self.node_id_counter += 1;
             (node_id, Ptr::from(self.data.len() - 1))
         }
@@ -373,6 +407,30 @@ impl<T> LinearTree<T> {
         }
         self.nodes_deleted += 1;
     }
+
+    pub fn print_by_ids(&mut self) {
+        let mut indents = String::new();
+        let indent = "--";
+
+        for (signal, item, _) in StackSignalIteratorMut::new(self) {
+            match signal {
+                StackSignal::Push => indents.push_str(indent),
+                StackSignal::Pop { n_times } => (0..indent.len() * n_times).for_each(|_| {
+                    indents.pop();
+                }),
+                StackSignal::Nop => {}
+            }
+            if indents.len() > 0 {
+                indents.pop();
+                indents.push('>');
+                println!("{}{}", indents, item.as_usize());
+                indents.pop();
+                indents.push('-');
+            } else {
+                println!("{}{}", indents, item.as_usize());
+            }
+        }
+    }
 }
 
 impl<T> LinearTree<T>
@@ -383,7 +441,7 @@ where
         let mut indents = String::new();
         let indent = "--";
 
-        for (signal, item) in StackSignalIteratorMut::new(self) {
+        for (signal, _, item) in StackSignalIteratorMut::new(self) {
             match signal {
                 StackSignal::Push => indents.push_str(indent),
                 StackSignal::Pop { n_times } => (0..indent.len() * n_times).for_each(|_| {
@@ -419,14 +477,33 @@ pub fn tree_test() {
     tree.add(9, rb);
 
     tree.print();
+    
     for _ in 0..10 {
         tree.remove(rb, &mut removed_nodes);
         let rb = tree.add(3, root);
         tree.add(4, rb);
         tree.add(7, rb);
         tree.add(9, rb);
-
         // println!("{:?}",removed_nodes);
     }
     tree.print();
+}
+
+
+#[test]
+fn bug_fix(){
+    let mut  tree = LinearTree::new();
+
+    let origin = tree.add("origin", NodeID::default());
+    
+    let pink = tree.add("pink", origin);
+    let orange = tree.add("orange", pink);
+
+    let purple = tree.add("pruple", origin);
+    let lpurp = tree.add("lpurp",purple);
+    let blue = tree.add("blue",orange);
+    for x in  tree.iter(){
+        println!("{}", x.val);
+    }
+
 }
