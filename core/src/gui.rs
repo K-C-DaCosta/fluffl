@@ -20,13 +20,13 @@ use crate::{
     GlowGL,
 };
 
-mod builders;
+mod builder;
 mod components;
 mod gui_key;
 mod handler_block;
 mod renderer;
 
-use self::{builders::*, components::*, gui_key::*, handler_block::*, renderer::*};
+use self::{builder::*, components::*, gui_key::*, handler_block::*, renderer::*};
 
 pub type ListenerCallBack<ProgramState> =
     Box<dyn FnMut(EventListenerInfo<'_, ProgramState>) -> Option<()>>;
@@ -95,12 +95,6 @@ impl<ProgramState> GuiManager<ProgramState> {
             .get_mut(&key)
             .expect("key missing")
             .set_handler(listener);
-    }
-
-    pub fn add_component_with_builder<'a, CompKind: GuiComponent + 'static>(
-        &'a mut self,
-    ) -> ComponentBuilder<'a, CompKind, ProgramState> {
-        ComponentBuilder::new(self)
     }
 
     pub fn add_component(
@@ -204,99 +198,84 @@ impl<ProgramState> GuiManager<ProgramState> {
         let origin =
             manager.add_component(GuiComponentKey::default(), Box::new(OriginState::new()));
 
-        // let alt_frame = manager
-        //     .add_component_with_builder()
-        //     .with_component(
-        //         Frame::new()
-        //             .with_bounds([200., 100.])
-        //             .with_roundness([0., 0., 10.0, 10.0])
-        //             .with_position([64.0, 400.0]),
-        //     )
-        //     .with_parent(origin_key)
-        //     .with_drag(true)
-        //     .build();
+        let alt_frame = manager
+            .builder_frame()
+            .with_parent(origin)
+            .with_bounds([200.0, 100.0])
+            .with_roundness([0.0, 0.0, 10.0, 10.])
+            .with_position([64.0, 400.0])
+            .with_drag(true)
+            .build();
 
         let prink_frame = manager
-            .add_component_with_builder()
-            .with_component(
-                FrameState::new()
-                    .with_bounds([400., 200.])
-                    .with_roundness([0., 0., 30.0, 30.0])
-                    .with_position([64.0, 32.0]),
-            )
+            .builder_frame()
             .with_parent(origin)
+            .with_bounds([400.0, 200.0])
+            .with_roundness([0., 0., 30.0, 30.0])
+            .with_position([64.0, 32.0])
             // .with_drag(true)
             .build();
 
         let red_frame = manager
-            .add_component_with_builder()
+            .builder_frame()
             .with_parent(prink_frame)
-            .with_component(
-                FrameState::new()
-                    .with_bounds([128., 45.])
-                    .with_color([0.7, 0.2, 0., 1.0])
-                    .with_position([0.0, 0.0]),
-            )
+            .with_bounds([400., 45.])
+            .with_color([0.7, 0.2, 0., 1.0])
+            .with_position([0.0, 0.0])
             .with_drag_highest(true)
             .build();
-        let red_child = manager.add_component(
-            red_frame,
-            Box::new(
-                FrameState::new()
-                    .with_bounds([32., 32.])
-                    .with_color(Vec4::rgb_u32(0x277BC0))
-                    .with_position([8.0, 8.0]),
-            ),
-        );
+
+        let red_child = manager
+            .builder_frame()
+            .with_parent(red_frame)
+            .with_bounds([32., 32.])
+            .with_color(Vec4::rgb_u32(0x277BC0))
+            .with_position([8.0, 8.0])
+            .build();
 
         let orange_frame = manager
-            .add_component_with_builder()
+            .builder_frame()
             .with_parent(prink_frame)
-            .with_component(
-                FrameState::new()
-                    .with_bounds([256., 128.])
-                    .with_color(Vec4::rgb_u32(0xFF7F3F))
-                    .with_roundness(Vec4::from([1., 1., 30., 30.]))
-                    .with_edge_color([0., 0., 0., 1.0])
-                    .with_position([128.0, 64.0]),
-            )
+            .with_bounds([256., 128.])
+            .with_color(Vec4::rgb_u32(0xFF7F3F))
+            .with_roundness(Vec4::from([1., 1., 30., 30.]))
+            .with_edge_color([0., 0., 0., 1.0])
+            .with_position([128.0, 64.0])
             .with_drag(true)
             .build();
 
         let slider_frame = manager
-            .add_component_with_builder()
+            .builder_frame()
             .with_parent(origin)
-            .with_component(
-                FrameState::new()
-                    .with_bounds([256.0, 64.0])
-                    .with_color(Vec4::rgb_u32(0x554994))
-                    .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
-                    .with_roundness([8.0; 4])
-                    .with_position([64.0, 400.0]),
-            )
+            .with_bounds([256.0, 64.0])
+            .with_color(Vec4::rgb_u32(0x554994))
+            .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
+            .with_roundness([8.0; 4])
+            .with_position([64.0, 400.0])
             .with_drag(true)
-            .with_listener(GuiEventKind::OnFocusIn, |state,_,_|{
+            .with_listener(GuiEventKind::OnClick, |f, _, _| {
+                // f.bounds[1]+=1.0;
+                None
+            })
+            .with_listener(GuiEventKind::OnFocusIn, |state, _, _| {
                 state.edge_color = Vec4::rgb_u32(0xff0000);
 
                 None
             })
-            .with_listener(GuiEventKind::OnFocusOut, |state,_,_|{
+            .with_listener(GuiEventKind::OnFocusOut, |state, _, _| {
                 state.edge_color = Vec4::rgb_u32(0xFFCCB3);
                 None
             })
             .build();
 
         let slider_button = manager
-            .add_component_with_builder()
+            .builder_frame()
             .with_parent(slider_frame)
-            .with_component(
-                FrameState::new()
-                    .with_bounds([16.0, 50.0])
-                    .with_color(Vec4::rgb_u32(0xF675A8))
-                    .with_position([256.0 / 2. - 8.0, 64.0 / 2. - 50.0 / 2.])
-                    .with_edge_color(Vec4::rgb_u32(0xF29393))
-                    .with_roundness([1.0; 4]),
-            )
+            .with_bounds([32.0, 64.0])
+            .with_color(Vec4::rgb_u32(0xF675A8))
+            .with_position([256.0 / 2. - 8.0, 64.0 / 2. - 64.0 / 2.])
+            .with_edge_color(Vec4::rgb_u32(0xF29393))
+            .with_roundness([8.0; 4])
             .with_listener(GuiEventKind::OnHoverIn, |f, _, _| {
                 f.color *= 9. / 10.;
                 None
@@ -356,7 +335,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                         .unwrap();
 
                     let rel_pos = &mut slider_button.rel_pos;
-                    let epsilon_x = slider_frame_bounds[0] * 0.03;
+                    let epsilon_x = slider_frame_bounds[0] * 0.00;
                     rel_pos[0] = rel_pos[0].clamp(
                         epsilon_x,
                         slider_frame_bounds[0] - slider_button_bounds[0] - epsilon_x,
@@ -369,25 +348,17 @@ impl<ProgramState> GuiManager<ProgramState> {
             .build();
 
         for k in 0..21 {
-            // let k = 0;
             let row = k / 7;
             let col = k % 7;
-            if k == 1 {
-                let foo = 1;
-            }
-
             let color = Vec4::<f32>::rgb_u32(0x277BC0);
-            let blue_button = manager
-                .add_component_with_builder()
+            let _blue_button = manager
+                .builder_frame()
                 .with_parent(orange_frame)
-                .with_component(
-                    FrameState::new()
-                        .with_bounds([32., 32.])
-                        .with_color(color)
-                        .with_roundness(Vec4::from([1., 1., 1., 1.]))
-                        .with_edge_color([0., 0., 0., 1.0])
-                        .with_position([10.0 + 35.0 * (col as f32), 10.0 + 33.0 * (row as f32)]),
-                )
+                .with_bounds([32., 32.])
+                .with_color(color)
+                .with_roundness(Vec4::from([1., 1., 1., 1.]))
+                .with_edge_color([0., 0., 0., 1.0])
+                .with_position([7.0 + 35.0 * (col as f32), 5.0 + 33.0 * (row as f32)])
                 .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
                     frame.color *= 0.5;
                     frame.color[3] = 1.0;
@@ -411,17 +382,17 @@ impl<ProgramState> GuiManager<ProgramState> {
                 .build();
         }
 
-        println!("origin={}", origin);
-        println!("pink_frame={}", prink_frame);
-        println!("orange_frame={}", orange_frame);
-        // println!("blue_button={}", blue_button);
-        println!("slider_frame={}", slider_frame);
-        println!("slider_button={}", slider_button);
+        // println!("origin={}", origin);
+        // println!("pink_frame={}", prink_frame);
+        // println!("orange_frame={}", orange_frame);
+        // // println!("blue_button={}", blue_button);
+        // println!("slider_frame={}", slider_frame);
+        // println!("slider_button={}", slider_button);
 
-        manager.gui_component_tree.print_by_ids();
+        // manager.gui_component_tree.print_by_ids();
 
-        let parent = manager.gui_component_tree.get_parent_id(NodeID(4)).unwrap();
-        println!("parent of 4 is = {:?}", parent);
+        // let parent = manager.gui_component_tree.get_parent_id(NodeID(4)).unwrap();
+        // println!("parent of 4 is = {:?}", parent);
 
         manager
     }
@@ -525,14 +496,14 @@ impl<ProgramState> GuiManager<ProgramState> {
                     // handle focused events
                     match (prev_focused_component, *focused_component) {
                         (None, Some(cur_key)) => {
-                            component_signal_queue.push_front(ComponentEventSignal::new(
+                            component_signal_queue.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnFocusIn,
                                 cur_key,
                                 event,
                             ));
                         }
                         (Some(prev_key), None) => {
-                            component_signal_queue.push_front(ComponentEventSignal::new(
+                            component_signal_queue.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnFocusOut,
                                 prev_key,
                                 event,
@@ -540,12 +511,12 @@ impl<ProgramState> GuiManager<ProgramState> {
                         }
                         (Some(prev_key), Some(cur_key)) => {
                             if prev_key != cur_key {
-                                component_signal_queue.push_front(ComponentEventSignal::new(
+                                component_signal_queue.push_back(ComponentEventSignal::new(
                                     GuiEventKind::OnFocusOut,
                                     prev_key,
                                     event,
                                 ));
-                                component_signal_queue.push_front(ComponentEventSignal::new(
+                                component_signal_queue.push_back(ComponentEventSignal::new(
                                     GuiEventKind::OnFocusIn,
                                     cur_key,
                                     event,
@@ -559,7 +530,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     }
 
                     if let &mut Some(clicked) = clicked_component {
-                        component_signal_queue.push_front(ComponentEventSignal::new(
+                        component_signal_queue.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnClick,
                             clicked,
                             event,
@@ -590,10 +561,10 @@ impl<ProgramState> GuiManager<ProgramState> {
             }
 
             if component_signal_queue.len() > _old_signal_len {
-                println!(
-                    "signal added: {:?}",
-                    &component_signal_queue.make_contiguous()[_old_signal_len..]
-                );
+                println!("signal added:");
+                for sig in &component_signal_queue.make_contiguous()[_old_signal_len..] {
+                    println!("{:?}", sig)
+                }
             }
         }
     }

@@ -1,53 +1,42 @@
 use super::*;
 
-pub struct ComponentBuilder<'a, CompKind, ProgramState> {
-    manager: &'a mut GuiManager<ProgramState>,
-    component: Option<CompKind>,
-    parent: Option<GuiComponentKey>,
-    key: Option<GuiComponentKey>,
-}
+pub trait HasBuilder: Sized {
+    type ProgramState;
+    type ComponentKind: GuiComponent + 'static;
 
-impl<'a, Component, ProgramState> ComponentBuilder<'a, Component, ProgramState>
-where
-    Component: GuiComponent + 'static,
-{
-    pub fn new(manager: &'a mut GuiManager<ProgramState>) -> Self {
-        Self {
-            manager,
-            component: None,
-            parent: None,
-            key: None,
-        }
-    }
+    fn manager(&mut self) -> &mut GuiManager<Self::ProgramState>;
+    fn component(&mut self) -> &mut Option<Self::ComponentKind>;
+    fn parent(&mut self) -> &mut Option<GuiComponentKey>;
+    fn key(&mut self) -> &mut Option<GuiComponentKey>;
 
-    fn try_create_key(&mut self) {
-        match (self.key, self.component.take()) {
+    fn try_create_key(&mut self)  {
+        match (*self.key(), self.component().take()) {
             (Some(_), _) => (),
             (None, Some(comp)) => {
-                self.key = Some(
-                    self.manager
-                        .add_component(self.parent.unwrap_or_default(), Box::new(comp)),
-                );
+                let parent = self.parent().unwrap_or_default();
+                *self.key() = Some(self.manager().add_component(parent, Box::new(comp)));
             }
             (None, None) => {
                 panic!("component not set, build failed")
             }
         }
     }
+    
+    // dont think this is needed anymore 
+    // fn with_component(mut self, comp: Self::ComponentKind) -> Self {
+    //     *self.component() = Some(comp);
+    //     self
+    // }
 
-    pub fn with_component(mut self, comp: Component) -> Self {
-        self.component = Some(comp);
+    fn with_parent(mut self, parent: GuiComponentKey) -> Self {
+        *self.parent() = Some(parent);
         self
     }
 
-    pub fn with_parent(mut self, parent: GuiComponentKey) -> Self {
-        self.parent = Some(parent);
-        self
-    }
-
-    pub fn with_listener<Listener>(self, kind: GuiEventKind, mut listener: Listener) -> Self
+    fn with_listener<Listener>(self, kind: GuiEventKind, mut listener: Listener) -> Self
     where
-        Listener: FnMut(&mut Component, &ProgramState, EventKind) -> Option<()> + 'static,
+        Listener:
+            FnMut(&mut Self::ComponentKind, &Self::ProgramState, EventKind) -> Option<()> + 'static,
     {
         self.with_listener_advanced(
             kind,
@@ -59,32 +48,32 @@ where
                     .gui_comp_tree
                     .get_mut(key)?
                     .as_any_mut()
-                    .downcast_mut::<Component>()?;
+                    .downcast_mut::<Self::ComponentKind>()?;
                 listener(comp, state, event)
             }),
         )
     }
 
-    pub fn with_listener_advanced(
+    fn with_listener_advanced(
         mut self,
         kind: GuiEventKind,
-        cb: ListenerCallBack<ProgramState>,
+        cb: ListenerCallBack<Self::ProgramState>,
     ) -> Self {
         self.try_create_key();
-        let key = self.key.expect("key missing");
-        self.manager
+        let key = self.key().expect("key missing");
+        self.manager()
             .set_listener(key, ComponentEventListener::new(kind, cb));
         self
     }
 
-    pub fn with_listener_block(mut self, cve: ComponentEventListener<ProgramState>) -> Self {
+    fn with_listener_block(mut self, cve: ComponentEventListener<Self::ProgramState>) -> Self {
         self.try_create_key();
-        let key = self.key.expect("key missing");
-        self.manager.set_listener(key, cve);
+        let key = self.key().expect("key missing");
+        self.manager().set_listener(key, cve);
         self
     }
 
-    pub fn with_drag(self, enable: bool) -> Self {
+    fn with_drag(self, enable: bool) -> Self {
         if enable {
             self.with_listener_block(ComponentEventListener::new(
                 GuiEventKind::OnDrag,
@@ -105,7 +94,7 @@ where
     }
 
     /// drags the higest ancestor that ISN'T the origin
-    pub fn with_drag_highest(self, enable: bool) -> Self {
+    fn with_drag_highest(self, enable: bool) -> Self {
         if enable {
             self.with_listener_advanced(
                 GuiEventKind::OnDrag,
@@ -143,8 +132,8 @@ where
         }
     }
 
-    pub fn build(mut self) -> GuiComponentKey {
+    fn build(mut self) -> GuiComponentKey {
         self.try_create_key();
-        self.key.expect("builder incomplete")
+        self.key().expect("builder incomplete")
     }
 }

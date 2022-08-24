@@ -10,6 +10,7 @@ pub struct FrameState {
     pub font_size: f32,
     pub is_visible: bool,
 }
+
 impl FrameState {
     pub fn new() -> Self {
         Self {
@@ -23,62 +24,6 @@ impl FrameState {
             font_size: 30.0,
             alignment: [TextAlignment::Right, TextAlignment::Center],
         }
-    }
-
-    pub fn with_bounds<T>(mut self, bounds: T) -> Self
-    where
-        Vec2<f32>: From<T>,
-    {
-        let bounds = Vec2::from(bounds);
-        self.bounds = bounds;
-        self
-    }
-
-    pub fn with_color<T>(mut self, color: T) -> Self
-    where
-        Vec4<f32>: From<T>,
-    {
-        self.color = Vec4::from(color);
-        self
-    }
-
-    pub fn with_edge_color<T>(mut self, color: T) -> Self
-    where
-        Vec4<f32>: From<T>,
-    {
-        self.edge_color = Vec4::from(color);
-        self
-    }
-
-    pub fn with_roundness<T>(mut self, r: T) -> Self
-    where
-        Vec4<f32>: From<T>,
-    {
-        self.roundness = Vec4::from(r);
-        self
-    }
-
-    pub fn with_position<T>(mut self, pos: T) -> Self
-    where
-        Vec2<f32>: From<T>,
-    {
-        self.rel_pos = Vec2::from(pos);
-        self
-    }
-
-    pub fn with_caption(mut self, caption: String) -> Self {
-        self.caption = caption;
-        self
-    }
-
-    pub fn with_alignment(mut self, horizontal: TextAlignment, vertical: TextAlignment) -> Self {
-        self.alignment = [horizontal, vertical];
-        self
-    }
-
-    pub fn with_font_size(mut self, size: f32) -> Self {
-        self.font_size = size;
-        self
     }
 }
 
@@ -174,4 +119,105 @@ pub fn compute_alignment_position(
         };
     }
     res
+}
+
+pub struct FrameBuilder<'a, ProgramState> {
+    manager:&'a mut GuiManager<ProgramState>,
+    state: Option<FrameState>,
+    parent: Option<GuiComponentKey>,
+    key: Option<GuiComponentKey>,
+}
+
+impl <'a, ProgramState> FrameBuilder<'a,ProgramState> {
+    pub fn new(manager:&'a mut GuiManager<ProgramState>) -> Self {
+        Self {
+            manager, 
+            state: Some(FrameState::new()),
+            parent: None,
+            key: None,
+        }
+    }
+
+    pub fn with_bounds<T>(mut self, bounds: T) -> Self
+    where
+        Vec2<f32>: From<T>,
+    {
+        let bounds = Vec2::from(bounds);
+        self.state.as_mut().unwrap().bounds = bounds;
+        self
+    }
+
+    pub fn with_color<T>(mut self, color: T) -> Self
+    where
+        Vec4<f32>: From<T>,
+    {
+        self.state.as_mut().unwrap().color = Vec4::from(color);
+        self
+    }
+
+    pub fn with_edge_color<T>(mut self, color: T) -> Self
+    where
+        Vec4<f32>: From<T>,
+    {
+        self.state.as_mut().unwrap().edge_color = Vec4::from(color);
+        self
+    }
+
+    pub fn with_roundness<T>(mut self, r: T) -> Self
+    where
+        Vec4<f32>: From<T>,
+    {
+        self.state.as_mut().unwrap().roundness = Vec4::from(r);
+        self
+    }
+
+    pub fn with_position<T>(mut self, pos: T) -> Self
+    where
+        Vec2<f32>: From<T>,
+    {
+        self.state.as_mut().unwrap().rel_pos = Vec2::from(pos);
+        self
+    }
+
+    pub fn with_caption(mut self, caption: String) -> Self {
+        self.state.as_mut().unwrap().caption = caption;
+        self
+    }
+
+    pub fn with_alignment(mut self, horizontal: TextAlignment, vertical: TextAlignment) -> Self {
+        self.state.as_mut().unwrap().alignment = [horizontal, vertical];
+        self
+    }
+
+    pub fn with_font_size(mut self, size: f32) -> Self {
+        self.state.as_mut().unwrap().font_size = size;
+        self
+    }
+}
+
+impl <'a, ProgramState> HasBuilder for FrameBuilder<'a, ProgramState>  {
+    type ComponentKind = FrameState;
+    type ProgramState = ProgramState;
+
+    fn manager(&mut self) -> &mut GuiManager<Self::ProgramState> {
+        self.manager
+    }
+    
+    fn component(&mut self) -> &mut Option<Self::ComponentKind> {
+        &mut self.state
+    }
+    
+    fn parent(&mut self) -> &mut Option<GuiComponentKey> {
+        &mut  self.parent
+    }
+
+    fn key(&mut self) -> &mut Option<GuiComponentKey> {
+        &mut self.key
+    }
+}
+
+impl<ProgramState> GuiManager<ProgramState> {
+    pub fn builder_frame(&mut self)->FrameBuilder<ProgramState>{
+        FrameBuilder::new(self)
+    }
 }
