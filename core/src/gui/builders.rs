@@ -20,7 +20,7 @@ where
         }
     }
 
-    fn create_key_if_possible(&mut self) {
+    fn try_create_key(&mut self) {
         match (self.key, self.component.take()) {
             (Some(_), _) => (),
             (None, Some(comp)) => {
@@ -70,7 +70,7 @@ where
         kind: GuiEventKind,
         cb: ListenerCallBack<ProgramState>,
     ) -> Self {
-        self.create_key_if_possible();
+        self.try_create_key();
         let key = self.key.expect("key missing");
         self.manager
             .set_listener(key, ComponentEventListener::new(kind, cb));
@@ -78,7 +78,7 @@ where
     }
 
     pub fn with_listener_block(mut self, cve: ComponentEventListener<ProgramState>) -> Self {
-        self.create_key_if_possible();
+        self.try_create_key();
         let key = self.key.expect("key missing");
         self.manager.set_listener(key, cve);
         self
@@ -103,7 +103,7 @@ where
             self
         }
     }
-    
+
     /// drags the higest ancestor that ISN'T the origin
     pub fn with_drag_highest(self, enable: bool) -> Self {
         if enable {
@@ -144,7 +144,7 @@ where
     }
 
     pub fn build(mut self) -> GuiComponentKey {
-        self.create_key_if_possible();
+        self.try_create_key();
         self.key.expect("builder incomplete")
     }
 }

@@ -1,24 +1,27 @@
 use super::*;
-
-pub struct Frame {
-    key: GuiComponentKey,
+pub struct FrameState {
     pub bounds: Vec2<f32>,
     pub rel_pos: Vec2<f32>,
     pub color: Vec4<f32>,
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
+    pub caption: String,
+    pub alignment: [TextAlignment; 2],
+    pub font_size: f32,
     pub is_visible: bool,
 }
-impl Frame {
+impl FrameState {
     pub fn new() -> Self {
         Self {
-            key: GuiComponentKey::default(),
             bounds: Vec2::from([128.; 2]),
             rel_pos: Vec2::from([0.0; 2]),
             color: Vec4::rgb_u32(0xF94892),
             edge_color: Vec4::rgb_u32(0x89CFFD),
             roundness: Vec4::from([1.0, 1.0, 1.0, 1.0]),
+            caption: String::new(),
             is_visible: true,
+            font_size: 30.0,
+            alignment: [TextAlignment::Right, TextAlignment::Center],
         }
     }
 
@@ -62,9 +65,24 @@ impl Frame {
         self.rel_pos = Vec2::from(pos);
         self
     }
+
+    pub fn with_caption(mut self, caption: String) -> Self {
+        self.caption = caption;
+        self
+    }
+
+    pub fn with_alignment(mut self, horizontal: TextAlignment, vertical: TextAlignment) -> Self {
+        self.alignment = [horizontal, vertical];
+        self
+    }
+
+    pub fn with_font_size(mut self, size: f32) -> Self {
+        self.font_size = size;
+        self
+    }
 }
 
-impl GuiComponent for Frame {
+impl GuiComponent for FrameState {
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -110,22 +128,50 @@ impl GuiComponent for Frame {
             .set_position(state.global_position, Vec4::to_pos(self.bounds))
             .render();
 
-        let text = "/g/";
-        let text_size = 20.0;
+        let text = self.caption.as_ref();
+        let text_size = self.font_size;
         let aabb = text_writer.calc_text_aabb(text, 0.0, 0.0, text_size);
-        let text_width = aabb.w;
-        let text_height = aabb.h;
 
-        text_writer.draw_text_line(
-            text,
-            position.x() + self.bounds.x() * 0.5 - text_width*0.5,
-            position.y() + self.bounds.y() * 0.5 - text_height*0.5,
-            text_size,
-            Some((win_w as u32, win_h as u32)),
+        let aligned_global_position = compute_alignment_position(
+            Vec2::convert(position),
+            Vec2::from([aabb.w, aabb.h]),
+            self.bounds,
+            &self.alignment,
         );
 
-        unsafe {
-            gl.enable(glow::BLEND);
-        }
+        // if text.is_empty() == false {
+        //     text_writer.draw_text_line(
+        //         text,
+        //         aligned_global_position.x(),
+        //         aligned_global_position.y(),
+        //         text_size,
+        //         Some((win_w as u32, win_h as u32)),
+        //     );
+        //     unsafe {
+        //         //re-enable
+        //         gl.enable(glow::BLEND);
+        //     }
+        // }
     }
+}
+
+pub fn compute_alignment_position(
+    global_position: Vec2<f32>,
+    text_bounds: Vec2<f32>,
+    component_bounds: Vec2<f32>,
+    alignment: &[TextAlignment; 2],
+) -> Vec2<f32> {
+    let mut res = Vec2::zero();
+    for pos_idx in 0..2 {
+        let comp_gpos = global_position[pos_idx];
+        let comp_dim = component_bounds[pos_idx];
+        let text_dim = text_bounds[pos_idx];
+        let alignment_mode = alignment[pos_idx];
+        res[pos_idx] = match alignment_mode {
+            TextAlignment::Left | TextAlignment::Stretch => comp_gpos,
+            TextAlignment::Right => comp_gpos + comp_dim - text_dim,
+            TextAlignment::Center => comp_gpos + comp_dim * 0.5 - text_dim * 0.5,
+        };
+    }
+    res
 }

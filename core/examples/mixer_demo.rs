@@ -262,10 +262,10 @@ async fn main_loop(
                 }
 
                 //insert towards the end
-
-                is_key_down.insert(code);
-
-                console_log!("char = {}\n", code.key_val().unwrap());
+                if is_key_down.contains(&code) == false{
+                    console_log!("char = {}\n", code.key_val().unwrap());
+                    is_key_down.insert(code);
+                }
             }
             EventKind::KeyUp { code } => {
                 is_key_down.remove(&code);

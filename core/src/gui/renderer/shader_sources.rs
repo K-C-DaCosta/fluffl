@@ -33,9 +33,6 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
 
         float sdRoundBox( in vec2 p, in vec2 b, in vec4 r ) 
         {            
-            //make sure position is in the top-right
-            p-=b;
-
             //sdf eval starts here 
             r.xy = (p.x>0.0)?r.xy : r.zw;
             r.x  = (p.y>0.0)?r.x  : r.y;
@@ -45,7 +42,7 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
 
         void main(){
             float max_depth = -5.0;
-            float band = 2.0;
+            float band = 3.0;
 
             //use modelview matrix to compute width and height bounding box 
             //by using the fact that the geometry is ALWAYS a unit-square in the bottom-right quadrant 
@@ -55,9 +52,13 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
             float h = vertical_disp.y;
 
             vec4 pos = world_space_pos;
-            float d = sdRoundBox(pos.xy - position.xy,bounds.xy*0.5,roundness);
+            float d = sdRoundBox(pos.xy - position.xy - bounds.xy*0.5,bounds.xy*0.5,roundness);
+
+            float d_epsilon = length(vec2(dFdx(d),dFdy(d)));
+            
+
             float w0 = smoothstep(max_depth+band,max_depth,d);
-            float w1 = smoothstep(0.0,max_depth+band,d);
+            float w1 = smoothstep(d_epsilon,max_depth+band,d);
             
             final_color = vec4(0);
 

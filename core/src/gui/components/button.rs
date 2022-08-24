@@ -2,7 +2,7 @@ use crate::extras::text_writer;
 
 use super::*;
 
-pub struct Button {
+pub struct ButtonState {
     key: GuiComponentKey,
     width: f32,
     height: f32,
@@ -11,7 +11,7 @@ pub struct Button {
     is_visible: bool,
 }
 
-impl GuiComponent for Button {
+impl GuiComponent for ButtonState {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -1,10 +1,10 @@
 use super::*;
 
-pub struct Origin {
+pub struct OriginState {
     key: GuiComponentKey,
     rel_position: Vec2<f32>,
 }
-impl Origin {
+impl OriginState {
     pub fn new() -> Self {
         Self {
             key: GuiComponentKey::default(),
@@ -13,7 +13,7 @@ impl Origin {
     }
 }
 
-impl GuiComponent for Origin {
+impl GuiComponent for OriginState {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -16,6 +16,6 @@ impl Into<NodeID> for GuiComponentKey {
 
 impl fmt::Display for GuiComponentKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "{:?}", self)
+        write!(f,"{:?}", self)
     }
 }

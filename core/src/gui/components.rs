@@ -5,16 +5,30 @@ mod button;
 mod frame;
 mod origin;
 mod slider;
-pub use self::{button::Button, frame::Frame, origin::Origin};
+pub use self::{button::ButtonState, frame::FrameState, origin::OriginState};
 use std::any::Any;
 
+#[derive(Copy, Clone)]
+#[rustfmt::skip]
+pub enum TextAlignment {
+    Left    = 0,
+    Center  = 1,
+    Right   = 2,
+    Stretch = 3, 
+}
+
 #[derive(Copy, Clone, Debug)]
+#[rustfmt::skip]
 pub enum GuiEventKind {
-    OnHoverIn = 0,
-    OnHoverOut = 1,
-    OnDrag = 2,
-    OnClick = 3,
-    OnRelease = 4,
+    OnHoverIn    = 0,
+    OnHoverOut   = 1,
+    OnDrag       = 2,
+    OnClick      = 3,
+    OnRelease    = 4,
+    OnKeyDown    = 5,
+    OnKeyRelease = 6,
+    OnFocusIn    = 7, 
+    OnFocusOut   = 8,
 }
 
 pub struct ComponentEventListener<ProgramState> {
@@ -60,18 +74,23 @@ pub struct EventListenerInfo<'a, ProgramState> {
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
 
+impl <'a,ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>> for EventListenerInfo<'a,ProgramState> {
+    fn into(self) -> &'a mut LinearTree<Box<dyn GuiComponent>> {
+        self.gui_comp_tree
+    }
+}
+
 pub trait GuiComponent {
-    
     fn as_any(&self) -> &dyn Any;
-    
+
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    
+
     fn get_bounds(&self) -> Vec2<f32>;
-    
-    fn set_bounds(&mut self, bounds:Vec2<f32>); 
-    
+
+    fn set_bounds(&mut self, bounds: Vec2<f32>);
+
     fn rel_position(&self) -> &Vec2<f32>;
-    
+
     fn set_rel_position(&mut self, pos: Vec2<f32>);
 
     fn render<'a>(
@@ -82,7 +101,7 @@ pub trait GuiComponent {
         win_w: f32,
         win_h: f32,
     );
-
+    
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
         let bounds = self.get_bounds();
         AABB2::from_point_and_lengths(Vec2::convert(global_x0), bounds)
@@ -94,6 +113,6 @@ pub trait GuiComponent {
     }
 
     fn is_origin(&self) -> bool {
-        self.as_any().downcast_ref::<Origin>().is_some()
+        self.as_any().downcast_ref::<OriginState>().is_some()
     }
 }

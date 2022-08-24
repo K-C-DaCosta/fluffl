@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt, vec,
 };
 
@@ -16,7 +16,7 @@ use crate::{
     },
     math::{self, stack::MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
-    window::event_util::EventKind,
+    window::event_util::{EventKind, KeyCode},
     GlowGL,
 };
 
@@ -39,6 +39,10 @@ pub struct GuiManager<ProgramState> {
 
     ///component that is currently in "focus"
     focused_component: Option<GuiComponentKey>,
+
+    ///component that is currently in "clicked"
+    clicked_component: Option<GuiComponentKey>,
+
     ///component that the mouse is currently overlapping,but my not necessarily be in focus
     hover_component: Option<GuiComponentKey>,
 
@@ -52,6 +56,8 @@ pub struct GuiManager<ProgramState> {
 
     component_signal_queue: VecDeque<components::ComponentEventSignal>,
 
+    key_down_table: HashSet<KeyCode>,
+
     window_events: VecDeque<EventKind>,
 }
 
@@ -60,6 +66,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         Self {
             renderer: GuiRenderer::new(&gl),
             focused_component: None,
+            clicked_component: None,
             hover_component: None,
             gui_component_tree: LinearTree::new(),
             component_signal_queue: VecDeque::new(),
@@ -67,6 +74,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             stack: MatStack::new(),
             key_to_aabb_table: HashMap::new(),
             key_to_handler_block_table: HashMap::new(),
+            key_down_table: HashSet::new(),
             gl,
             state: None,
         }
@@ -193,48 +201,48 @@ impl<ProgramState> GuiManager<ProgramState> {
 impl<ProgramState> GuiManager<ProgramState> {
     fn setup_test_gui(self) -> Self {
         let mut manager = self;
-        let root = manager.add_component(GuiComponentKey::default(), Box::new(Origin::new()));
+        let origin =
+            manager.add_component(GuiComponentKey::default(), Box::new(OriginState::new()));
 
-        let alt_frame = manager
+        // let alt_frame = manager
+        //     .add_component_with_builder()
+        //     .with_component(
+        //         Frame::new()
+        //             .with_bounds([200., 100.])
+        //             .with_roundness([0., 0., 10.0, 10.0])
+        //             .with_position([64.0, 400.0]),
+        //     )
+        //     .with_parent(origin_key)
+        //     .with_drag(true)
+        //     .build();
+
+        let prink_frame = manager
             .add_component_with_builder()
             .with_component(
-                Frame::new()
-                    .with_bounds([200., 100.])
-                    .with_roundness([0., 0., 10.0, 10.0])
-                    .with_position([64.0, 400.0]),
-            )
-            .with_parent(root)
-            .with_drag(true)
-            .build();
-
-        let frame = manager
-            .add_component_with_builder()
-            .with_component(
-                Frame::new()
+                FrameState::new()
                     .with_bounds([400., 200.])
                     .with_roundness([0., 0., 30.0, 30.0])
                     .with_position([64.0, 32.0]),
             )
-            .with_parent(root)
+            .with_parent(origin)
             // .with_drag(true)
             .build();
 
         let red_frame = manager
             .add_component_with_builder()
-            .with_parent(frame)
+            .with_parent(prink_frame)
             .with_component(
-                Frame::new()
+                FrameState::new()
                     .with_bounds([128., 45.])
                     .with_color([0.7, 0.2, 0., 1.0])
                     .with_position([0.0, 0.0]),
             )
             .with_drag_highest(true)
             .build();
-
-        manager.add_component(
+        let red_child = manager.add_component(
             red_frame,
             Box::new(
-                Frame::new()
+                FrameState::new()
                     .with_bounds([32., 32.])
                     .with_color(Vec4::rgb_u32(0x277BC0))
                     .with_position([8.0, 8.0]),
@@ -243,9 +251,9 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let orange_frame = manager
             .add_component_with_builder()
-            .with_parent(frame)
+            .with_parent(prink_frame)
             .with_component(
-                Frame::new()
+                FrameState::new()
                     .with_bounds([256., 128.])
                     .with_color(Vec4::rgb_u32(0xFF7F3F))
                     .with_roundness(Vec4::from([1., 1., 30., 30.]))
@@ -255,16 +263,125 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_drag(true)
             .build();
 
+        let slider_frame = manager
+            .add_component_with_builder()
+            .with_parent(origin)
+            .with_component(
+                FrameState::new()
+                    .with_bounds([256.0, 64.0])
+                    .with_color(Vec4::rgb_u32(0x554994))
+                    .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
+                    .with_roundness([8.0; 4])
+                    .with_position([64.0, 400.0]),
+            )
+            .with_drag(true)
+            .with_listener(GuiEventKind::OnFocusIn, |state,_,_|{
+                state.edge_color = Vec4::rgb_u32(0xff0000);
+
+                None
+            })
+            .with_listener(GuiEventKind::OnFocusOut, |state,_,_|{
+                state.edge_color = Vec4::rgb_u32(0xFFCCB3);
+                None
+            })
+            .build();
+
+        let slider_button = manager
+            .add_component_with_builder()
+            .with_parent(slider_frame)
+            .with_component(
+                FrameState::new()
+                    .with_bounds([16.0, 50.0])
+                    .with_color(Vec4::rgb_u32(0xF675A8))
+                    .with_position([256.0 / 2. - 8.0, 64.0 / 2. - 50.0 / 2.])
+                    .with_edge_color(Vec4::rgb_u32(0xF29393))
+                    .with_roundness([1.0; 4]),
+            )
+            .with_listener(GuiEventKind::OnHoverIn, |f, _, _| {
+                f.color *= 9. / 10.;
+                None
+            })
+            .with_listener(GuiEventKind::OnHoverOut, |f, _, _| {
+                f.color *= 10. / 9.;
+                None
+            })
+            .with_listener(GuiEventKind::OnClick, |f, _, _| {
+                f.color = Vec4::from([1.0; 4]) - f.color;
+                None
+            })
+            .with_listener(GuiEventKind::OnRelease, |f, _, _| {
+                f.color = Vec4::from([1.0; 4]) - f.color;
+                None
+            })
+            .with_listener_advanced(
+                GuiEventKind::OnDrag,
+                Box::new(|einfo| {
+                    let disp = einfo.event.disp();
+                    let slider_button_key = einfo.key;
+                    let slider_button_bounds = einfo
+                        .gui_comp_tree
+                        .get(slider_button_key)
+                        .unwrap()
+                        .get_bounds();
+
+                    let slider_frame_key = einfo
+                        .gui_comp_tree
+                        .get_parent_id(slider_button_key)
+                        .expect("should always exist");
+
+                    let slider_frame_bounds = {
+                        let frame = einfo
+                            .gui_comp_tree
+                            .get(slider_frame_key)
+                            .expect("key not found")
+                            .as_any()
+                            .downcast_ref::<FrameState>()
+                            .expect("should be frame");
+                        frame.bounds
+                    };
+
+                    einfo
+                        .gui_comp_tree
+                        .get_mut(slider_button_key)
+                        .unwrap()
+                        .translate(disp);
+
+                    //center button
+                    let slider_button = einfo
+                        .gui_comp_tree
+                        .get_mut(slider_button_key)
+                        .unwrap()
+                        .as_any_mut()
+                        .downcast_mut::<FrameState>()
+                        .unwrap();
+
+                    let rel_pos = &mut slider_button.rel_pos;
+                    let epsilon_x = slider_frame_bounds[0] * 0.03;
+                    rel_pos[0] = rel_pos[0].clamp(
+                        epsilon_x,
+                        slider_frame_bounds[0] - slider_button_bounds[0] - epsilon_x,
+                    );
+                    rel_pos[1] = slider_frame_bounds[1] * 0.5 - slider_button_bounds[1] * 0.5;
+
+                    None
+                }),
+            )
+            .build();
+
         for k in 0..21 {
+            // let k = 0;
             let row = k / 7;
             let col = k % 7;
+            if k == 1 {
+                let foo = 1;
+            }
 
             let color = Vec4::<f32>::rgb_u32(0x277BC0);
-            manager
+            let blue_button = manager
                 .add_component_with_builder()
                 .with_parent(orange_frame)
                 .with_component(
-                    Frame::new()
+                    FrameState::new()
                         .with_bounds([32., 32.])
                         .with_color(color)
                         .with_roundness(Vec4::from([1., 1., 1., 1.]))
@@ -293,6 +410,19 @@ impl<ProgramState> GuiManager<ProgramState> {
                 .with_drag(true)
                 .build();
         }
+
+        println!("origin={}", origin);
+        println!("pink_frame={}", prink_frame);
+        println!("orange_frame={}", orange_frame);
+        // println!("blue_button={}", blue_button);
+        println!("slider_frame={}", slider_frame);
+        println!("slider_button={}", slider_button);
+
+        manager.gui_component_tree.print_by_ids();
+
+        let parent = manager.gui_component_tree.get_parent_id(NodeID(4)).unwrap();
+        println!("parent of 4 is = {:?}", parent);
+
         manager
     }
 
@@ -334,15 +464,41 @@ impl<ProgramState> GuiManager<ProgramState> {
         let window_events = &mut self.window_events;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let gui_component_tree = &mut self.gui_component_tree;
+
         let focused_component = &mut self.focused_component;
+        let clicked_component = &mut self.clicked_component;
         let hover_component = &mut self.hover_component;
+
         let component_signal_queue = &mut self.component_signal_queue;
+        let key_down_table = &mut self.key_down_table;
 
         while let Some(event) = window_events.pop_front() {
             let _old_signal_len = component_signal_queue.len();
             match event {
+                EventKind::KeyDown { code } => {
+                    if key_down_table.contains(&code) == false {
+                        if let &mut Some(fkey) = focused_component {
+                            component_signal_queue.push_back(ComponentEventSignal::new(
+                                GuiEventKind::OnKeyDown,
+                                fkey,
+                                event,
+                            ));
+                        }
+                        key_down_table.insert(code);
+                    }
+                }
+                EventKind::KeyUp { code } => {
+                    if key_down_table.contains(&code) && focused_component.is_some() {
+                        component_signal_queue.push_back(ComponentEventSignal::new(
+                            GuiEventKind::OnKeyRelease,
+                            focused_component.expect("focused key should exist"),
+                            event,
+                        ));
+                    }
+                    key_down_table.remove(&code);
+                }
                 EventKind::MouseUp { .. } => {
-                    if let &mut Some(gui_comp_key) = focused_component {
+                    if let &mut Some(gui_comp_key) = clicked_component {
                         component_signal_queue.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnRelease,
                             gui_comp_key,
@@ -350,19 +506,59 @@ impl<ProgramState> GuiManager<ProgramState> {
                         ));
                     }
 
-                    *focused_component = None;
+                    *clicked_component = None;
                 }
                 EventKind::MouseDown { x, y, .. } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
+                    let prev_focused_component = *focused_component;
+
+                    *clicked_component = None;
                     *focused_component = None;
 
                     for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
                         if aabb.is_point_inside(mouse_pos) {
+                            *clicked_component = Some(key);
                             *focused_component = Some(key);
                         }
                     }
 
-                    if let &mut Some(clicked) = focused_component {
+                    // handle focused events
+                    match (prev_focused_component, *focused_component) {
+                        (None, Some(cur_key)) => {
+                            component_signal_queue.push_front(ComponentEventSignal::new(
+                                GuiEventKind::OnFocusIn,
+                                cur_key,
+                                event,
+                            ));
+                        }
+                        (Some(prev_key), None) => {
+                            component_signal_queue.push_front(ComponentEventSignal::new(
+                                GuiEventKind::OnFocusOut,
+                                prev_key,
+                                event,
+                            ));
+                        }
+                        (Some(prev_key), Some(cur_key)) => {
+                            if prev_key != cur_key {
+                                component_signal_queue.push_front(ComponentEventSignal::new(
+                                    GuiEventKind::OnFocusOut,
+                                    prev_key,
+                                    event,
+                                ));
+                                component_signal_queue.push_front(ComponentEventSignal::new(
+                                    GuiEventKind::OnFocusIn,
+                                    cur_key,
+                                    event,
+                                ));
+                            }
+                        }
+
+                        (None, None) => {
+                            // do nothing
+                        }
+                    }
+
+                    if let &mut Some(clicked) = clicked_component {
                         component_signal_queue.push_front(ComponentEventSignal::new(
                             GuiEventKind::OnClick,
                             clicked,
@@ -373,7 +569,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 EventKind::MouseMove { x, y, dx, dy } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     let _disp = Vec2::from([dx as f32, dy as f32]);
-                    if let &mut Some(focused_key) = focused_component {
+                    if let &mut Some(focused_key) = clicked_component {
                         Self::object_is_focused_so_send_drag_signal_to_focused_component(
                             component_signal_queue,
                             focused_key,
@@ -393,12 +589,12 @@ impl<ProgramState> GuiManager<ProgramState> {
                 _ => (),
             }
 
-            // if component_signal_queue.len() > _old_signal_len {
-            //     println!(
-            //         "signal added: {:?}",
-            //         &component_signal_queue.make_contiguous()[_old_signal_len..]
-            //     );
-            // }
+            if component_signal_queue.len() > _old_signal_len {
+                println!(
+                    "signal added: {:?}",
+                    &component_signal_queue.make_contiguous()[_old_signal_len..]
+                );
+            }
         }
     }
 
