@@ -1,5 +1,5 @@
 use super::*;
-use std::{collections::HashMap, fmt::Debug};
+use std::fmt::Debug;
 
 mod iterators;
 mod sort_util;
@@ -211,11 +211,10 @@ impl<T> LinearTree<T> {
     /// `O(|V|log(|V|))`
     /// ## Comments
     /// - index 0 in all the node attribute arrays ALWAYS means the root of the tree
-    pub fn reconstruct_parent_pointers_using_dfs_ordering_info(&mut self) {
+    fn reconstruct_parent_pointers_using_dfs_ordering_info(&mut self) {
         self.recompute_prefix_ordering();
         self.reconstruct_parent_pointers();
         self.recompute_has_child_table();
-
 
         // after the above functions are called,
         // all (nid,ptr) pairs are invalid and must be recomputed
@@ -239,14 +238,11 @@ impl<T> LinearTree<T> {
 
         parent_stack.clear();
         parent_stack.push(root.as_usize());
-        // println!("stack-V");
 
         for cur_node in 1..valid_nodes_len {
-            // println!("stack-{:?}", self.parent_stack);
-
             let cur_level = level[cur_node] as usize;
             let diff = cur_level as isize - level[cur_node - 1] as isize;
-
+            //this was the fix
             if diff <= 0 {
                 while parent_stack.last().is_some()
                     && level[*parent_stack.last().unwrap()] as usize != cur_level
@@ -255,40 +251,7 @@ impl<T> LinearTree<T> {
                 }
                 parent_stack.pop();
             }
-
             parent[cur_node] = Ptr::from(*parent_stack.last().expect("root should exist"));
-            // if has_child[cur_node] {
-            parent_stack.push(cur_node);
-            // }
-        }
-    }
-
-    pub fn reconstruct_parent_pointers_fixed(&mut self) {
-        let root = Ptr::from(0);
-        let valid_nodes_len = self.len();
-        let level = &mut self.level;
-        let parent_stack = &mut self.parent_stack;
-        let parent = &mut self.parent;
-
-        parent_stack.clear();
-        parent_stack.push(root.as_usize());
-
-        for cur_node in 1..valid_nodes_len {
-
-            let cur_level = level[cur_node] as usize;
-            let diff = cur_level as isize - level[cur_node - 1] as isize;
-
-            if diff < 0 {
-                while parent_stack.last().is_some()
-                    && level[*parent_stack.last().unwrap()] as usize != cur_level
-                {
-                    parent_stack.pop();
-                }
-                parent_stack.pop();
-            }
-
-            parent[cur_node] = Ptr::from(*parent_stack.last().expect("root should exist"));
-            println!("cur:{},parent:{}",cur_node,parent[cur_node]);
             parent_stack.push(cur_node);
         }
     }
@@ -371,7 +334,7 @@ impl<T> LinearTree<T> {
             self.parent.push(parent);
             self.node_id.push(node_id);
             self.has_child.push(false);
-            self.id_to_ptr_table.push(Ptr::from(self.data.len()-1));
+            self.id_to_ptr_table.push(Ptr::from(self.data.len() - 1));
             self.node_id_counter += 1;
             (node_id, Ptr::from(self.data.len() - 1))
         }
@@ -477,7 +440,7 @@ pub fn tree_test() {
     tree.add(9, rb);
 
     tree.print();
-    
+
     for _ in 0..10 {
         tree.remove(rb, &mut removed_nodes);
         let rb = tree.add(3, root);
@@ -489,21 +452,19 @@ pub fn tree_test() {
     tree.print();
 }
 
-
 #[test]
-fn bug_fix(){
-    let mut  tree = LinearTree::new();
+fn bug_fix() {
+    let mut tree = LinearTree::new();
 
     let origin = tree.add("origin", NodeID::default());
-    
+
     let pink = tree.add("pink", origin);
     let orange = tree.add("orange", pink);
 
     let purple = tree.add("pruple", origin);
-    let lpurp = tree.add("lpurp",purple);
-    let blue = tree.add("blue",orange);
-    for x in  tree.iter(){
+    let lpurp = tree.add("lpurp", purple);
+    let blue = tree.add("blue", orange);
+    for x in tree.iter() {
         println!("{}", x.val);
     }
-
 }
