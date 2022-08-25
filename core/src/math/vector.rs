@@ -332,6 +332,7 @@ pub fn writer_test() {
 }
 
 #[test]
+#[allow(unused_imports)]
 pub fn color_test() {
     use super::FP32;
     let x = Vec4::<f32>::rgba_u32(0xffffffff);

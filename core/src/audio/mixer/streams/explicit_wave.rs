@@ -1,7 +1,7 @@
 use super::*;
 use crate::audio;
 
-use adhoc_audio::{AdhocCodec, SeekFrom, StreamInfo, Streamable};
+use adhoc_audio::{AdhocCodec, SeekFrom, Streamable};
 
 const MAX_CHANNELS_TO_MIX: usize = 8;
 
@@ -21,7 +21,7 @@ impl Default for ScaleMode {
 pub struct ExplicitWave {
     state: StreamState,
     explicit_wave: AdhocCodec,
-    /// the duration of the wave expessed as a rational number 
+    /// the duration of the wave expessed as a rational number
     explicit_wave_duration: SampleTime,
     scale_mode: ScaleMode,
 }
@@ -213,13 +213,11 @@ impl ExplicitWave {
 
     pub fn pull_samples_stretch<'a>(
         &mut self,
-        scratch_space: &mut [f32],
-        audio_pcm: PCMSlice<'a, f32>,
+        _scratch_space: &mut [f32],
+        _audio_pcm: PCMSlice<'a, f32>,
     ) -> PullInfo {
         unimplemented!("stretch not implemented");
     }
-
-
 }
 impl Debug for ExplicitWave {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

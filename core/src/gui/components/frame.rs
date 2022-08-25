@@ -85,20 +85,19 @@ impl GuiComponent for FrameState {
             self.bounds,
             &self.alignment,
         );
-
-        // if text.is_empty() == false {
-        //     text_writer.draw_text_line(
-        //         text,
-        //         aligned_global_position.x(),
-        //         aligned_global_position.y(),
-        //         text_size,
-        //         Some((win_w as u32, win_h as u32)),
-        //     );
-        //     unsafe {
-        //         //re-enable
-        //         gl.enable(glow::BLEND);
-        //     }
-        // }
+        if text.is_empty() == false {
+            text_writer.draw_text_line(
+                text,
+                aligned_global_position.x(),
+                aligned_global_position.y(),
+                text_size,
+                Some((win_w as u32, win_h as u32)),
+            );
+            unsafe {
+                //re-enable
+                gl.enable(glow::BLEND);
+            }
+        }
     }
 }
 

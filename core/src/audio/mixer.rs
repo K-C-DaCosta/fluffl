@@ -62,7 +62,8 @@ impl MixerCursor {
         let hi = self.t0.sum(&self.delta).elapsed_in_ms_fp();
         Interval { lo, hi }
     }
-
+    
+    #[allow(dead_code)]
     pub fn to_interval_tuple_ms_f32(&self) -> (f32, f32) {
         let lo = self.t0.elapsed_in_ms_f32();
         let hi = self.t0.sum(&self.delta).elapsed_in_ms_f32();

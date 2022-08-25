@@ -1,4 +1,4 @@
-#![allow(unused_variables)]
+#![allow(unused_variables, unused_imports)]
 
 use std::collections::{HashMap, HashSet};
 
@@ -23,15 +23,9 @@ use fluffl::{
     io::*,
     math::{WaveKind, FP64},
     prelude::*,
-    // net::*,
     window::{event_util::*, *},
     *,
 };
-
-fn wave_sin<const FREQ: u32>(t: f64) -> f64 {
-    use std::f64::consts::PI;
-    ((FREQ as f64) * (2.0 * PI) * t).sin() * 0.2
-}
 
 pub struct MainState {
     // pub dev_ptr: ShortDeviceContext,
@@ -104,7 +98,7 @@ pub async fn main() {
             key_extend_list: Vec::new(),
             mixer_time: SampleTime::new(),
             init_route: false,
-            wave_type: WaveKind::SQUARE,
+            wave_type: WaveKind::Square,
         },
         main_loop,
     );
@@ -262,7 +256,7 @@ async fn main_loop(
                 }
 
                 //insert towards the end
-                if is_key_down.contains(&code) == false{
+                if is_key_down.contains(&code) == false {
                     console_log!("char = {}\n", code.key_val().unwrap());
                     is_key_down.insert(code);
                 }

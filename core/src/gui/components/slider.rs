@@ -161,6 +161,35 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
         self.slider_button_state.as_mut().unwrap().roundness = roundness.into();
         self
     }
+    
+    pub fn with_button_listener<CB>(self, kind: GuiEventKind, mut cb: CB) -> Self
+    where
+        CB: FnMut(&mut FrameState, EventKind, &ProgramState) + 'static,
+    {
+        let slider_button_key = self.slider_button_key.expect("slider key not found");
+        self.manager.push_listener(
+            slider_button_key,
+            ComponentEventListener::new(
+                kind,
+                Box::new(move |info| {
+                    let state = info.state;
+                    let slider_button_key = info.key;
+                    let event = info.event;
+                    
+                    let slider_button_state = info
+                        .gui_comp_tree
+                        .get_mut(slider_button_key)?
+                        .as_any_mut()
+                        .downcast_mut::<FrameState>()?;
+
+                    cb(slider_button_state, event, state);
+
+                    None
+                }),
+            ),
+        );
+        self
+    }
 }
 
 impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramState> {

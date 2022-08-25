@@ -5,7 +5,7 @@ pub struct ButtonState {
     height: f32,
     rel_position: Vec2<f32>,
     color: Vec4<f32>,
-    is_visible: bool,
+    _is_visible: bool,
 }
 
 impl GuiComponent for ButtonState {
@@ -21,7 +21,7 @@ impl GuiComponent for ButtonState {
         Vec2::from([self.width, self.height])
     }
 
-    fn set_bounds(&mut self, bounds: Vec2<f32>) {
+    fn set_bounds(&mut self, _bounds: Vec2<f32>) {
         unimplemented!("not implemented")
     }
 

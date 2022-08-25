@@ -120,11 +120,11 @@ fn sanity() {
     let a = Mat4::<f32>::new().with_data([
         0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11., 12., 13., 14., 15.,
     ]);
-    let mut b = Mat4::<f32>::identity();
+    let mut _b = Mat4::<f32>::identity();
 
-    println!("b=\n{}", b);
+    println!("b=\n{}", _b);
 
-    println!("b*b =...\n{}", b * b);
+    println!("b*b =...\n{}", _b * _b);
 
     println!("a*a =...\n{}", a * a);
 

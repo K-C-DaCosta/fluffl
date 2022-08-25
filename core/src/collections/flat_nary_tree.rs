@@ -486,20 +486,3 @@ pub fn tree_test() {
     }
     tree.print();
 }
-
-#[test]
-fn bug_fix() {
-    let mut tree = LinearTree::new();
-
-    let origin = tree.add("origin", NodeID::default());
-
-    let pink = tree.add("pink", origin);
-    let orange = tree.add("orange", pink);
-
-    let purple = tree.add("pruple", origin);
-    let lpurp = tree.add("lpurp", purple);
-    let blue = tree.add("blue", orange);
-    for x in tree.iter() {
-        println!("{}", x.val);
-    }
-}

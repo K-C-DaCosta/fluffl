@@ -4,22 +4,22 @@ use std::mem;
 
 #[derive(Copy, Clone)]
 pub enum WaveKind {
-    SINE = 0,
-    SQUARE = 1,
-    TRIANGLE = 2,
-    SAWTOOTH = 3,
-    NOISE_VALUE = 4,
-    NOISE_PERLIN = 5,
+    Sine = 0,
+    Square = 1,
+    Triangle = 2,
+    SawTooth = 3,
+    NoiseValue = 4,
+    NoisePerlin = 5,
 }
 impl WaveKind {
     pub fn as_fn(self) -> fn(f64) -> f64 {
         match self {
-            Self::SINE => sin,
-            Self::NOISE_VALUE => value_noise,
-            Self::SQUARE => square_wave,
-            Self::SAWTOOTH => sawtooth,
-            Self::TRIANGLE => triangle,
-            Self::NOISE_PERLIN => perlin_noise,
+            Self::Sine => sin,
+            Self::NoiseValue => value_noise,
+            Self::Square => square_wave,
+            Self::SawTooth => sawtooth,
+            Self::Triangle => triangle,
+            Self::NoisePerlin => perlin_noise,
         }
     }
 }

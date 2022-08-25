@@ -1,5 +1,3 @@
-use super::*; 
-
 pub trait CanSwap {
     fn ext_swap(&mut self, a: usize, b: usize);
 }

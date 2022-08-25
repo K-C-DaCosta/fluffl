@@ -14,8 +14,7 @@ pub trait HasBuilder<ProgramState>: Sized {
 
     fn with_listener<Listener>(self, kind: GuiEventKind, mut listener: Listener) -> Self
     where
-        Listener:
-            FnMut(&mut Self::ComponentKind, &ProgramState, EventKind) -> Option<()> + 'static,
+        Listener: FnMut(&mut Self::ComponentKind, EventKind, &ProgramState) + 'static,
     {
         self.with_listener_advanced(
             kind,
@@ -28,7 +27,8 @@ pub trait HasBuilder<ProgramState>: Sized {
                     .get_mut(key)?
                     .as_any_mut()
                     .downcast_mut::<Self::ComponentKind>()?;
-                listener(comp, state, event)
+                listener(comp, event, state);
+                None
             }),
         )
     }
@@ -108,5 +108,4 @@ pub trait HasBuilder<ProgramState>: Sized {
             self
         }
     }
-
 }
