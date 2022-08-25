@@ -20,7 +20,12 @@ impl GuiComponent for SliderState {
     fn as_any(&self) -> &dyn Any {
         self
     }
-
+    fn is_visible(&self) -> bool {
+        self.slider_frame.is_visible
+    }
+    fn set_visible(&mut self, is_visible: bool) {
+        self.slider_frame.is_visible = is_visible;
+    }
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -161,7 +166,7 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
         self.slider_button_state.as_mut().unwrap().roundness = roundness.into();
         self
     }
-    
+
     pub fn with_button_listener<CB>(self, kind: GuiEventKind, mut cb: CB) -> Self
     where
         CB: FnMut(&mut FrameState, EventKind, &ProgramState) + 'static,
@@ -175,7 +180,7 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
                     let state = info.state;
                     let slider_button_key = info.key;
                     let event = info.event;
-                    
+
                     let slider_button_state = info
                         .gui_comp_tree
                         .get_mut(slider_button_key)?
@@ -224,12 +229,20 @@ impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramSta
                 .take()
                 .expect("slider button state not found");
 
-            //center slider
+            //used to clamp and verticially center slider_button
             let slider_frame_bounds = slider_frame_state.get_bounds();
-            let slider_button_bounds = slider_button_state.get_bounds();
+            let mut slider_button_bounds = slider_button_state.get_bounds();
+
+            //this clamps max height of button to be the parents height
+            slider_button_bounds[1] = slider_button_bounds[1].clamp(0.0, slider_frame_bounds[1]);
+
+            //assign newly clamped bounds to state
+            slider_button_state.bounds[1] = slider_button_bounds[1];
+
+            //center slider
             slider_button_state.rel_pos[0] = 0.0;
             slider_button_state.rel_pos[1] =
-                slider_frame_bounds[1] * 0.5 - slider_button_bounds[1] * 0.5;
+                (slider_frame_bounds[1] - slider_button_bounds[1]) * 0.5;
 
             //finally write components to the deferred tree nodes
             *self
@@ -281,15 +294,107 @@ impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramSta
                         .translate(disp);
 
                     //vertically center the slider on drag
-                    let button_slider_pos = *tree.get(slider_button_key).unwrap().rel_position();
-                    let vertically_centered_relative_position = Vec2::from([
-                        button_slider_pos[0].clamp(0.0, frame_bounds[0] - button_bounds[0]),
-                        frame_bounds[1] * 0.5 - button_bounds[1] * 0.5,
-                    ]);
+                    let max_horizontal_rel_pos = frame_bounds[0] - button_bounds[0];
+                    let button_slider_pos = *tree
+                        .get(slider_button_key)
+                        .expect("slider_button_key invalid")
+                        .rel_position();
 
+                    let vertically_centered_and_horizontally_clamped_relative_position =
+                        Vec2::from([
+                            button_slider_pos[0].clamp(0.0, max_horizontal_rel_pos),
+                            frame_bounds[1] * 0.5 - button_bounds[1] * 0.5,
+                        ]);
+
+                    //set newly computed position
                     tree.get_mut(slider_button_key)
+                        .expect("slider_button_key invalid")
+                        .set_rel_position(
+                            vertically_centered_and_horizontally_clamped_relative_position,
+                        );
+
+                    //update percentage
+                    let new_percentage =
+                        (button_slider_pos.x() / max_horizontal_rel_pos).clamp(0.0, 1.0);
+                    tree.get_mut(slider_frame_key)
+                        .expect("slider_frame_key invalid")
+                        .as_any_mut()
+                        .downcast_mut::<Self::ComponentKind>()
+                        .expect("slider_frame_key should alias SliderState")
+                        .percentage = new_percentage;
+
+                    None
+                }),
+            ),
+        );
+
+        self.manager.push_listener(
+            slider_frame_key,
+            ComponentEventListener::new(
+                GuiEventKind::OnWheel,
+                Box::new(|info| {
+                    let wheel = info.event.wheel();
+
+                    let tree = info.gui_comp_tree;
+
+                    let slider_frame_key = info.key;
+
+                    let slider_button_key = tree
+                        .get_mut(slider_frame_key)
                         .unwrap()
-                        .set_rel_position(vertically_centered_relative_position);
+                        .as_any_mut()
+                        .downcast_mut::<SliderState>()
+                        .unwrap()
+                        .slider_button_key;
+
+
+                    let frame_bounds = tree
+                        .get(slider_frame_key)
+                        .expect("slider_frame component")
+                        .get_bounds();
+
+                    let button_bounds = tree
+                        .get(slider_button_key)
+                        .expect("slider_button component")
+                        .get_bounds();
+
+                    //move slider button,horizontally by increments of 5% of the parent bounds width 
+                    let wheel_dx = (frame_bounds[0]*0.05) * wheel;
+
+                    //translate the slider like normal
+                    tree.get_mut(slider_button_key)
+                        .expect("slider_button")
+                        .translate(Vec2::from([wheel_dx, 0.0]));
+
+                    //vertically center the slider on drag
+                    let max_horizontal_rel_pos = frame_bounds[0] - button_bounds[0];
+                    let button_slider_pos = *tree
+                        .get(slider_button_key)
+                        .expect("slider_button_key invalid")
+                        .rel_position();
+
+                    let vertically_centered_and_horizontally_clamped_relative_position =
+                        Vec2::from([
+                            button_slider_pos[0].clamp(0.0, max_horizontal_rel_pos),
+                            frame_bounds[1] * 0.5 - button_bounds[1] * 0.5,
+                        ]);
+
+                    //set newly computed position
+                    tree.get_mut(slider_button_key)
+                        .expect("slider_button_key invalid")
+                        .set_rel_position(
+                            vertically_centered_and_horizontally_clamped_relative_position,
+                        );
+
+                    //update percentage
+                    let new_percentage =
+                        (button_slider_pos.x() / max_horizontal_rel_pos).clamp(0.0, 1.0);
+                    tree.get_mut(slider_frame_key)
+                        .expect("slider_frame_key invalid")
+                        .as_any_mut()
+                        .downcast_mut::<Self::ComponentKind>()
+                        .expect("slider_frame_key should alias SliderState")
+                        .percentage = new_percentage;
 
                     None
                 }),

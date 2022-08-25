@@ -3,12 +3,12 @@ use super::{*,builder::*};
 use std::any::Any;
 use crate::{extras::text_writer::TextWriter, math::AABB2};
 
-mod button;
+mod text_box;
 mod frame;
 mod origin;
 mod slider;
 
-pub use self::{button::*, frame::*, origin::*, slider::*};
+pub use self::{text_box::*, frame::*, origin::*, slider::*};
 
 #[derive(Copy, Clone)]
 #[rustfmt::skip]
@@ -31,6 +31,7 @@ pub enum GuiEventKind {
     OnKeyRelease = 6,
     OnFocusIn    = 7, 
     OnFocusOut   = 8,
+    OnWheel      = 9, 
 }
 
 pub struct ComponentEventListener<ProgramState> {
@@ -88,6 +89,9 @@ pub trait GuiComponent {
     fn as_any(&self) -> &dyn Any;
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
+
+    fn is_visible(&self)->bool;
+    fn set_visible(&mut self, is_visible:bool);
 
     fn get_bounds(&self) -> Vec2<f32>;
 

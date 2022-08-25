@@ -100,6 +100,15 @@ impl EventKind {
             _ => Vec2::zero(),
         }
     }
+    
+    pub fn wheel(&self) -> f32 {
+        match self {
+            &Self::MouseWheel {
+                button_code: MouseCode::WHEEL { direction },
+            } => direction as f32,
+            _ => 0.0,
+        }
+    }
 
     pub fn disp_mouse_only(&self) -> Vec2<f32> {
         match self {

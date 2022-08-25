@@ -1,6 +1,6 @@
 use super::*;
 
-pub struct ButtonState {
+pub struct TextBoxState {
     width: f32,
     height: f32,
     rel_position: Vec2<f32>,
@@ -8,13 +8,20 @@ pub struct ButtonState {
     _is_visible: bool,
 }
 
-impl GuiComponent for ButtonState {
+impl GuiComponent for TextBoxState {
     fn as_any(&self) -> &dyn Any {
         self
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn is_visible(&self) -> bool {
+        unimplemented!()
+    }
+    fn set_visible(&mut self, is_visible: bool) {
+        unimplemented!()
     }
 
     fn get_bounds(&self) -> Vec2<f32> {

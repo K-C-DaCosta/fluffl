@@ -284,7 +284,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_listener(GuiEventKind::OnFocusOut, |state, _, _| {
                 state.slider_frame.edge_color = Vec4::rgb_u32(0xFFCCB3);
             })
-            .with_button_bounds([32.0, 60.0])
+            .with_button_bounds([32.0, 120.0])
             .with_button_color(Vec4::rgb_u32(0xF675A8))
             .with_button_edge_color(Vec4::rgb_u32(0xF29393))
             .with_button_roundness([8.0; 4])
@@ -488,10 +488,10 @@ impl<ProgramState> GuiManager<ProgramState> {
                 EventKind::MouseMove { x, y, dx, dy } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     let _disp = Vec2::from([dx as f32, dy as f32]);
-                    if let &mut Some(focused_key) = clicked_component {
-                        Self::object_is_focused_so_send_drag_signal_to_focused_component(
+                    if let &mut Some(clicked_key) = clicked_component {
+                        Self::object_is_clicked_so_send_drag_signal_to_focused_component(
                             component_signal_queue,
-                            focused_key,
+                            clicked_key,
                             event,
                         );
                     } else {
@@ -503,6 +503,15 @@ impl<ProgramState> GuiManager<ProgramState> {
                             component_signal_queue,
                             event,
                         );
+                    }
+                }
+                EventKind::MouseWheel { .. } => {
+                    if let &mut Some(focused_key) = focused_component {
+                        component_signal_queue.push_back(ComponentEventSignal::new(
+                            GuiEventKind::OnWheel,
+                            focused_key,
+                            event,
+                        ));
                     }
                 }
                 _ => (),
@@ -517,14 +526,14 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
     }
 
-    fn object_is_focused_so_send_drag_signal_to_focused_component(
+    fn object_is_clicked_so_send_drag_signal_to_focused_component(
         component_signal_queue: &mut VecDeque<ComponentEventSignal>,
-        focused_component: GuiComponentKey,
+        clicked_component: GuiComponentKey,
         event: EventKind,
     ) {
         component_signal_queue.push_back(ComponentEventSignal::new(
             GuiEventKind::OnDrag,
-            focused_component,
+            clicked_component,
             event,
         ));
     }

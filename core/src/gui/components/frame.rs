@@ -7,8 +7,9 @@ pub struct FrameState {
     pub color: Vec4<f32>,
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
-    pub caption: String,
     pub alignment: [TextAlignment; 2],
+
+    pub caption: String,
     pub font_size: f32,
     pub is_visible: bool,
 }
@@ -24,7 +25,7 @@ impl FrameState {
             caption: String::new(),
             is_visible: true,
             font_size: 30.0,
-            alignment: [TextAlignment::Right, TextAlignment::Center],
+            alignment: [TextAlignment::Center;2],
         }
     }
 }
@@ -35,6 +36,13 @@ impl GuiComponent for FrameState {
     }
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
+    }
+
+    fn is_visible(&self)->bool {
+        self.is_visible
+    }
+    fn set_visible(&mut self, is_visible:bool) {
+        self.is_visible = is_visible;
     }
 
     fn get_bounds(&self) -> Vec2<f32> {
@@ -79,25 +87,25 @@ impl GuiComponent for FrameState {
         let text_size = self.font_size;
         let aabb = text_writer.calc_text_aabb(text, 0.0, 0.0, text_size);
 
-        let aligned_global_position = compute_alignment_position(
-            Vec2::convert(position),
-            Vec2::from([aabb.w, aabb.h]),
-            self.bounds,
-            &self.alignment,
-        );
-        if text.is_empty() == false {
-            text_writer.draw_text_line(
-                text,
-                aligned_global_position.x(),
-                aligned_global_position.y(),
-                text_size,
-                Some((win_w as u32, win_h as u32)),
-            );
-            unsafe {
-                //re-enable
-                gl.enable(glow::BLEND);
-            }
-        }
+        // let aligned_global_position = compute_alignment_position(
+        //     Vec2::convert(position),
+        //     Vec2::from([aabb.w, aabb.h]),
+        //     self.bounds,
+        //     &self.alignment,
+        // );
+        // if text.is_empty() == false {
+        //     text_writer.draw_text_line(
+        //         text,
+        //         aligned_global_position.x(),
+        //         aligned_global_position.y(),
+        //         text_size,
+        //         Some((win_w as u32, win_h as u32)),
+        //     );
+        //     unsafe {
+        //         //re-enable
+        //         gl.enable(glow::BLEND);
+        //     }
+        // }
     }
 }
 
