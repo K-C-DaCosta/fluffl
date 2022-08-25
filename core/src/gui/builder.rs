@@ -1,32 +1,11 @@
 use super::*;
 
-pub trait HasBuilder: Sized {
-    type ProgramState;
+pub trait HasBuilder<ProgramState>: Sized {
     type ComponentKind: GuiComponent + 'static;
-
-    fn manager(&mut self) -> &mut GuiManager<Self::ProgramState>;
-    fn component(&mut self) -> &mut Option<Self::ComponentKind>;
+    fn manager(&mut self) -> &mut GuiManager<ProgramState>;
     fn parent(&mut self) -> &mut Option<GuiComponentKey>;
     fn key(&mut self) -> &mut Option<GuiComponentKey>;
-
-    fn try_create_key(&mut self)  {
-        match (*self.key(), self.component().take()) {
-            (Some(_), _) => (),
-            (None, Some(comp)) => {
-                let parent = self.parent().unwrap_or_default();
-                *self.key() = Some(self.manager().add_component(parent, Box::new(comp)));
-            }
-            (None, None) => {
-                panic!("component not set, build failed")
-            }
-        }
-    }
-    
-    // dont think this is needed anymore 
-    // fn with_component(mut self, comp: Self::ComponentKind) -> Self {
-    //     *self.component() = Some(comp);
-    //     self
-    // }
+    fn build(self) -> GuiComponentKey;
 
     fn with_parent(mut self, parent: GuiComponentKey) -> Self {
         *self.parent() = Some(parent);
@@ -36,7 +15,7 @@ pub trait HasBuilder: Sized {
     fn with_listener<Listener>(self, kind: GuiEventKind, mut listener: Listener) -> Self
     where
         Listener:
-            FnMut(&mut Self::ComponentKind, &Self::ProgramState, EventKind) -> Option<()> + 'static,
+            FnMut(&mut Self::ComponentKind, &ProgramState, EventKind) -> Option<()> + 'static,
     {
         self.with_listener_advanced(
             kind,
@@ -57,19 +36,17 @@ pub trait HasBuilder: Sized {
     fn with_listener_advanced(
         mut self,
         kind: GuiEventKind,
-        cb: ListenerCallBack<Self::ProgramState>,
+        cb: ListenerCallBack<ProgramState>,
     ) -> Self {
-        self.try_create_key();
         let key = self.key().expect("key missing");
         self.manager()
-            .set_listener(key, ComponentEventListener::new(kind, cb));
+            .push_listener(key, ComponentEventListener::new(kind, cb));
         self
     }
 
-    fn with_listener_block(mut self, cve: ComponentEventListener<Self::ProgramState>) -> Self {
-        self.try_create_key();
+    fn with_listener_block(mut self, cve: ComponentEventListener<ProgramState>) -> Self {
         let key = self.key().expect("key missing");
-        self.manager().set_listener(key, cve);
+        self.manager().push_listener(key, cve);
         self
     }
 
@@ -93,7 +70,7 @@ pub trait HasBuilder: Sized {
         }
     }
 
-    /// drags the higest ancestor that ISN'T the origin
+    /// drags the highest ancestor that ISN'T the origin
     fn with_drag_highest(self, enable: bool) -> Self {
         if enable {
             self.with_listener_advanced(
@@ -132,8 +109,4 @@ pub trait HasBuilder: Sized {
         }
     }
 
-    fn build(mut self) -> GuiComponentKey {
-        self.try_create_key();
-        self.key().expect("builder incomplete")
-    }
 }

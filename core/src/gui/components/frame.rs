@@ -1,4 +1,6 @@
 use super::*;
+
+#[derive(Clone)]
 pub struct FrameState {
     pub bounds: Vec2<f32>,
     pub rel_pos: Vec2<f32>,
@@ -107,7 +109,7 @@ pub fn compute_alignment_position(
     alignment: &[TextAlignment; 2],
 ) -> Vec2<f32> {
     let mut res = Vec2::zero();
-    for pos_idx in 0..2 {
+    for pos_idx in 0..res.len() {
         let comp_gpos = global_position[pos_idx];
         let comp_dim = component_bounds[pos_idx];
         let text_dim = text_bounds[pos_idx];
@@ -115,26 +117,27 @@ pub fn compute_alignment_position(
         res[pos_idx] = match alignment_mode {
             TextAlignment::Left | TextAlignment::Stretch => comp_gpos,
             TextAlignment::Right => comp_gpos + comp_dim - text_dim,
-            TextAlignment::Center => comp_gpos + comp_dim * 0.5 - text_dim * 0.5,
+            TextAlignment::Center => comp_gpos + (comp_dim - text_dim) * 0.5,
         };
     }
     res
 }
 
 pub struct FrameBuilder<'a, ProgramState> {
-    manager:&'a mut GuiManager<ProgramState>,
+    manager: &'a mut GuiManager<ProgramState>,
     state: Option<FrameState>,
     parent: Option<GuiComponentKey>,
-    key: Option<GuiComponentKey>,
+    frame_key: Option<GuiComponentKey>,
 }
 
-impl <'a, ProgramState> FrameBuilder<'a,ProgramState> {
-    pub fn new(manager:&'a mut GuiManager<ProgramState>) -> Self {
+impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
+    pub fn new(manager: &'a mut GuiManager<ProgramState>) -> Self {
+        let frame_key = Some(manager.add_component_deferred(GuiComponentKey::default(), None));
         Self {
-            manager, 
+            manager,
             state: Some(FrameState::new()),
             parent: None,
-            key: None,
+            frame_key,
         }
     }
 
@@ -195,29 +198,39 @@ impl <'a, ProgramState> FrameBuilder<'a,ProgramState> {
     }
 }
 
-impl <'a, ProgramState> HasBuilder for FrameBuilder<'a, ProgramState>  {
+impl<'a, ProgramState> HasBuilder<ProgramState> for FrameBuilder<'a, ProgramState> {
     type ComponentKind = FrameState;
-    type ProgramState = ProgramState;
 
-    fn manager(&mut self) -> &mut GuiManager<Self::ProgramState> {
+    fn manager(&mut self) -> &mut GuiManager<ProgramState> {
         self.manager
     }
-    
-    fn component(&mut self) -> &mut Option<Self::ComponentKind> {
-        &mut self.state
-    }
-    
+
     fn parent(&mut self) -> &mut Option<GuiComponentKey> {
-        &mut  self.parent
+        &mut self.parent
     }
 
     fn key(&mut self) -> &mut Option<GuiComponentKey> {
-        &mut self.key
+        &mut self.frame_key
+    }
+
+    fn build(mut self) -> GuiComponentKey {
+        let frame_id = self.frame_key.expect("frame key missing");
+        let parent_id = self.parent.expect("parent not set");
+        let frame_state = self.state.take().expect("frame_state not set");
+
+        self.manager
+            .gui_component_tree
+            .set_parent(frame_id, parent_id);
+
+        *self.manager.gui_component_tree.get_mut_opt(frame_id) = Some(Box::new(frame_state));
+        self.manager.gui_component_tree.reconstruct_preorder();
+
+        frame_id
     }
 }
 
 impl<ProgramState> GuiManager<ProgramState> {
-    pub fn builder_frame(&mut self)->FrameBuilder<ProgramState>{
+    pub fn builder_frame(&mut self) -> FrameBuilder<ProgramState> {
         FrameBuilder::new(self)
     }
 }

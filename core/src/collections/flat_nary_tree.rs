@@ -30,11 +30,11 @@ pub struct NodeInfoMut<'a, T> {
 }
 
 /// ## Description
-/// stores a tree by keeping nodes in pre-order traversal in a vector for fast traversal.
+/// stores a tree by keeping nodes in **pre-order** traversal in a vector for fast traversal.
 /// I call this a "linear" tree because this data structure only stores the parent info
 /// making it more compact with `O(|V|)` space. Removing edge info makes insert take`O(|V|^2)` time instead of `O(1)` time.
 /// so this tree structure should not be used if heavy tree manipulation is required.
-/// This tree is advantagous only when it is *static*
+/// This tree is advantagous only when it is *static* , meaning tree topology isnt changing
 pub struct LinearTree<T> {
     order: Vec<u32>,
     level: Vec<u32>,
@@ -120,12 +120,33 @@ impl<T> LinearTree<T> {
         self.data.get(node_ptr.as_usize())?.as_ref()
     }
 
+    /// ## Description
+    /// assign `new_parent_id` to the parent pointer of `id`   
+    /// ## Comments
+    /// - Complexity is O(1)
+    pub fn set_parent<NID: Copy + Into<NodeID>>(&mut self, id: NID, new_parent_id: NID) {
+        let current_ptr = self.resolve_id_to_ptr(id.into());
+        let new_parent_ptr = self.resolve_id_to_ptr(new_parent_id.into());
+        self.parent[current_ptr.as_usize()] = new_parent_ptr;
+    }
+
     pub fn get_mut<NID>(&mut self, node_id: NID) -> Option<&mut T>
     where
         NID: Copy + Into<NodeID>,
     {
         let node_ptr = self.resolve_id_to_ptr(node_id.into());
         self.data.get_mut(node_ptr.as_usize())?.as_mut()
+    }
+
+    /// get the underlying opt 
+    pub fn get_mut_opt<NID>(&mut self, node_id: NID) -> &mut Option<T>
+    where
+        NID: Copy + Into<NodeID>,
+    {
+        let node_ptr = self.resolve_id_to_ptr(node_id.into());
+        self.data
+            .get_mut(node_ptr.as_usize())
+            .expect("node_id invalid")
     }
 
     pub fn get_parent_id<NID>(&self, id: NID) -> Option<NodeID>
@@ -144,16 +165,21 @@ impl<T> LinearTree<T> {
             .unwrap_or(Ptr::null())
     }
 
-    #[allow(dead_code)]
-    /// the old way I used to do it, slow AF. The new way uses
-    /// a hashtable to avoid the crawl
-    fn resolve_id_to_ptr_slow(&self, id: NodeID) -> Ptr {
-        self.node_id
-            .iter()
-            .enumerate()
-            .find(|(_idx, &nid)| nid == id)
-            .map(|(idx, _)| Ptr::from(idx))
-            .unwrap_or(Ptr::null())
+    /// Partially adds nodes to tree but tree isn't valid until
+    /// `Self::reconstruct_preorder(..)` is called
+    /// ## Comments
+    /// -  O(1) Complexity. This is ,uch faster than `Self::add(..)` 
+    /// - the parent pointers of newly added nodes are safe to mutate using this method are safe to mutate
+    pub fn add_deffered_reconstruction(&mut self, data: Option<T>, parent_id: NodeID) -> NodeID {
+        let parent = self.resolve_id_to_ptr(parent_id);
+        let (nid, _) = self.allocate_node_opt(data, parent);
+        #[cfg(debug_assertions)]
+        {
+            if self.parent[0] != Ptr::null() || self.data[0].is_none() {
+                panic!("always add parent first");
+            }
+        }
+        nid
     }
 
     pub fn add(&mut self, data: T, parent_id: NodeID) -> NodeID {
@@ -167,7 +193,7 @@ impl<T> LinearTree<T> {
             }
         }
 
-        self.reconstruct_parent_pointers_using_dfs_ordering_info();
+        self.reconstruct_preorder();
 
         nid
     }
@@ -176,14 +202,14 @@ impl<T> LinearTree<T> {
 
         let root = Ptr::from(0);
 
-        self.compute_post_order_traversal(root);
+        self.compute_pre_order_traversal(root);
 
         let order = &mut self.order;
         let data = &mut self.data;
         let node_id = &mut self.node_id;
         let level = &mut self.level;
 
-        // sort everything in post_order_traversal
+        // sort everything in pre_order_traversal
         quick_co_sort(
             order,
             [
@@ -193,6 +219,7 @@ impl<T> LinearTree<T> {
             ],
         );
     }
+
     fn recompute_has_child_table(&mut self) {
         let len = self.len();
         for ptr in 0..len {
@@ -202,6 +229,7 @@ impl<T> LinearTree<T> {
     }
 
     /// ## Description
+    /// Sorts nodes in preorder for fast traversal
     /// - each element in array corresponds to a node attribute
     /// - DFSes the tree in post-order using the array `order` to label the vertex order
     ///     - also computes node `level` in the DFS traversal
@@ -211,7 +239,7 @@ impl<T> LinearTree<T> {
     /// `O(|V|log(|V|))`
     /// ## Comments
     /// - index 0 in all the node attribute arrays ALWAYS means the root of the tree
-    fn reconstruct_parent_pointers_using_dfs_ordering_info(&mut self) {
+    pub fn reconstruct_preorder(&mut self) {
         self.recompute_prefix_ordering();
         self.reconstruct_parent_pointers();
         self.recompute_has_child_table();
@@ -260,13 +288,13 @@ impl<T> LinearTree<T> {
         self.data.len() - self.nodes_deleted
     }
 
-    fn compute_post_order_traversal(&mut self, root: Ptr) {
+    fn compute_pre_order_traversal(&mut self, root: Ptr) {
         let mut order_idx = 0;
         self.order.iter_mut().for_each(|e| *e = !0);
-        self.compute_post_order_traversal_helper(root, 0, &mut order_idx)
+        self.compute_pre_order_traversal_helper(root, 0, &mut order_idx)
     }
 
-    fn compute_post_order_traversal_helper(&mut self, root: Ptr, level: u32, order_idx: &mut u32) {
+    fn compute_pre_order_traversal_helper(&mut self, root: Ptr, level: u32, order_idx: &mut u32) {
         let self_ptr = self as *mut Self;
         let root_idx = root.as_usize();
         self.level[root_idx] = level;
@@ -281,7 +309,7 @@ impl<T> LinearTree<T> {
 
         for child in self.get_child_nodes(root) {
             let local_self = unsafe { &mut *self_ptr };
-            local_self.compute_post_order_traversal_helper(child, level + 1, order_idx);
+            local_self.compute_pre_order_traversal_helper(child, level + 1, order_idx);
         }
     }
 
@@ -310,6 +338,10 @@ impl<T> LinearTree<T> {
     }
 
     fn allocate_node(&mut self, data: T, parent: Ptr) -> (NodeID, Ptr) {
+        self.allocate_node_opt(Some(data), parent)
+    }
+
+    fn allocate_node_opt(&mut self, data: Option<T>, parent: Ptr) -> (NodeID, Ptr) {
         debug_assert_eq!(
             self.nodes_deleted <= self.data.len(),
             true,
@@ -320,8 +352,11 @@ impl<T> LinearTree<T> {
             let ptr = self.data.len() - self.nodes_deleted;
             let node_id = self.node_id[ptr];
             //set new data
-            self.data[ptr] = Some(data);
+            self.order[ptr] = !0; 
+            self.data[ptr] = data;
             self.parent[ptr] = parent;
+            self.has_child[ptr] = false;
+            self.level[ptr] = 0; 
             //decrement nodes deleted
             self.nodes_deleted -= 1;
             (node_id, Ptr::from(ptr))
@@ -329,7 +364,7 @@ impl<T> LinearTree<T> {
             let node_id = NodeID(self.node_id_counter);
             //instantiate node object
             self.order.push(!0);
-            self.data.push(Some(data));
+            self.data.push(data);
             self.level.push(0);
             self.parent.push(parent);
             self.node_id.push(node_id);
@@ -358,7 +393,7 @@ impl<T> LinearTree<T> {
             subtree_node += 1;
         }
 
-        self.reconstruct_parent_pointers_using_dfs_ordering_info();
+        self.reconstruct_preorder();
     }
 
     fn remove_single_node(&mut self, ptr: Ptr, removed_vals: &mut Vec<T>) {

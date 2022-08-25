@@ -1,13 +1,11 @@
 use super::*;
 
 pub struct OriginState {
-    key: GuiComponentKey,
     rel_position: Vec2<f32>,
 }
 impl OriginState {
     pub fn new() -> Self {
         Self {
-            key: GuiComponentKey::default(),
             rel_position: Vec2::zero(),
         }
     }

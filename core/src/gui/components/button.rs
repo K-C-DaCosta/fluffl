@@ -1,9 +1,6 @@
-use crate::extras::text_writer;
-
 use super::*;
 
 pub struct ButtonState {
-    key: GuiComponentKey,
     width: f32,
     height: f32,
     rel_position: Vec2<f32>,

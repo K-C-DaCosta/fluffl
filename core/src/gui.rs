@@ -85,7 +85,14 @@ impl<ProgramState> GuiManager<ProgramState> {
         self.state = Some(state);
     }
 
-    pub fn set_listener(
+    pub fn clear_listeners(&mut self, key: GuiComponentKey, event: GuiEventKind) {
+        self.key_to_handler_block_table
+            .get_mut(&key)
+            .expect("key missing")
+            .clear_handlers(event);
+    }
+
+    pub fn push_listener(
         &mut self,
         key: GuiComponentKey,
         listener: ComponentEventListener<ProgramState>,
@@ -94,7 +101,25 @@ impl<ProgramState> GuiManager<ProgramState> {
         key_to_handler_block_table
             .get_mut(&key)
             .expect("key missing")
-            .set_handler(listener);
+            .push_handler(listener);
+    }
+
+    /// ## Description
+    /// allows you to generate a valid Key without providing a GuiComponent up-front
+    /// ## Comments
+    /// - **MUST CALL `LinearTree::recontruct_preorder(..)` or the tree WONT WORK**
+    fn add_component_deferred(
+        &mut self,
+        parent: GuiComponentKey,
+        comp: Option<Box<dyn GuiComponent>>,
+    ) -> GuiComponentKey {
+        let id = self
+            .gui_component_tree
+            .add_deffered_reconstruction(comp, parent.into());
+        let key = GuiComponentKey::from(id);
+        self.key_to_handler_block_table
+            .insert(key, ComponentHandlerBlock::new());
+        key
     }
 
     pub fn add_component(
@@ -245,107 +270,130 @@ impl<ProgramState> GuiManager<ProgramState> {
             .build();
 
         let slider_frame = manager
-            .builder_frame()
+            .builder_slider()
             .with_parent(origin)
             .with_bounds([256.0, 64.0])
             .with_color(Vec4::rgb_u32(0x554994))
             .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
             .with_roundness([8.0; 4])
-            .with_position([64.0, 400.0])
             .with_drag(true)
-            .with_listener(GuiEventKind::OnClick, |f, _, _| {
-                // f.bounds[1]+=1.0;
-                None
-            })
             .with_listener(GuiEventKind::OnFocusIn, |state, _, _| {
-                state.edge_color = Vec4::rgb_u32(0xff0000);
-
+                state.slider_frame.edge_color = Vec4::rgb_u32(0xff0000);
                 None
             })
             .with_listener(GuiEventKind::OnFocusOut, |state, _, _| {
-                state.edge_color = Vec4::rgb_u32(0xFFCCB3);
+                state.slider_frame.edge_color = Vec4::rgb_u32(0xFFCCB3);
                 None
             })
+            .with_position([64.0, 400.0])
+            .with_button_bounds([32.0, 64.0])
+            .with_button_color(Vec4::rgb_u32(0xF675A8))
+            .with_button_edge_color(Vec4::rgb_u32(0xF29393))
+            .with_button_roundness([8.0; 4])
             .build();
 
-        let slider_button = manager
-            .builder_frame()
-            .with_parent(slider_frame)
-            .with_bounds([32.0, 64.0])
-            .with_color(Vec4::rgb_u32(0xF675A8))
-            .with_position([256.0 / 2. - 8.0, 64.0 / 2. - 64.0 / 2.])
-            .with_edge_color(Vec4::rgb_u32(0xF29393))
-            .with_roundness([8.0; 4])
-            .with_listener(GuiEventKind::OnHoverIn, |f, _, _| {
-                f.color *= 9. / 10.;
-                None
-            })
-            .with_listener(GuiEventKind::OnHoverOut, |f, _, _| {
-                f.color *= 10. / 9.;
-                None
-            })
-            .with_listener(GuiEventKind::OnClick, |f, _, _| {
-                f.color = Vec4::from([1.0; 4]) - f.color;
-                None
-            })
-            .with_listener(GuiEventKind::OnRelease, |f, _, _| {
-                f.color = Vec4::from([1.0; 4]) - f.color;
-                None
-            })
-            .with_listener_advanced(
-                GuiEventKind::OnDrag,
-                Box::new(|einfo| {
-                    let disp = einfo.event.disp();
-                    let slider_button_key = einfo.key;
-                    let slider_button_bounds = einfo
-                        .gui_comp_tree
-                        .get(slider_button_key)
-                        .unwrap()
-                        .get_bounds();
+        // let slider_frame = manager
+        //     .builder_frame()
+        //     .with_parent(origin)
+        //     .with_bounds([256.0, 64.0])
+        //     .with_color(Vec4::rgb_u32(0x554994))
+        //     .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
+        //     .with_roundness([8.0; 4])
+        //     .with_position([64.0, 400.0])
+        //     .with_drag(true)
+        //     .with_listener(GuiEventKind::OnClick, |f, _, _| {
+        //         // f.bounds[1]+=1.0;
+        //         None
+        //     })
+        //     .with_listener(GuiEventKind::OnFocusIn, |state, _, _| {
+        //         state.edge_color = Vec4::rgb_u32(0xff0000);
 
-                    let slider_frame_key = einfo
-                        .gui_comp_tree
-                        .get_parent_id(slider_button_key)
-                        .expect("should always exist");
+        //         None
+        //     })
+        //     .with_listener(GuiEventKind::OnFocusOut, |state, _, _| {
+        //         state.edge_color = Vec4::rgb_u32(0xFFCCB3);
+        //         None
+        //     })
+        //     .build();
 
-                    let slider_frame_bounds = {
-                        let frame = einfo
-                            .gui_comp_tree
-                            .get(slider_frame_key)
-                            .expect("key not found")
-                            .as_any()
-                            .downcast_ref::<FrameState>()
-                            .expect("should be frame");
-                        frame.bounds
-                    };
+        // let slider_button = manager
+        //     .builder_frame()
+        //     .with_parent(slider_frame)
+        //     .with_bounds([32.0, 64.0])
+        //     .with_color(Vec4::rgb_u32(0xF675A8))
+        //     .with_position([256.0 / 2. - 8.0, 64.0 / 2. - 64.0 / 2.])
+        //     .with_edge_color(Vec4::rgb_u32(0xF29393))
+        //     .with_roundness([8.0; 4])
+        //     .with_listener(GuiEventKind::OnHoverIn, |f, _, _| {
+        //         f.color *= 9. / 10.;
+        //         None
+        //     })
+        //     .with_listener(GuiEventKind::OnHoverOut, |f, _, _| {
+        //         f.color *= 10. / 9.;
+        //         None
+        //     })
+        //     .with_listener(GuiEventKind::OnClick, |f, _, _| {
+        //         f.color = Vec4::from([1.0; 4]) - f.color;
+        //         None
+        //     })
+        //     .with_listener(GuiEventKind::OnRelease, |f, _, _| {
+        //         f.color = Vec4::from([1.0; 4]) - f.color;
+        //         None
+        //     })
+        //     .with_listener_advanced(
+        //         GuiEventKind::OnDrag,
+        //         Box::new(|einfo| {
+        //             let disp = einfo.event.disp();
+        //             let slider_button_key = einfo.key;
+        //             let slider_button_bounds = einfo
+        //                 .gui_comp_tree
+        //                 .get(slider_button_key)
+        //                 .unwrap()
+        //                 .get_bounds();
 
-                    einfo
-                        .gui_comp_tree
-                        .get_mut(slider_button_key)
-                        .unwrap()
-                        .translate(disp);
+        //             let slider_frame_key = einfo
+        //                 .gui_comp_tree
+        //                 .get_parent_id(slider_button_key)
+        //                 .expect("should always exist");
 
-                    //center button
-                    let slider_button = einfo
-                        .gui_comp_tree
-                        .get_mut(slider_button_key)
-                        .unwrap()
-                        .as_any_mut()
-                        .downcast_mut::<FrameState>()
-                        .unwrap();
+        //             let slider_frame_bounds = {
+        //                 let frame = einfo
+        //                     .gui_comp_tree
+        //                     .get(slider_frame_key)
+        //                     .expect("key not found")
+        //                     .as_any()
+        //                     .downcast_ref::<FrameState>()
+        //                     .expect("should be frame");
+        //                 frame.bounds
+        //             };
 
-                    let rel_pos = &mut slider_button.rel_pos;
-                    let epsilon_x = slider_frame_bounds[0] * 0.00;
-                    rel_pos[0] = rel_pos[0].clamp(
-                        epsilon_x,
-                        slider_frame_bounds[0] - slider_button_bounds[0] - epsilon_x,
-                    );
-                    rel_pos[1] = slider_frame_bounds[1] * 0.5 - slider_button_bounds[1] * 0.5;
+        //             einfo
+        //                 .gui_comp_tree
+        //                 .get_mut(slider_button_key)
+        //                 .unwrap()
+        //                 .translate(disp);
 
-                    None
-                }),
-            )
-            .build();
+        //             //center button
+        //             let slider_button = einfo
+        //                 .gui_comp_tree
+        //                 .get_mut(slider_button_key)
+        //                 .expect("slider key invalid")
+        //                 .as_any_mut()
+        //                 .downcast_mut::<FrameState>()
+        //                 .expect("failed to downcast");
+
+        //             let rel_pos = &mut slider_button.rel_pos;
+        //             let epsilon_x = slider_frame_bounds[0] * 0.00;
+        //             rel_pos[0] = rel_pos[0].clamp(
+        //                 epsilon_x,
+        //                 slider_frame_bounds[0] - slider_button_bounds[0] - epsilon_x,
+        //             );
+        //             rel_pos[1] = slider_frame_bounds[1] * 0.5 - slider_button_bounds[1] * 0.5;
+
+        //             None
+        //         }),
+        //     )
+        //     .build();
 
         for k in 0..21 {
             let row = k / 7;
@@ -381,6 +429,8 @@ impl<ProgramState> GuiManager<ProgramState> {
                 .with_drag(true)
                 .build();
         }
+
+        // manager.builder_slider().with_parent(origin);
 
         // println!("origin={}", origin);
         // println!("pink_frame={}", prink_frame);

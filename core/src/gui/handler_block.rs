@@ -15,8 +15,12 @@ impl<ProgramState> ComponentHandlerBlock<ProgramState> {
         }
         Self { handlers }
     }
+    
+    pub fn clear_handlers(&mut self, kind:GuiEventKind){
+        self.handlers[kind as usize].clear();
+    }
 
-    pub fn set_handler(&mut self, listener: ComponentEventListener<ProgramState>) {
+    pub fn push_handler(&mut self, listener: ComponentEventListener<ProgramState>) {
         self.handlers[listener.kind as usize].push(listener.callback);
     }
 

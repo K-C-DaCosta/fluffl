@@ -1,12 +1,14 @@
-use super::*;
+use super::{*,builder::*};
 
+use std::any::Any;
 use crate::{extras::text_writer::TextWriter, math::AABB2};
+
 mod button;
 mod frame;
 mod origin;
 mod slider;
-pub use self::{button::ButtonState, frame::FrameState, origin::OriginState};
-use std::any::Any;
+
+pub use self::{button::*, frame::*, origin::*, slider::*};
 
 #[derive(Copy, Clone)]
 #[rustfmt::skip]
@@ -74,7 +76,9 @@ pub struct EventListenerInfo<'a, ProgramState> {
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
 
-impl <'a,ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>> for EventListenerInfo<'a,ProgramState> {
+impl<'a, ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>>
+    for EventListenerInfo<'a, ProgramState>
+{
     fn into(self) -> &'a mut LinearTree<Box<dyn GuiComponent>> {
         self.gui_comp_tree
     }
@@ -101,7 +105,7 @@ pub trait GuiComponent {
         win_w: f32,
         win_h: f32,
     );
-    
+
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
         let bounds = self.get_bounds();
         AABB2::from_point_and_lengths(Vec2::convert(global_x0), bounds)
