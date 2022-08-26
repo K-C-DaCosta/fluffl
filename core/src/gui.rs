@@ -512,7 +512,12 @@ impl<ProgramState> GuiManager<ProgramState> {
                 EventKind::MouseMove { x, y, dx, dy } => {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     let _disp = Vec2::from([dx as f32, dy as f32]);
+
                     if let &mut Some(clicked_key) = clicked_component {
+                        (visibility_table[clicked_key]==false).then(|| {
+                            *clicked_component = None;
+                        });
+
                         Self::object_is_clicked_so_send_drag_signal_to_focused_component(
                             component_signal_queue,
                             clicked_key,
