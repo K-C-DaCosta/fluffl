@@ -54,6 +54,8 @@ pub struct GuiManager<ProgramState> {
 
     key_to_handler_block_table: HashMap<GuiComponentKey, ComponentHandlerBlock<ProgramState>>,
 
+    visibility_table: Vec<bool>,
+
     component_signal_queue: VecDeque<components::ComponentEventSignal>,
 
     key_down_table: HashSet<KeyCode>,
@@ -75,6 +77,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             key_to_aabb_table: HashMap::new(),
             key_to_handler_block_table: HashMap::new(),
             key_down_table: HashSet::new(),
+            visibility_table: Vec::new(),
             gl,
             state: None,
         }
@@ -104,36 +107,6 @@ impl<ProgramState> GuiManager<ProgramState> {
             .push_handler(listener);
     }
 
-    /// ## Description
-    /// allows you to generate a valid Key without providing a GuiComponent up-front
-    /// ## Comments
-    /// - **MUST CALL `LinearTree::recontruct_preorder(..)` or the tree WONT WORK**
-    fn add_component_deferred(
-        &mut self,
-        parent: GuiComponentKey,
-        comp: Option<Box<dyn GuiComponent>>,
-    ) -> GuiComponentKey {
-        let id = self
-            .gui_component_tree
-            .add_deffered_reconstruction(comp, parent.into());
-        let key = GuiComponentKey::from(id);
-        self.key_to_handler_block_table
-            .insert(key, ComponentHandlerBlock::new());
-        key
-    }
-
-    pub fn add_component(
-        &mut self,
-        parent: GuiComponentKey,
-        comp: Box<dyn GuiComponent>,
-    ) -> GuiComponentKey {
-        let id = self.gui_component_tree.add(comp, parent.into());
-        let key = GuiComponentKey::from(id);
-        self.key_to_handler_block_table
-            .insert(key, ComponentHandlerBlock::new());
-        key
-    }
-
     pub fn push_event(&mut self, event: EventKind) {
         self.window_events.push_back(event);
     }
@@ -147,6 +120,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let renderer = &self.renderer;
         let gui_component_tree = &self.gui_component_tree;
         let key_to_aabb_table = &self.key_to_aabb_table;
+        let visibility_table = &self.visibility_table;
 
         let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
             let s = stack;
@@ -168,46 +142,38 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
 
         stack.clear();
-        for (sig, _key, comp) in gui_component_tree.iter_stack_signals() {
+        for (sig, key, comp) in gui_component_tree.iter_stack_signals() {
             let &rel_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(rel_pos));
             // println!("sig:{:?}",sig);
-            match sig {
+            let gpos = match sig {
                 StackSignal::Nop => {
                     stack.pop();
                     let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(
-                        gl,
-                        build_state(gpos),
-                        text_writer,
-                        window_width,
-                        window_height,
-                    );
                     stack.push(transform);
+                    gpos
                 }
                 StackSignal::Pop { n_times } => {
                     stack.pop_multi(n_times + 1);
                     let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(
-                        gl,
-                        build_state(gpos),
-                        text_writer,
-                        window_width,
-                        window_height,
-                    );
                     stack.push(transform);
+                    gpos
                 }
                 StackSignal::Push => {
                     let gpos = compute_global_position(rel_pos, stack);
-                    comp.render(
-                        gl,
-                        build_state(gpos),
-                        text_writer,
-                        window_width,
-                        window_height,
-                    );
                     stack.push(transform);
+                    gpos
                 }
+            };
+
+            if visibility_table[key.as_usize()] {
+                comp.render(
+                    gl,
+                    build_state(gpos),
+                    text_writer,
+                    window_width,
+                    window_height,
+                );
             }
         }
 
@@ -267,6 +233,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_edge_color([0., 0., 0., 1.0])
             .with_position([128.0, 64.0])
             .with_drag(true)
+            .with_visibility(false)
             .build();
 
         let slider_frame = manager
@@ -302,7 +269,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             })
             .build();
 
-        for k in 0..21 {
+        for k in 0..1 {
             let row = k / 7;
             let col = k % 7;
             let color = Vec4::<f32>::rgb_u32(0x277BC0);
@@ -339,14 +306,58 @@ impl<ProgramState> GuiManager<ProgramState> {
         // println!("blue_button={}", blue_button);
         // println!("slider_frame={}", slider_frame);
         // println!("slider_button={}", slider_button);
-        // manager.gui_component_tree.print_by_ids();
+        manager.gui_component_tree.print_by_ids();
         // let parent = manager.gui_component_tree.get_parent_id(NodeID(4)).unwrap();
         // println!("parent of 4 is = {:?}", parent);
         manager
     }
 
+    /// ## Description
+    /// allows you to generate a valid Key without providing a GuiComponent up-front
+    /// ## Comments
+    /// - **MUST CALL `LinearTree::recontruct_preorder(..)` or the tree WONT WORK**
+    fn add_component_deferred(
+        &mut self,
+        parent: GuiComponentKey,
+        comp: Option<Box<dyn GuiComponent>>,
+    ) -> GuiComponentKey {
+        let id = self
+            .gui_component_tree
+            .add_deffered_reconstruction(comp, parent.into());
+        let key = GuiComponentKey::from(id);
+        self.key_to_handler_block_table
+            .insert(key, ComponentHandlerBlock::new());
+
+        //make sure that number of nodes allocated equals
+        if self.gui_component_tree.len() > self.visibility_table.len() {
+            self.visibility_table.push(false)
+        }
+
+        key
+    }
+
+    fn add_component(
+        &mut self,
+        parent: GuiComponentKey,
+        comp: Box<dyn GuiComponent>,
+    ) -> GuiComponentKey {
+        let id = self.gui_component_tree.add(comp, parent.into());
+        let key = GuiComponentKey::from(id);
+        self.key_to_handler_block_table
+            .insert(key, ComponentHandlerBlock::new());
+
+        //make sure that number of nodes allocated equals
+        if self.gui_component_tree.len() > self.visibility_table.len() {
+            self.visibility_table.push(false)
+        }
+
+        key
+    }
+
     fn handle_incoming_events(&mut self) {
+        self.recompute_visibility();
         self.recompute_aabb_table();
+
         self.process_window_events_to_generate_signals_and_queue_them_for_processing();
         self.process_signal_queue();
     }
@@ -387,14 +398,25 @@ impl<ProgramState> GuiManager<ProgramState> {
         let focused_component = &mut self.focused_component;
         let clicked_component = &mut self.clicked_component;
         let hover_component = &mut self.hover_component;
-
         let component_signal_queue = &mut self.component_signal_queue;
         let key_down_table = &mut self.key_down_table;
+        let visibility_table = &mut self.visibility_table;
 
         while let Some(event) = window_events.pop_front() {
             let _old_signal_len = component_signal_queue.len();
             match event {
                 EventKind::KeyDown { code } => {
+                    if let KeyCode::BRAKET_RIGHT = code {
+                        let v = gui_component_tree
+                            .get_mut(GuiComponentKey(5))
+                            .unwrap()
+                            .is_visible();
+                        gui_component_tree
+                            .get_mut(GuiComponentKey(5))
+                            .unwrap()
+                            .set_visible(!v);
+                    }
+
                     if key_down_table.contains(&code) == false {
                         if let &mut Some(fkey) = focused_component {
                             component_signal_queue.push_back(ComponentEventSignal::new(
@@ -434,7 +456,9 @@ impl<ProgramState> GuiManager<ProgramState> {
                     *clicked_component = None;
                     *focused_component = None;
 
-                    for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
+                    for (key, aabb) in
+                        Self::aabb_iter(gui_component_tree, key_to_aabb_table, &visibility_table)
+                    {
                         if aabb.is_point_inside(mouse_pos) {
                             *clicked_component = Some(key);
                             *focused_component = Some(key);
@@ -501,6 +525,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                             gui_component_tree,
                             key_to_aabb_table,
                             component_signal_queue,
+                            visibility_table,
                             event,
                         );
                     }
@@ -508,8 +533,15 @@ impl<ProgramState> GuiManager<ProgramState> {
                 EventKind::MouseWheel { .. } => {
                     if let &mut Some(focused_key) = focused_component {
                         component_signal_queue.push_back(ComponentEventSignal::new(
-                            GuiEventKind::OnWheel,
+                            GuiEventKind::OnWheelWhileFocused,
                             focused_key,
+                            event,
+                        ));
+                    }
+                    if let &mut Some(hovered_key) = hover_component {
+                        component_signal_queue.push_back(ComponentEventSignal::new(
+                            GuiEventKind::OnWheelWhileHovered,
+                            hovered_key,
                             event,
                         ));
                     }
@@ -544,6 +576,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
         component_signal_queue: &mut VecDeque<ComponentEventSignal>,
+        visibility_table: &'a Vec<bool>,
         event: EventKind,
     ) {
         match hover_component {
@@ -551,7 +584,9 @@ impl<ProgramState> GuiManager<ProgramState> {
             &mut Some(current_hover_key) => {
                 let mut local_hover = None;
 
-                for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
+                for (key, aabb) in
+                    Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
+                {
                     if aabb.is_point_inside(mouse_pos) {
                         local_hover = Some(key);
                     }
@@ -589,7 +624,9 @@ impl<ProgramState> GuiManager<ProgramState> {
             //if nothing is being hovered check if mouse is inside hovering a component
             None => {
                 //run through aabbs in pre-order traversal
-                for (key, aabb) in Self::aabb_iter(gui_component_tree, key_to_aabb_table) {
+                for (key, aabb) in
+                    Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
+                {
                     if aabb.is_point_inside(mouse_pos) {
                         *hover_component = Some(key);
                     }
@@ -605,15 +642,40 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
     }
 
+    fn recompute_visibility(&mut self) {
+        let gui_component_tree = &mut self.gui_component_tree;
+        let get_visibility = |id| gui_component_tree.get(id).map(|state| state.is_visible());
+        for node in gui_component_tree.iter() {
+            let mut cur_node_id = node.id;
+            self.visibility_table[cur_node_id.as_usize()] = get_visibility(node.id).unwrap();
+            while let Some(parent) = gui_component_tree.get_parent_id(cur_node_id) {
+                if get_visibility(parent).unwrap() == false {
+                    self.visibility_table[node.id.as_usize()] = false;
+                    break;
+                }
+                cur_node_id = parent;
+            }
+        }
+    }
+
     fn aabb_iter<'a>(
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+        visibility_table: &'a Vec<bool>,
     ) -> impl Iterator<Item = (GuiComponentKey, AABB2<f32>)> + 'a {
-        gui_component_tree.iter().map(move |node_info| {
-            let &key = &GuiComponentKey::from(node_info.id);
-            let &aabb = key_to_aabb_table.get(&key).unwrap();
-            (key, aabb)
-        })
+        gui_component_tree
+            .iter()
+            .filter(move |node_info| {
+                /* if you skip invisible nodes you we can ignore avoid events to invisible items */
+                let raw_node_id = node_info.id.as_usize();
+                let visibility = visibility_table[raw_node_id];
+                visibility
+            })
+            .map(move |node_info| {
+                let &key = &GuiComponentKey::from(node_info.id);
+                let &aabb = key_to_aabb_table.get(&key).unwrap();
+                (key, aabb)
+            })
     }
 
     fn recompute_aabb_table(&mut self) {

@@ -31,7 +31,7 @@ impl GuiComponent for OriginState {
     fn rel_position(&self) -> &Vec2<f32> {
         &self.rel_position
     }
-    
+
     fn is_visible(&self) -> bool {
         self.is_visible
     }

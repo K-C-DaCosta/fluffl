@@ -25,7 +25,7 @@ impl FrameState {
             caption: String::new(),
             is_visible: true,
             font_size: 30.0,
-            alignment: [TextAlignment::Center;2],
+            alignment: [TextAlignment::Center; 2],
         }
     }
 }
@@ -38,10 +38,10 @@ impl GuiComponent for FrameState {
         self
     }
 
-    fn is_visible(&self)->bool {
+    fn is_visible(&self) -> bool {
         self.is_visible
     }
-    fn set_visible(&mut self, is_visible:bool) {
+    fn set_visible(&mut self, is_visible: bool) {
         self.is_visible = is_visible;
     }
 
@@ -196,6 +196,11 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
 
     pub fn with_alignment(mut self, horizontal: TextAlignment, vertical: TextAlignment) -> Self {
         self.state.as_mut().unwrap().alignment = [horizontal, vertical];
+        self
+    }
+
+    pub fn with_visibility(mut self, visibility: bool) -> Self {
+        self.state.as_mut().unwrap().is_visible = visibility;
         self
     }
 

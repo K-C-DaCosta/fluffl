@@ -1,14 +1,14 @@
-use super::{*,builder::*};
+use super::{builder::*, *};
 
-use std::any::Any;
 use crate::{extras::text_writer::TextWriter, math::AABB2};
+use std::any::Any;
 
-mod text_box;
 mod frame;
 mod origin;
 mod slider;
+mod text_box;
 
-pub use self::{text_box::*, frame::*, origin::*, slider::*};
+pub use self::{frame::*, origin::*, slider::*, text_box::*};
 
 #[derive(Copy, Clone)]
 #[rustfmt::skip]
@@ -22,16 +22,17 @@ pub enum TextAlignment {
 #[derive(Copy, Clone, Debug)]
 #[rustfmt::skip]
 pub enum GuiEventKind {
-    OnHoverIn    = 0,
-    OnHoverOut   = 1,
-    OnDrag       = 2,
-    OnClick      = 3,
-    OnRelease    = 4,
-    OnKeyDown    = 5,
-    OnKeyRelease = 6,
-    OnFocusIn    = 7, 
-    OnFocusOut   = 8,
-    OnWheel      = 9, 
+    OnHoverIn           =  0,
+    OnHoverOut          =  1,
+    OnDrag              =  2,
+    OnClick             =  3,
+    OnRelease           =  4,
+    OnKeyDown           =  5,
+    OnKeyRelease        =  6,
+    OnFocusIn           =  7, 
+    OnFocusOut          =  8,
+    OnWheelWhileFocused =  9, 
+    OnWheelWhileHovered = 10,
 }
 
 pub struct ComponentEventListener<ProgramState> {
@@ -90,8 +91,8 @@ pub trait GuiComponent {
 
     fn as_any_mut(&mut self) -> &mut dyn Any;
 
-    fn is_visible(&self)->bool;
-    fn set_visible(&mut self, is_visible:bool);
+    fn is_visible(&self) -> bool;
+    fn set_visible(&mut self, is_visible: bool);
 
     fn get_bounds(&self) -> Vec2<f32>;
 

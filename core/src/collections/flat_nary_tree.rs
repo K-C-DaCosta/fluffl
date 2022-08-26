@@ -79,8 +79,7 @@ impl<T> LinearTree<T> {
                 Some((cur_ptr_usize, parent_ptr)).zip(val.as_ref())
             })
             .filter_map(|a| a)
-            .map(|((cur_ptr_usize, parent_ptr), val)| (cur_ptr_usize, parent_ptr, val))
-            .map(move |(cur_ptr_usize, parent_ptr, val)| NodeInfo {
+            .map(move |((cur_ptr_usize, parent_ptr), val)| NodeInfo {
                 val,
                 id: node_id[cur_ptr_usize],
                 parent: (parent_ptr != Ptr::null()).then(|| node_id[parent_ptr.as_usize()]),
@@ -138,7 +137,7 @@ impl<T> LinearTree<T> {
         self.data.get_mut(node_ptr.as_usize())?.as_mut()
     }
 
-    /// get the underlying opt 
+    /// get the underlying opt
     pub fn get_mut_opt<NID>(&mut self, node_id: NID) -> &mut Option<T>
     where
         NID: Copy + Into<NodeID>,
@@ -168,7 +167,7 @@ impl<T> LinearTree<T> {
     /// Partially adds nodes to tree but tree isn't valid until
     /// `Self::reconstruct_preorder(..)` is called
     /// ## Comments
-    /// -  O(1) Complexity. This is ,uch faster than `Self::add(..)` 
+    /// -  O(1) Complexity. This is ,uch faster than `Self::add(..)`
     /// - the parent pointers of newly added nodes are safe to mutate using this method are safe to mutate
     pub fn add_deffered_reconstruction(&mut self, data: Option<T>, parent_id: NodeID) -> NodeID {
         let parent = self.resolve_id_to_ptr(parent_id);
@@ -352,11 +351,11 @@ impl<T> LinearTree<T> {
             let ptr = self.data.len() - self.nodes_deleted;
             let node_id = self.node_id[ptr];
             //set new data
-            self.order[ptr] = !0; 
+            self.order[ptr] = !0;
             self.data[ptr] = data;
             self.parent[ptr] = parent;
             self.has_child[ptr] = false;
-            self.level[ptr] = 0; 
+            self.level[ptr] = 0;
             //decrement nodes deleted
             self.nodes_deleted -= 1;
             (node_id, Ptr::from(ptr))

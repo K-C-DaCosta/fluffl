@@ -331,7 +331,7 @@ impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramSta
         self.manager.push_listener(
             slider_frame_key,
             ComponentEventListener::new(
-                GuiEventKind::OnWheel,
+                GuiEventKind::OnWheelWhileHovered,
                 Box::new(|info| {
                     let wheel = info.event.wheel();
 
@@ -347,7 +347,6 @@ impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramSta
                         .unwrap()
                         .slider_button_key;
 
-
                     let frame_bounds = tree
                         .get(slider_frame_key)
                         .expect("slider_frame component")
@@ -358,8 +357,8 @@ impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramSta
                         .expect("slider_button component")
                         .get_bounds();
 
-                    //move slider button,horizontally by increments of 5% of the parent bounds width 
-                    let wheel_dx = (frame_bounds[0]*0.05) * wheel;
+                    //move slider button,horizontally by increments of 5% of the parent bounds width
+                    let wheel_dx = (frame_bounds[0] * 0.05) * wheel;
 
                     //translate the slider like normal
                     tree.get_mut(slider_button_key)
@@ -375,8 +374,8 @@ impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramSta
 
                     let vertically_centered_and_horizontally_clamped_relative_position =
                         Vec2::from([
-                            button_slider_pos[0].clamp(0.0, max_horizontal_rel_pos),
-                            frame_bounds[1] * 0.5 - button_bounds[1] * 0.5,
+                            button_slider_pos.x().clamp(0.0, max_horizontal_rel_pos),
+                            frame_bounds.y() * 0.5 - button_bounds.y() * 0.5,
                         ]);
 
                     //set newly computed position
