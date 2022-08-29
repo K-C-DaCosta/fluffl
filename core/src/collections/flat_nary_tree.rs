@@ -1,9 +1,9 @@
 use super::*;
-use std::fmt::Debug;
 
+use std::{fmt::Debug, mem::MaybeUninit};
 mod iterators;
-mod sort_util;
-mod swappable;
+pub mod sort_util;
+pub mod swappable;
 
 pub use self::iterators::StackSignal;
 use self::{iterators::*, sort_util::*, swappable::*};
@@ -39,11 +39,11 @@ pub struct LinearTree<T> {
     order: Vec<u32>,
     level: Vec<u32>,
     parent: Vec<Ptr>,
-    data: Vec<Option<T>>,
+    data: Vec<MaybeUninit<T>>,
     parent_stack: Vec<usize>,
     node_id: Vec<NodeID>,
     node_id_counter: usize,
-    has_child: Vec<bool>,
+    /// after co-sorting, deleted nodes bubble to the end of the list for reusing data
     nodes_deleted: usize,
     id_to_ptr_table: Vec<Ptr>,
 }
@@ -58,10 +58,29 @@ impl<T> LinearTree<T> {
             parent_stack: vec![],
             node_id: vec![],
             node_id_counter: 0,
-            has_child: vec![],
             nodes_deleted: 0,
             id_to_ptr_table: Vec::new(),
         }
+    }
+
+    pub fn as_slice(&self) -> &[T] {
+        let len = self.len();
+        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, len) }
+    }
+
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
+        let len = self.len();
+        unsafe { std::slice::from_raw_parts_mut(self.data.as_mut_ptr() as *mut T, len) }
+    }
+
+    /// ## Description
+    /// assign `new_parent_id` to the parent pointer of `id`   
+    /// ## Comments
+    /// - Complexity is O(1)
+    pub fn set_parent<NID: Copy + Into<NodeID>>(&mut self, id: NID, new_parent_id: NID) {
+        let current_ptr = self.resolve_id_to_ptr(id.into());
+        let new_parent_ptr = self.resolve_id_to_ptr(new_parent_id.into());
+        self.parent[current_ptr.as_usize()] = new_parent_ptr;
     }
 
     pub fn iter<'a>(&'a self) -> impl Iterator<Item = NodeInfo<'a, T>> {
@@ -75,11 +94,10 @@ impl<T> LinearTree<T> {
             .zip(parent.iter())
             .enumerate()
             .take(len)
-            .map(|(cur_ptr_usize, (val, &parent_ptr))| {
-                Some((cur_ptr_usize, parent_ptr)).zip(val.as_ref())
+            .map(|(cur_ptr_usize, (val, &parent_ptr))| unsafe {
+                (cur_ptr_usize, parent_ptr, val.assume_init_ref())
             })
-            .filter_map(|a| a)
-            .map(move |((cur_ptr_usize, parent_ptr), val)| NodeInfo {
+            .map(move |(cur_ptr_usize, parent_ptr, val)| NodeInfo {
                 val,
                 id: node_id[cur_ptr_usize],
                 parent: (parent_ptr != Ptr::null()).then(|| node_id[parent_ptr.as_usize()]),
@@ -96,11 +114,9 @@ impl<T> LinearTree<T> {
             .zip(parent.iter_mut())
             .enumerate()
             .take(len)
-            .map(|(cur_ptr_usize, (val, &mut parent_ptr))| {
-                Some((cur_ptr_usize, parent_ptr)).zip(val.as_mut())
+            .map(|(cur_ptr_usize, (val, &mut parent_ptr))| unsafe {
+                (cur_ptr_usize, parent_ptr, val.assume_init_mut())
             })
-            .filter_map(|a| a)
-            .map(|((cur_ptr_usize, parent_ptr), val)| (cur_ptr_usize, parent_ptr, val))
             .map(move |(cur_ptr_usize, parent_ptr, val)| NodeInfoMut {
                 val,
                 id: node_id[cur_ptr_usize],
@@ -116,17 +132,9 @@ impl<T> LinearTree<T> {
         if node_ptr == Ptr::null() {
             return None;
         }
-        self.data.get(node_ptr.as_usize())?.as_ref()
-    }
-
-    /// ## Description
-    /// assign `new_parent_id` to the parent pointer of `id`   
-    /// ## Comments
-    /// - Complexity is O(1)
-    pub fn set_parent<NID: Copy + Into<NodeID>>(&mut self, id: NID, new_parent_id: NID) {
-        let current_ptr = self.resolve_id_to_ptr(id.into());
-        let new_parent_ptr = self.resolve_id_to_ptr(new_parent_id.into());
-        self.parent[current_ptr.as_usize()] = new_parent_ptr;
+        self.data
+            .get(node_ptr.as_usize())
+            .map(|val| unsafe { val.assume_init_ref() })
     }
 
     pub fn get_mut<NID>(&mut self, node_id: NID) -> Option<&mut T>
@@ -134,11 +142,13 @@ impl<T> LinearTree<T> {
         NID: Copy + Into<NodeID>,
     {
         let node_ptr = self.resolve_id_to_ptr(node_id.into());
-        self.data.get_mut(node_ptr.as_usize())?.as_mut()
+        self.data
+            .get_mut(node_ptr.as_usize())
+            .map(|val| unsafe { val.assume_init_mut() })
     }
 
-    /// get the underlying opt
-    pub fn get_mut_opt<NID>(&mut self, node_id: NID) -> &mut Option<T>
+    /// get the underlying
+    pub fn get_mut_uninit<NID>(&mut self, node_id: NID) -> &mut MaybeUninit<T>
     where
         NID: Copy + Into<NodeID>,
     {
@@ -168,13 +178,17 @@ impl<T> LinearTree<T> {
     /// `Self::reconstruct_preorder(..)` is called
     /// ## Comments
     /// -  O(1) Complexity. This is ,uch faster than `Self::add(..)`
-    /// - the parent pointers of newly added nodes are safe to mutate using this method are safe to mutate
-    pub fn add_deffered_reconstruction(&mut self, data: Option<T>, parent_id: NodeID) -> NodeID {
+    /// - the node attributes like `parent` of newly added nodes are safe to mutate using this method
+    pub unsafe fn add_deffered_reconstruction(
+        &mut self,
+        data: MaybeUninit<T>,
+        parent_id: NodeID,
+    ) -> NodeID {
         let parent = self.resolve_id_to_ptr(parent_id);
-        let (nid, _) = self.allocate_node_opt(data, parent);
+        let (nid, _) = self.allocate_node_uninit(data, parent);
         #[cfg(debug_assertions)]
         {
-            if self.parent[0] != Ptr::null() || self.data[0].is_none() {
+            if self.parent[0] != Ptr::null() {
                 panic!("always add parent first");
             }
         }
@@ -187,7 +201,7 @@ impl<T> LinearTree<T> {
 
         #[cfg(debug_assertions)]
         {
-            if self.parent[0] != Ptr::null() || self.data[0].is_none() {
+            if self.parent[0] != Ptr::null() {
                 panic!("always add parent first");
             }
         }
@@ -219,14 +233,6 @@ impl<T> LinearTree<T> {
         );
     }
 
-    fn recompute_has_child_table(&mut self) {
-        let len = self.len();
-        for ptr in 0..len {
-            let has_children = self.get_child_nodes(ptr).next().is_some();
-            self.has_child[ptr] = has_children;
-        }
-    }
-
     /// ## Description
     /// Sorts nodes in preorder for fast traversal
     /// - each element in array corresponds to a node attribute
@@ -241,7 +247,6 @@ impl<T> LinearTree<T> {
     pub fn reconstruct_preorder(&mut self) {
         self.recompute_prefix_ordering();
         self.reconstruct_parent_pointers();
-        self.recompute_has_child_table();
 
         // after the above functions are called,
         // all (nid,ptr) pairs are invalid and must be recomputed
@@ -312,35 +317,23 @@ impl<T> LinearTree<T> {
         }
     }
 
-    pub fn iter_mut_stack_signals(&mut self) -> StackSignalIteratorMut<'_, T> {
-        StackSignalIteratorMut::new(self)
-    }
-
-    pub fn iter_stack_signals(&self) -> StackSignalIterator<'_, T> {
-        StackSignalIterator::new(self)
-    }
-
     fn get_child_nodes<PTR>(&self, root: PTR) -> impl Iterator<Item = Ptr> + '_
     where
         PTR: Into<Ptr>,
     {
         let num_active_nodes = self.len();
         let root = root.into();
-        let data = &self.data;
         let parent = &self.parent;
-        data.iter()
-            .enumerate()
-            .take(num_active_nodes)
-            .filter_map(|(k, d)| Some(Ptr::from(k)).zip(d.as_ref()))
-            .map(|(ptr, _)| ptr)
+        (0..num_active_nodes)
+            .map(|ptr| Ptr::from(ptr))
             .filter(move |ptr| parent[ptr.as_usize()] == root)
     }
 
     fn allocate_node(&mut self, data: T, parent: Ptr) -> (NodeID, Ptr) {
-        self.allocate_node_opt(Some(data), parent)
+        unsafe { self.allocate_node_uninit(MaybeUninit::new(data), parent) }
     }
 
-    fn allocate_node_opt(&mut self, data: Option<T>, parent: Ptr) -> (NodeID, Ptr) {
+    unsafe fn allocate_node_uninit(&mut self, data: MaybeUninit<T>, parent: Ptr) -> (NodeID, Ptr) {
         debug_assert_eq!(
             self.nodes_deleted <= self.data.len(),
             true,
@@ -354,7 +347,6 @@ impl<T> LinearTree<T> {
             self.order[ptr] = !0;
             self.data[ptr] = data;
             self.parent[ptr] = parent;
-            self.has_child[ptr] = false;
             self.level[ptr] = 0;
             //decrement nodes deleted
             self.nodes_deleted -= 1;
@@ -367,7 +359,6 @@ impl<T> LinearTree<T> {
             self.level.push(0);
             self.parent.push(parent);
             self.node_id.push(node_id);
-            self.has_child.push(false);
             self.id_to_ptr_table.push(Ptr::from(self.data.len() - 1));
             self.node_id_counter += 1;
             (node_id, Ptr::from(self.data.len() - 1))
@@ -399,10 +390,22 @@ impl<T> LinearTree<T> {
         self.order[ptr] = !0;
         self.parent[ptr] = Ptr::null();
         self.level[ptr] = !0;
-        if let Some(item) = self.data[ptr].take() {
-            removed_vals.push(item);
-        }
+
+        //shallow copy item
+        let removed_item = unsafe { self.data[ptr].assume_init_read() };
+        removed_vals.push(removed_item);
+
+        self.data[ptr] = MaybeUninit::zeroed();
+
         self.nodes_deleted += 1;
+    }
+
+    pub fn iter_mut_stack_signals(&mut self) -> StackSignalIteratorMut<'_, T> {
+        StackSignalIteratorMut::new(self)
+    }
+
+    pub fn iter_stack_signals(&self) -> StackSignalIterator<'_, T> {
+        StackSignalIterator::new(self)
     }
 
     pub fn print_by_ids(&mut self) {
@@ -484,4 +487,41 @@ pub fn tree_test() {
         // println!("{:?}",removed_nodes);
     }
     tree.print();
+}
+
+#[test]
+pub fn drop_test() {
+    use std::{cell::*, rc::*};
+
+    let has_been_dropped = Rc::new(Cell::new(false));
+
+    struct HasHeapStuff {
+        dropped: Rc<Cell<bool>>,
+        _a: String,
+        _b: Vec<i32>,
+    }
+
+    impl Drop for HasHeapStuff {
+        fn drop(&mut self) {
+            self.dropped.set(true);
+        }
+    }
+
+    let droppable_item = HasHeapStuff {
+        dropped: has_been_dropped.clone(),
+        _a: String::from("hello world my name is adam poo poo head"),
+        _b: vec![0; 1_000],
+    };
+
+    let mut removed_nodes = vec![];
+    let mut tree = LinearTree::new();
+    let node = tree.add(droppable_item, NodeID::default());
+
+    //node has been removed but removed object shouldn't be dropped
+    tree.remove(node, &mut removed_nodes);
+    assert_eq!(false, has_been_dropped.get());
+
+    //the clear should invoke drop
+    removed_nodes.clear();
+    assert_eq!(true, has_been_dropped.get());
 }

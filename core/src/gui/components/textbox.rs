@@ -1,5 +1,3 @@
-use crate::extras::math_util::AABB;
-
 use super::*;
 
 struct CaptionClipper {
@@ -14,6 +12,7 @@ impl CaptionClipper {
         font_size: f32,
         frame_bounds: Vec2<f32>,
         text_writer: &TextWriter,
+        margin_right: f32,
     ) -> &'a str {
         if text.is_empty() == true {
             return "";
@@ -32,7 +31,7 @@ impl CaptionClipper {
         let mut range_len = 0;
         let mut aabb;
         let mut char_iter = text.chars();
-        let max_text_width = (frame_bounds.x() - 2.0).max(0.0);
+        let max_text_width = (frame_bounds.x() - margin_right).max(0.0);
 
         while let Some(_) = char_iter.next() {
             clipped_text = &text[lbound..lbound + range_len];
@@ -131,12 +130,20 @@ impl GuiComponent for TextBoxState {
     ) {
         self.frame.render(gl, state, text_writer, win_w, win_h);
 
+        let horizontal_margin = 30.0;
+
         let clipper = &mut self.clipper;
         let caption = &self.caption;
         let frame_bounds = self.frame.bounds;
         let text_size = self.font_size;
 
-        let clipped_text = clipper.clip_text(caption, self.font_size, frame_bounds, text_writer);
+        let clipped_text = clipper.clip_text(
+            caption,
+            self.font_size,
+            frame_bounds,
+            text_writer,
+            horizontal_margin,
+        );
         let position = state.global_position;
 
         if clipped_text.is_empty() == false {
@@ -151,7 +158,7 @@ impl GuiComponent for TextBoxState {
 
             text_writer.draw_text_line(
                 clipped_text,
-                aligned_global_position.x()+2.0,
+                aligned_global_position.x() + horizontal_margin,
                 aligned_global_position.y(),
                 text_size,
                 Some((win_w as u32, win_h as u32)),
@@ -173,7 +180,7 @@ pub struct TextBoxBuilder<'a, ProgramState> {
 }
 impl<'a, ProgramState> TextBoxBuilder<'a, ProgramState> {
     pub fn new(manager: &'a mut GuiManager<ProgramState>) -> Self {
-        let textbox_key = manager.add_component_deferred(GuiComponentKey::default(), None);
+        let textbox_key = unsafe{manager.add_component_deferred(GuiComponentKey::default(), None)};
         Self {
             manager,
             state: Some(TextBoxState::new()),
@@ -265,7 +272,7 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
         let textbox_state = self.state.expect("textbox state missing");
 
         // set node state
-        *manager.gui_component_tree.get_mut_opt(textbox_node_id) = Some(Box::new(textbox_state));
+        *manager.gui_component_tree.get_mut_uninit(textbox_node_id) = MaybeUninit::new(Box::new(textbox_state));
 
         // set node parent
         manager

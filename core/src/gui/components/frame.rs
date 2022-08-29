@@ -8,9 +8,6 @@ pub struct FrameState {
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
     pub is_visible: bool,
-
-
-    
 }
 
 impl FrameState {
@@ -67,7 +64,7 @@ impl GuiComponent for FrameState {
         if self.is_visible == false {
             return;
         }
-     
+
         let r = state.renderer;
         r.builder(gl, GuiShaderKind::RoundedBox)
             .set_window(win_w, win_h)
@@ -111,7 +108,8 @@ pub struct FrameBuilder<'a, ProgramState> {
 
 impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
     pub fn new(manager: &'a mut GuiManager<ProgramState>) -> Self {
-        let frame_key = Some(manager.add_component_deferred(GuiComponentKey::default(), None));
+        let frame_key =
+            unsafe { Some(manager.add_component_deferred(GuiComponentKey::default(), None)) };
         Self {
             manager,
             state: Some(FrameState::new()),
@@ -191,7 +189,8 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for FrameBuilder<'a, Pr
             .gui_component_tree
             .set_parent(frame_id, parent_id);
 
-        *self.manager.gui_component_tree.get_mut_opt(frame_id) = Some(Box::new(frame_state));
+        *self.manager.gui_component_tree.get_mut_uninit(frame_id) =
+            MaybeUninit::new(Box::new(frame_state));
         self.manager.gui_component_tree.reconstruct_preorder();
 
         frame_id

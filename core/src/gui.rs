@@ -1,6 +1,8 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
-    fmt, vec,
+    fmt,
+    mem::MaybeUninit,
+    vec,
 };
 
 use glow::HasContext;
@@ -294,11 +296,12 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let textbox_key = manager
             .builder_textbox()
-            .with_parent(origin)
-            .with_bounds([256.0, 64.0])
-            .with_position([32.0, 300.0])
-            .with_drag(true)
+            .with_parent(prink_frame)
+            .with_bounds([400.0, 64.0])
+            .with_position([0.0, 200.0 - 64.0])
+            // .with_drag(true)
             .with_color(Vec4::rgb_u32(0))
+            .with_roundness([0.0, 0.0, 32.0, 32.0])
             .with_font_size(32.0)
             .with_alignment([TextAlignment::Left, TextAlignment::Center])
             .with_listener(GuiEventKind::OnFocusIn, |comp, _, _| {
@@ -343,11 +346,16 @@ impl<ProgramState> GuiManager<ProgramState> {
     /// allows you to generate a valid Key without providing a GuiComponent up-front
     /// ## Comments
     /// - **MUST CALL `LinearTree::recontruct_preorder(..)` or the tree WONT WORK**
-    fn add_component_deferred(
+    unsafe fn add_component_deferred(
         &mut self,
         parent: GuiComponentKey,
-        comp: Option<Box<dyn GuiComponent>>,
+        mut comp: Option<Box<dyn GuiComponent>>,
     ) -> GuiComponentKey {
+        let comp = comp
+            .take()
+            .map(|v| MaybeUninit::new(v))
+            .unwrap_or(MaybeUninit::zeroed());
+
         let id = self
             .gui_component_tree
             .add_deffered_reconstruction(comp, parent.into());

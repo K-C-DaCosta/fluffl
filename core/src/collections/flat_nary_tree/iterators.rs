@@ -37,11 +37,9 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
 
         if self.covered_root == false {
             self.covered_root = true;
-            return Some((
-                StackSignal::Nop,
-                tree.node_id[0],
-                tree.data[0].as_ref().unwrap(),
-            ));
+            return Some((StackSignal::Nop, tree.node_id[0], unsafe {
+                tree.data[0].assume_init_ref()
+            }));
         }
 
         let level = &tree.level;
@@ -66,11 +64,9 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
                 }
             };
 
-            (
-                signal,
-                tree.node_id[cur_node],
-                data[cur_node].as_ref().unwrap(),
-            )
+            (signal, tree.node_id[cur_node], unsafe {
+                data[cur_node].assume_init_ref()
+            })
         })
     }
 }
@@ -102,11 +98,9 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
 
         if self.covered_root == false {
             self.covered_root = true;
-            return Some((
-                StackSignal::Nop,
-                tree.node_id[0],
-                tree.data[0].as_mut().unwrap(),
-            ));
+            return Some((StackSignal::Nop, tree.node_id[0], unsafe {
+                tree.data[0].assume_init_mut()
+            }));
         }
 
         let level = &mut tree.level;
@@ -132,7 +126,9 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
                 }
             };
 
-            (signal, node_id[cur_node], data[cur_node].as_mut().unwrap())
+            (signal, node_id[cur_node], unsafe {
+                data[cur_node].assume_init_mut()
+            })
         })
     }
 }

@@ -83,9 +83,9 @@ pub struct SliderBuilder<'a, ProgramState> {
 impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
     pub fn new(manager: &'a mut GuiManager<ProgramState>) -> Self {
         let slider_frame_key =
-            Some(manager.add_component_deferred(GuiComponentKey::default(), None));
+            unsafe { Some(manager.add_component_deferred(GuiComponentKey::default(), None)) };
         let slider_button_key =
-            Some(manager.add_component_deferred(GuiComponentKey::default(), None));
+            unsafe { Some(manager.add_component_deferred(GuiComponentKey::default(), None)) };
 
         let mut slider_state = SliderState::new();
         slider_state.slider_button_key = slider_button_key.unwrap();
@@ -248,12 +248,13 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for SliderBuilder<'a, P
             *self
                 .manager
                 .gui_component_tree
-                .get_mut_opt(slider_frame_key) = Some(Box::new(slider_frame_state));
+                .get_mut_uninit(slider_frame_key) = MaybeUninit::new(Box::new(slider_frame_state));
 
             *self
                 .manager
                 .gui_component_tree
-                .get_mut_opt(slider_button_key) = Some(Box::new(slider_button_state));
+                .get_mut_uninit(slider_button_key) =
+                MaybeUninit::new(Box::new(slider_button_state));
 
             //set frame parent
             self.manager
