@@ -11,7 +11,7 @@ pub type Vec4<T> = Vector<4, T>;
 
 #[derive(Copy, Clone, Debug)]
 pub struct Vector<const N: usize, T> {
-    data: [T; N],
+    pub data: [T; N],
 }
 
 impl<const N: usize, T> Display for Vector<N, T>
@@ -29,7 +29,7 @@ where
 
 impl<const N: usize, T> Vector<N, T>
 where
-    T: Default + Copy + HasScalar,
+    T:  Default + Copy + HasScalar,
 {
     pub fn zero() -> Self {
         Self {

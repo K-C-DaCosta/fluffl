@@ -45,7 +45,7 @@ impl GuiComponent for OriginState {
     }
 
     fn render<'a>(
-        &self,
+        &mut self,
         _gl: &GlowGL,
         _state: RenderState<'a>,
         _text_writer: &mut TextWriter,

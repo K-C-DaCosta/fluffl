@@ -239,14 +239,23 @@ impl TextWriter {
     /// # Comments
     /// In order to avoid 'squished' looking text, I try to maintain aspect ratio of unscaled glyphs
     pub fn calc_text_aabb(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
-        let src_bb = self.calculate_bounding_box(x0, y0, text);
-        let aspect_ratio = src_bb.w / src_bb.h;
-        let width = aspect_ratio * size;
-        AABB {
-            x: src_bb.x,
-            y: src_bb.y,
-            w: width,
-            h: size,
+        if text.len() != 0 {
+            let src_bb = self.calculate_bounding_box(x0, y0, text);
+            let aspect_ratio = src_bb.w / src_bb.h;
+            let width = aspect_ratio * size;
+            AABB {
+                x: src_bb.x,
+                y: src_bb.y,
+                w: width,
+                h: size,
+            }
+        } else {
+            AABB {
+                x: x0,
+                y: y0,
+                w: 0.,
+                h: 0.,
+            }
         }
     }
 

@@ -114,13 +114,13 @@ impl<ProgramState> GuiManager<ProgramState> {
     pub fn render(&mut self, text_writer: &mut TextWriter, window_width: f32, window_height: f32) {
         self.handle_incoming_events();
 
-        let gl = &self.gl;
+        let gl = &mut self.gl;
         let stack = &mut self.stack;
 
-        let renderer = &self.renderer;
-        let gui_component_tree = &self.gui_component_tree;
-        let key_to_aabb_table = &self.key_to_aabb_table;
-        let visibility_table = &self.visibility_table;
+        let renderer = &mut self.renderer;
+        let gui_component_tree = &mut self.gui_component_tree;
+        let key_to_aabb_table = &mut self.key_to_aabb_table;
+        let visibility_table = &mut self.visibility_table;
 
         let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
             let s = stack;
@@ -128,21 +128,13 @@ impl<ProgramState> GuiManager<ProgramState> {
             let &transform = s.peek();
             transform * pos
         };
-
-        let build_state = |global_position| RenderState {
-            global_position,
-            renderer,
-            gui_component_tree,
-            key_to_aabb_table,
-        };
-
         unsafe {
             gl.enable(glow::BLEND);
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
         }
 
         stack.clear();
-        for (sig, key, comp) in gui_component_tree.iter_stack_signals() {
+        for (sig, key, comp) in gui_component_tree.iter_mut_stack_signals() {
             let &rel_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(rel_pos));
             // println!("sig:{:?}",sig);
@@ -169,7 +161,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             if visibility_table[key.as_usize()] {
                 comp.render(
                     gl,
-                    build_state(gpos),
+                    RenderState::new(gpos, renderer), //gui_component_tree, key_to_aabb_table),
                     text_writer,
                     window_width,
                     window_height,
@@ -299,6 +291,41 @@ impl<ProgramState> GuiManager<ProgramState> {
                 .with_drag(true)
                 .build();
         }
+
+        let textbox_key = manager
+            .builder_textbox()
+            .with_parent(origin)
+            .with_bounds([256.0, 64.0])
+            .with_position([32.0, 300.0])
+            .with_drag(true)
+            .with_color(Vec4::rgb_u32(0))
+            .with_font_size(32.0)
+            .with_alignment([TextAlignment::Left, TextAlignment::Center])
+            .with_listener(GuiEventKind::OnFocusIn, |comp, _, _| {
+                comp.frame.edge_color = Vec4::rgb_u32(0xff0000);
+            })
+            .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
+                comp.frame.edge_color = Vec4::rgb_u32(0x1fA00f);
+            })
+            .with_listener(GuiEventKind::OnKeyDown, |comp, e, _state| {
+                if let EventKind::KeyDown { code } = e {
+                    match code {
+                        KeyCode::BACKSPACE => {
+                            comp.caption.pop();
+                        }
+                        KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {
+                            ()
+                        }
+                        _ => {
+                            let c = code.key_val().unwrap_or_default();
+                            if c.is_ascii() {
+                                comp.caption.push(c);
+                            }
+                        }
+                    }
+                }
+            })
+            .build();
 
         // println!("origin={}", origin);
         // println!("pink_frame={}", prink_frame);
@@ -514,9 +541,16 @@ impl<ProgramState> GuiManager<ProgramState> {
                     let _disp = Vec2::from([dx as f32, dy as f32]);
 
                     if let &mut Some(clicked_key) = clicked_component {
-                        (visibility_table[clicked_key]==false).then(|| {
+                        //force release of component if its being clicked on while being invisible
+                        if visibility_table[clicked_key] == false && clicked_component.is_some() {
+                            let clicked_key = clicked_component.expect("clicked should be valid");
+                            component_signal_queue.push_back(ComponentEventSignal::new(
+                                GuiEventKind::OnRelease,
+                                clicked_key,
+                                event,
+                            ));
                             *clicked_component = None;
-                        });
+                        }
 
                         Self::object_is_clicked_so_send_drag_signal_to_focused_component(
                             component_signal_queue,

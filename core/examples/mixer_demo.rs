@@ -169,75 +169,75 @@ async fn main_loop(
                     *wave_type = new_type;
                 }
 
-                if let KeyCode::KEY_E = code {
-                    let file_pointer_to_music =
-                        std::fs::File::open("./wasm_bins/resources/taunt.adhoc")
-                            .expect("file galed to load");
-                    let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
-                        .expect("failed to read music file");
-                    let id = mixer_device.gen_id();
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        id,
-                        OffsetKind::current(),
-                        Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
-                    ));
-                }
-                if let KeyCode::KEY_R = code {
-                    let file_pointer_to_music =
-                        std::fs::File::open("./wasm_bins/resources/hiphop.adhoc")
-                            .expect("file galed to load");
-                    let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
-                        .expect("failed to read music file");
+                // if let KeyCode::KEY_E = code {
+                //     let file_pointer_to_music =
+                //         std::fs::File::open("./wasm_bins/resources/taunt.adhoc")
+                //             .expect("file galed to load");
+                //     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
+                //         .expect("failed to read music file");
+                //     let id = mixer_device.gen_id();
+                //     mixer_device.send_request(MixerRequest::AddTrack(
+                //         id,
+                //         OffsetKind::current(),
+                //         Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
+                //     ));
+                // }
+                // if let KeyCode::KEY_R = code {
+                //     let file_pointer_to_music =
+                //         std::fs::File::open("./wasm_bins/resources/hiphop.adhoc")
+                //             .expect("file galed to load");
+                //     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
+                //         .expect("failed to read music file");
 
-                    let track_id = mixer_device.gen_id();
+                //     let track_id = mixer_device.gen_id();
 
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        track_id,
-                        OffsetKind::current(),
-                        Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
-                    ));
+                //     mixer_device.send_request(MixerRequest::AddTrack(
+                //         track_id,
+                //         OffsetKind::current(),
+                //         Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
+                //     ));
 
-                    mixer_device.send_request(MixerRequest::MutateMixer(track_id, |tid, mixer| {
-                        let interval = mixer.track_get_interval(tid)?;
-                        let new_interval_that_loops_10_times =
-                            Interval::from_point_and_length(interval.lo, interval.distance() * 10);
-                        mixer.track_set_interval(tid, new_interval_that_loops_10_times)?;
-                        Ok(())
-                    }));
-                }
-                if let KeyCode::KEY_T = code {
-                    let file_pointer_to_music =
-                        std::fs::File::open("./wasm_bins/resources/fuck_jannies.adhoc")
-                            .expect("file galed to load");
-                    let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
-                        .expect("failed to read music file");
-                    let id = mixer_device.gen_id();
-                    mixer_device.send_request(MixerRequest::AddTrack(
-                        id,
-                        OffsetKind::current(),
-                        Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
-                    ));
-                }
+                //     mixer_device.send_request(MixerRequest::MutateMixer(track_id, |tid, mixer| {
+                //         let interval = mixer.track_get_interval(tid)?;
+                //         let new_interval_that_loops_10_times =
+                //             Interval::from_point_and_length(interval.lo, interval.distance() * 10);
+                //         mixer.track_set_interval(tid, new_interval_that_loops_10_times)?;
+                //         Ok(())
+                //     }));
+                // }
+                // if let KeyCode::KEY_T = code {
+                //     let file_pointer_to_music =
+                //         std::fs::File::open("./wasm_bins/resources/fuck_jannies.adhoc")
+                //             .expect("file galed to load");
+                //     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
+                //         .expect("failed to read music file");
+                //     let id = mixer_device.gen_id();
+                //     mixer_device.send_request(MixerRequest::AddTrack(
+                //         id,
+                //         OffsetKind::current(),
+                //         Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
+                //     ));
+                // }
 
-                //handle keyboard notes
-                if is_key_down.contains(&code) == false {
-                    if let Some(&wave_frequency) = key_frequency_table.get(&code) {
-                        let wave_frequency = wave_frequency as f64;
-                        let id = mixer_device.gen_id();
+                // //handle keyboard notes
+                // if is_key_down.contains(&code) == false {
+                //     if let Some(&wave_frequency) = key_frequency_table.get(&code) {
+                //         let wave_frequency = wave_frequency as f64;
+                //         let id = mixer_device.gen_id();
 
-                        mixer_device.send_request(MixerRequest::AddTrack(
-                            id,
-                            OffsetKind::current(),
-                            Box::new(ImplicitWave::new(
-                                wave_type.as_fn(),
-                                Interval::from_length(FP64::from(1000)),
-                                wave_frequency,
-                            )),
-                        ));
+                //         mixer_device.send_request(MixerRequest::AddTrack(
+                //             id,
+                //             OffsetKind::current(),
+                //             Box::new(ImplicitWave::new(
+                //                 wave_type.as_fn(),
+                //                 Interval::from_length(FP64::from(1000)),
+                //                 wave_frequency,
+                //             )),
+                //         ));
 
-                        key_extend_list.push((code, id));
-                    }
-                }
+                //         key_extend_list.push((code, id));
+                //     }
+                // }
 
                 if let KeyCode::KEY_V = code {
                     mixer_device

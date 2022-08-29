@@ -9,5 +9,5 @@ cfg_if::cfg_if! {
     }
 }
 
+pub use glow::{self, *};
 pub use macros::*;
-pub use glow::*; 

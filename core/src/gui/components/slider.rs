@@ -47,7 +47,7 @@ impl GuiComponent for SliderState {
     }
 
     fn render<'a>(
-        &self,
+        &mut self,
         gl: &GlowGL,
         state: RenderState<'a>,
         _text_writer: &mut TextWriter,
@@ -197,7 +197,7 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
     }
 }
 
-impl<'a, ProgramState> HasBuilder<ProgramState> for SliderBuilder<'a, ProgramState> {
+impl<'a, ProgramState> HasComponentBuilder<ProgramState> for SliderBuilder<'a, ProgramState> {
     type ComponentKind = SliderState;
 
     fn key(&mut self) -> &mut Option<GuiComponentKey> {

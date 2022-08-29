@@ -1,6 +1,6 @@
 use super::*;
 
-pub trait HasBuilder<ProgramState>: Sized {
+pub trait HasComponentBuilder<ProgramState>: Sized {
     type ComponentKind: GuiComponent + 'static;
     fn manager(&mut self) -> &mut GuiManager<ProgramState>;
     fn parent(&mut self) -> &mut Option<GuiComponentKey>;

@@ -6,9 +6,9 @@ use std::any::Any;
 mod frame;
 mod origin;
 mod slider;
-mod text_box;
+mod textbox;
 
-pub use self::{frame::*, origin::*, slider::*, text_box::*};
+pub use self::{frame::*, origin::*, slider::*, textbox::*};
 
 #[derive(Copy, Clone)]
 #[rustfmt::skip]
@@ -62,12 +62,27 @@ impl ComponentEventSignal {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy,Clone)]
 pub struct RenderState<'a> {
     pub global_position: Vec4<f32>,
     pub renderer: &'a GuiRenderer,
-    pub gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
-    pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+    // pub gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
+    // pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+}
+impl<'a> RenderState<'a> {
+    pub fn new(
+        global_position: Vec4<f32>,
+        renderer: &'a GuiRenderer,
+        // gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
+        // key_to_aabb_table: &'a HashMap<GuiComponentKey, math::AABB<2, f32>>,
+    ) -> Self {
+        Self {
+            global_position,
+            renderer,
+            // gui_component_tree,
+            // key_to_aabb_table,
+        }
+    }
 }
 
 pub struct EventListenerInfo<'a, ProgramState> {
@@ -103,7 +118,7 @@ pub trait GuiComponent {
     fn set_rel_position(&mut self, pos: Vec2<f32>);
 
     fn render<'a>(
-        &self,
+        &mut self,
         gl: &GlowGL,
         state: RenderState<'a>,
         text_writer: &mut TextWriter,

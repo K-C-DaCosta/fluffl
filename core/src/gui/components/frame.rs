@@ -7,11 +7,10 @@ pub struct FrameState {
     pub color: Vec4<f32>,
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
-    pub alignment: [TextAlignment; 2],
-
-    pub caption: String,
-    pub font_size: f32,
     pub is_visible: bool,
+
+
+    
 }
 
 impl FrameState {
@@ -22,10 +21,7 @@ impl FrameState {
             color: Vec4::rgb_u32(0xF94892),
             edge_color: Vec4::rgb_u32(0x89CFFD),
             roundness: Vec4::from([1.0, 1.0, 1.0, 1.0]),
-            caption: String::new(),
             is_visible: true,
-            font_size: 30.0,
-            alignment: [TextAlignment::Center; 2],
         }
     }
 }
@@ -61,17 +57,17 @@ impl GuiComponent for FrameState {
     }
 
     fn render<'b>(
-        &self,
+        &mut self,
         gl: &GlowGL,
         state: RenderState<'b>,
-        text_writer: &mut TextWriter,
+        _text_writer: &mut TextWriter,
         win_w: f32,
         win_h: f32,
     ) {
         if self.is_visible == false {
             return;
         }
-        let position = state.global_position;
+     
         let r = state.renderer;
         r.builder(gl, GuiShaderKind::RoundedBox)
             .set_window(win_w, win_h)
@@ -82,30 +78,6 @@ impl GuiComponent for FrameState {
             .set_bounds(self.bounds)
             .set_position(state.global_position, Vec4::to_pos(self.bounds))
             .render();
-
-        let text = self.caption.as_ref();
-        let text_size = self.font_size;
-        let aabb = text_writer.calc_text_aabb(text, 0.0, 0.0, text_size);
-
-        // let aligned_global_position = compute_alignment_position(
-        //     Vec2::convert(position),
-        //     Vec2::from([aabb.w, aabb.h]),
-        //     self.bounds,
-        //     &self.alignment,
-        // );
-        // if text.is_empty() == false {
-        //     text_writer.draw_text_line(
-        //         text,
-        //         aligned_global_position.x(),
-        //         aligned_global_position.y(),
-        //         text_size,
-        //         Some((win_w as u32, win_h as u32)),
-        //     );
-        //     unsafe {
-        //         //re-enable
-        //         gl.enable(glow::BLEND);
-        //     }
-        // }
     }
 }
 
@@ -189,28 +161,13 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
         self
     }
 
-    pub fn with_caption(mut self, caption: String) -> Self {
-        self.state.as_mut().unwrap().caption = caption;
-        self
-    }
-
-    pub fn with_alignment(mut self, horizontal: TextAlignment, vertical: TextAlignment) -> Self {
-        self.state.as_mut().unwrap().alignment = [horizontal, vertical];
-        self
-    }
-
     pub fn with_visibility(mut self, visibility: bool) -> Self {
         self.state.as_mut().unwrap().is_visible = visibility;
         self
     }
-
-    pub fn with_font_size(mut self, size: f32) -> Self {
-        self.state.as_mut().unwrap().font_size = size;
-        self
-    }
 }
 
-impl<'a, ProgramState> HasBuilder<ProgramState> for FrameBuilder<'a, ProgramState> {
+impl<'a, ProgramState> HasComponentBuilder<ProgramState> for FrameBuilder<'a, ProgramState> {
     type ComponentKind = FrameState;
 
     fn manager(&mut self) -> &mut GuiManager<ProgramState> {
