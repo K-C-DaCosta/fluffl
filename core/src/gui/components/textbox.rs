@@ -1,12 +1,24 @@
 use super::*;
 
-struct CaptionClipper {
+pub struct CaptionClipper {
     prev_cap_len: usize,
     visible_text: String,
+    visible_text_dx: Vec<f32>,
+    can_off_cursor: Option<isize>,
+    cursor: isize,
 }
 
 impl CaptionClipper {
-    fn clip_text<'a>(
+    pub fn new() -> Self {
+        Self {
+            prev_cap_len: 0,
+            visible_text: String::new(),
+            visible_text_dx: vec![],
+            cursor: 0,
+            can_off_cursor: None,
+        }
+    }
+    pub fn clip_text<'a>(
         &'a mut self,
         text: &'a str,
         font_size: f32,
@@ -14,7 +26,9 @@ impl CaptionClipper {
         text_writer: &TextWriter,
         margin_right: f32,
     ) -> &'a str {
+        const MARGIN_SCALING_TO_MAKE_SURE_CURSOR_REACES_THE_START_OF_THE_TEXT: f32 = 1.2;
         if text.is_empty() == true {
+            self.cursor = 0;
             return "";
         }
 
@@ -25,15 +39,38 @@ impl CaptionClipper {
 
         self.clear();
 
-        let mut clipped_text;
         let text_size = font_size;
+
+        if let Some(off) = self.can_off_cursor.take() {
+            let byte_slice = text.as_bytes();
+            let num_bytes = byte_slice.len() as isize;
+            let cursor_ubound = (num_bytes - (self.cursor + off)).clamp(0, num_bytes) as usize;
+            let clipped_text = &text[..cursor_ubound];
+            let clipped_text_aabb = text_writer.calc_text_aabb(clipped_text, 0.0, 0.0, font_size);
+            let is_overflow_on_x = || {
+                let clipped_max_width = frame_bounds.x()
+                    - margin_right
+                        * MARGIN_SCALING_TO_MAKE_SURE_CURSOR_REACES_THE_START_OF_THE_TEXT;
+                clipped_text_aabb.w > clipped_max_width
+            };
+
+            if is_overflow_on_x() {
+                self.cursor += off;
+                self.cursor = self.cursor.clamp(0, num_bytes);
+            }
+        }
+
+        let mut clipped_text;
         let mut lbound = 0;
         let mut range_len = 0;
         let mut aabb;
-        let mut char_iter = text.chars();
+
+        let byte_slice = text.as_bytes();
+        let num_bytes = byte_slice.len() as isize;
+        let cursor_ubound = (num_bytes - self.cursor).clamp(0, num_bytes) as usize;
         let max_text_width = (frame_bounds.x() - margin_right).max(0.0);
 
-        while let Some(_) = char_iter.next() {
+        for _ in &byte_slice[..cursor_ubound] {
             clipped_text = &text[lbound..lbound + range_len];
             aabb = text_writer.calc_text_aabb(clipped_text, 0.0, 0.0, text_size);
             if aabb.w < max_text_width {
@@ -58,20 +95,48 @@ impl CaptionClipper {
         self.visible_text.push_str(clipped_text);
         self.prev_cap_len = text.len();
 
+        //compute character widths
+        let mut prev_w = 0.0;
+        self.visible_text_dx.clear();
+        for k in 1..clipped_text.len() {
+            let cur_w = text_writer
+                .calc_text_aabb(&clipped_text[..k], 0.0, 0.0, font_size)
+                .w;
+            self.visible_text_dx.push(cur_w - prev_w);
+            prev_w = cur_w;
+        }
+
+        println!("{clipped_text},\n{:?}", self.visible_text_dx);
+
         clipped_text
+    }
+    pub fn offset_cursor(&mut self, off: isize) {
+        self.can_off_cursor = Some(off);
+        //to avoid caching
+        self.prev_cap_len += 1;
     }
 
     fn clear(&mut self) {
         self.prev_cap_len = 0;
         self.visible_text.clear();
+        self.visible_text_dx.clear();
     }
 }
+
+#[derive(Copy, Clone)]
+pub enum TextBoxStateFlag {
+    Start,
+    Focused,
+    Dragged,
+}
+
 pub struct TextBoxState {
     pub frame: FrameState,
     pub alignment: [TextAlignment; 2],
     pub caption: String,
     pub font_size: f32,
-    clipper: CaptionClipper,
+    pub flag: TextBoxStateFlag,
+    pub clipper: CaptionClipper,
 }
 impl TextBoxState {
     pub fn new() -> Self {
@@ -80,10 +145,8 @@ impl TextBoxState {
             alignment: [TextAlignment::Center; 2],
             caption: String::new(),
             font_size: 12.0,
-            clipper: CaptionClipper {
-                prev_cap_len: 0,
-                visible_text: String::new(),
-            },
+            flag: TextBoxStateFlag::Start,
+            clipper: CaptionClipper::new(),
         }
     }
 }
@@ -130,7 +193,7 @@ impl GuiComponent for TextBoxState {
     ) {
         self.frame.render(gl, state, text_writer, win_w, win_h);
 
-        let horizontal_margin = 30.0;
+        let horizontal_margin = 20.0;
 
         let clipper = &mut self.clipper;
         let caption = &self.caption;
@@ -142,7 +205,7 @@ impl GuiComponent for TextBoxState {
             self.font_size,
             frame_bounds,
             text_writer,
-            horizontal_margin,
+            horizontal_margin + 20.0,
         );
         let position = state.global_position;
 
@@ -180,7 +243,8 @@ pub struct TextBoxBuilder<'a, ProgramState> {
 }
 impl<'a, ProgramState> TextBoxBuilder<'a, ProgramState> {
     pub fn new(manager: &'a mut GuiManager<ProgramState>) -> Self {
-        let textbox_key = unsafe{manager.add_component_deferred(GuiComponentKey::default(), None)};
+        let textbox_key =
+            unsafe { manager.add_component_deferred(GuiComponentKey::default(), None) };
         Self {
             manager,
             state: Some(TextBoxState::new()),
@@ -272,7 +336,8 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
         let textbox_state = self.state.expect("textbox state missing");
 
         // set node state
-        *manager.gui_component_tree.get_mut_uninit(textbox_node_id) = MaybeUninit::new(Box::new(textbox_state));
+        *manager.gui_component_tree.get_mut_uninit(textbox_node_id) =
+            MaybeUninit::new(Box::new(textbox_state));
 
         // set node parent
         manager

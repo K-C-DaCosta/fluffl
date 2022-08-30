@@ -440,18 +440,26 @@ impl TextWriter {
         let mut maxy = std::f32::NEG_INFINITY;
         let mut pen_x = x0;
         let pen_y = y0;
+
         let whitespace = self.whitespace();
         self.atlas.as_ref().map(|atlas| {
             text.chars().for_each(|c| {
                 let x_adv = atlas.bitmap_table.get(&c).map_or_else(
                     || whitespace,
                     |bitmap| {
+                        
+                        let is_ws = c.is_whitespace() as u8 as f32;
+                        let not_ws = 1.0 - is_ws;
+
                         let xoff = bitmap.xoffset as f32;
                         let yoff = bitmap.yoffset as f32;
                         let x = xoff + pen_x;
                         let y = yoff + pen_y;
-                        let w = bitmap.width as f32;
-                        let h = bitmap.height as f32;
+                        // makes the width and height of the bitmap = xadvance for whitespace characters 
+                        // without this the result is a point(AABB with w=0,h=0). And when
+                        // aspect ratio  is corrected we get INF/NANs in the AABB fields 
+                        let w = not_ws * (bitmap.width as f32) + is_ws * (bitmap.xadvance as f32);
+                        let h = not_ws * (bitmap.height as f32) + is_ws * (bitmap.xadvance as f32);
 
                         [(x, y), (x + w, y), (x, y + h), (x + w, y + h)]
                             .iter()
@@ -469,6 +477,11 @@ impl TextWriter {
                 pen_x += x_adv;
             });
         });
+
+        minx = minx.min(pen_x);
+        maxx = maxx.max(pen_x);
+        miny = miny.min(pen_y);
+        maxy = maxy.max(pen_y);
 
         AABB {
             x: minx,

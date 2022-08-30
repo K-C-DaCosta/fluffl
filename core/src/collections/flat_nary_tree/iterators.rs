@@ -106,7 +106,7 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
         let level = &mut tree.level;
         let data = &mut tree.data;
         let node_id = &mut tree.node_id;
-
+        
         let node_len = self.node_len;
         let cur_node_ref = &mut self.cur_node;
         let cur_node = *cur_node_ref;

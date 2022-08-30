@@ -39,6 +39,9 @@ pub struct GuiManager<ProgramState> {
     renderer: GuiRenderer,
     stack: MatStack<f32>,
 
+    /// copy+paste
+    clipboard: String,
+
     ///component that is currently in "focus"
     focused_component: Option<GuiComponentKey>,
 
@@ -80,6 +83,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             key_to_handler_block_table: HashMap::new(),
             key_down_table: HashSet::new(),
             visibility_table: Vec::new(),
+            clipboard: String::new(),
             gl,
             state: None,
         }
@@ -299,7 +303,6 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_parent(prink_frame)
             .with_bounds([400.0, 64.0])
             .with_position([0.0, 200.0 - 64.0])
-            // .with_drag(true)
             .with_color(Vec4::rgb_u32(0))
             .with_roundness([0.0, 0.0, 32.0, 32.0])
             .with_font_size(32.0)
@@ -310,6 +313,31 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
                 comp.frame.edge_color = Vec4::rgb_u32(0x1fA00f);
             })
+            .with_listener(GuiEventKind::OnClick, |tb, ek, _| {})
+            .with_listener_advanced(
+                GuiEventKind::OnDrag,
+                Box::new(|info| {
+
+                    let disp = info.event.disp();
+
+
+                    let tb_key = info.key;
+                    let gui_comp_tree = info.gui_comp_tree;
+                    let key_to_aabb_table = info.key_to_aabb_table;
+                    let aabb = *key_to_aabb_table.get(&tb_key).expect("tb_key invalid");
+
+                    let tb = gui_comp_tree
+                        .get_mut(tb_key)
+                        .expect("tb_key should be valid")
+                        .as_any_mut()
+                        .downcast_mut::<TextBoxState>()
+                        .unwrap();
+
+                    tb.clipper.offset_cursor(-disp.x() as isize);
+
+                    None
+                }),
+            )
             .with_listener(GuiEventKind::OnKeyDown, |comp, e, _state| {
                 if let EventKind::KeyDown { code } = e {
                     match code {
@@ -317,7 +345,8 @@ impl<ProgramState> GuiManager<ProgramState> {
                             comp.caption.pop();
                         }
                         KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {
-                            ()
+                            comp.clipper.offset_cursor(1);
+                            comp.clipper.offset_cursor(-1);
                         }
                         _ => {
                             let c = code.key_val().unwrap_or_default();
@@ -392,7 +421,6 @@ impl<ProgramState> GuiManager<ProgramState> {
     fn handle_incoming_events(&mut self) {
         self.recompute_visibility();
         self.recompute_aabb_table();
-
         self.process_window_events_to_generate_signals_and_queue_them_for_processing();
         self.process_signal_queue();
     }

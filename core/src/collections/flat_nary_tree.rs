@@ -55,7 +55,7 @@ impl<T> LinearTree<T> {
             level: vec![],
             parent: vec![],
             data: vec![],
-            parent_stack: vec![],
+            parent_stack: Vec::with_capacity(128),
             node_id: vec![],
             node_id_counter: 0,
             nodes_deleted: 0,
@@ -463,7 +463,7 @@ where
 }
 
 #[test]
-pub fn tree_test() {
+pub fn remove_sanity() {
     let mut removed_nodes = vec![];
 
     let mut tree = LinearTree::<i32>::new();
@@ -490,7 +490,7 @@ pub fn tree_test() {
 }
 
 #[test]
-pub fn drop_test() {
+pub fn drop_sanity() {
     use std::{cell::*, rc::*};
 
     let has_been_dropped = Rc::new(Cell::new(false));
