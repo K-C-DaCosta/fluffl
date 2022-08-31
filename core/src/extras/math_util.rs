@@ -137,7 +137,7 @@ pub fn eval_line(coefs: PointInterceptLine, x: f32) -> f32 {
     let PointInterceptLine { m, b } = coefs;
     m * x + b
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone,Default)]
 pub struct AABB {
     pub x: f32,
     pub y: f32,

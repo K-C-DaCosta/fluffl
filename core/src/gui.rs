@@ -313,27 +313,40 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
                 comp.frame.edge_color = Vec4::rgb_u32(0x1fA00f);
             })
-            .with_listener(GuiEventKind::OnClick, |tb, ek, _| {})
+            .with_listener(GuiEventKind::OnClick, |tb, ek, _| {
+                if let EventKind::MouseDown{x,y,..} = ek {
+                    let aabb  = tb.cursor_area;
+                    if aabb.is_point_inside(Vec2::from([x as f32, y as f32])) {
+                        let dims = aabb.dims();
+                        let new_percentage = (x as f32 - aabb.s0.x())/dims.x();
+                        if new_percentage < 0.1 {
+                            tb.clipper.request_offset_of_scroll_cursor(1);
+                        }
+                        tb.clipper.request_offset_of_scroll_cursor(-1);
+                        tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
+                    }
+                }
+            })
             .with_listener_advanced(
                 GuiEventKind::OnDrag,
                 Box::new(|info| {
+                    if let EventKind::MouseMove { x, y, dx, dy } = info.event{
+                        let disp = info.event.disp();
+                        let tb_key = info.key;
+                        let gui_comp_tree = info.gui_comp_tree;   
+                        let tb = gui_comp_tree
+                            .get_mut(tb_key)
+                            .expect("tb_key should be valid")
+                            .as_any_mut()
+                            .downcast_mut::<TextBoxState>()
+                            .unwrap();
+                        let cursor_aabb = tb.cursor_area;
+                        if cursor_aabb.is_point_inside(Vec2::from([x as f32, y as f32])) { 
+                            tb.clipper.request_offset_of_scroll_cursor(-disp.x() as isize);
+                        }
+                    }
 
-                    let disp = info.event.disp();
-
-
-                    let tb_key = info.key;
-                    let gui_comp_tree = info.gui_comp_tree;
-                    let key_to_aabb_table = info.key_to_aabb_table;
-                    let aabb = *key_to_aabb_table.get(&tb_key).expect("tb_key invalid");
-
-                    let tb = gui_comp_tree
-                        .get_mut(tb_key)
-                        .expect("tb_key should be valid")
-                        .as_any_mut()
-                        .downcast_mut::<TextBoxState>()
-                        .unwrap();
-
-                    tb.clipper.offset_cursor(-disp.x() as isize);
+                   
 
                     None
                 }),
@@ -343,10 +356,11 @@ impl<ProgramState> GuiManager<ProgramState> {
                     match code {
                         KeyCode::BACKSPACE => {
                             comp.caption.pop();
+                            comp.clipper.request_offset_of_scroll_cursor(-1);
                         }
                         KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {
-                            comp.clipper.offset_cursor(1);
-                            comp.clipper.offset_cursor(-1);
+                            comp.clipper.request_offset_of_scroll_cursor(1);
+                            comp.clipper.request_offset_of_scroll_cursor(-1);
                         }
                         _ => {
                             let c = code.key_val().unwrap_or_default();

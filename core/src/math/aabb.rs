@@ -12,14 +12,19 @@ pub type AABB3<T> = AABB<3, T>;
 /// A representation of an axis-alligned rectangle
 #[derive(Copy, Clone)]
 pub struct AABB<const DIM: usize, T> {
-    s0: Vector<DIM, T>,
-    s1: Vector<DIM, T>,
+    pub s0: Vector<DIM, T>,
+    pub s1: Vector<DIM, T>,
 }
 
 impl<const DIM: usize, T> AABB<DIM, T>
 where
     T: Copy + Default + Add<Output = T> + Sub<Output = T> + AddAssign + PartialOrd + HasScalar,
 {
+
+    pub fn zero() -> Self {
+        Self::from_segment(Vector::zero(), Vector::zero())
+    }
+
     pub fn from_segment(a: Vector<DIM, T>, b: Vector<DIM, T>) -> Self {
         Self { s0: a, s1: b }
     }
