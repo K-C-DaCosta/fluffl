@@ -330,7 +330,7 @@ async fn main_loop(
     caption_list.iter().enumerate().for_each(|(k, caption)| {
         // let size = (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.;
         let size = 100.0;
-        writer.draw_text_line(
+        writer.draw_text_line_preserved(
             caption,
             0.,
             0. + 64. * k as f32,
@@ -341,13 +341,13 @@ async fn main_loop(
 
     gui_manager.render(writer, win_width, win_height);
 
-    writer.draw_text_line(
-        &time_to_string(seek_time as i64),
-        x + 10.0,
-        y,
-        32.0,
-        Some(win_ptr.window().get_bounds()),
-    );
+    // writer.draw_text_line(
+    //     &time_to_string(seek_time as i64),
+    //     x + 10.0,
+    //     y,
+    //     32.0,
+    //     Some(win_ptr.window().get_bounds()),
+    // );
 
     // mixer_device.modify_state(|state| {
     //     let mixer_state = state?;
@@ -381,5 +381,26 @@ fn time_to_string(elapsed_time_ms: i64) -> String {
             total_minutes % 60,
             total_seconds % 60
         )
+    }
+}
+
+#[test]
+pub fn asdasdasd() {
+    use std::alloc::{alloc, dealloc, Layout};
+    unsafe {
+        let lo = Layout::from_size_align(std::mem::size_of::<f32>() * 100, 8).unwrap();
+        let slice_ptr = alloc(lo);
+        let mem = std::slice::from_raw_parts_mut(slice_ptr as *mut f32, 100);
+        
+        mem.iter_mut()
+            .enumerate()
+            .for_each(|(i, e)| *e = i as f32 * 0.5);
+
+        println!("{:?}", mem);
+
+        let last = *(slice_ptr as *mut f32).offset(1000);
+        println!("last f32 = {last}");
+
+        dealloc(slice_ptr, lo);
     }
 }

@@ -161,6 +161,8 @@ pub struct TextWriter {
     whitespace_len: Option<f32>,
     page_history: [usize; 4],
     page_index: usize,
+    /// horizontal scaling for un-aspect-ratio-corrected text found in `Self::draw_text_line(..)` and `Self::`
+    horizontal_scale_factor: f32,
 }
 
 impl TextWriter {
@@ -227,9 +229,44 @@ impl TextWriter {
                 whitespace_len: None,
                 page_history: [99999; 4],
                 page_index: 0,
+                horizontal_scale_factor: 1.0,
             })
         }
     }
+
+    pub fn horizontal_scaling_factor(&self) -> &f32 {
+        &self.horizontal_scale_factor
+    }
+
+    pub fn horizontal_scaling_factor_mut(&mut self) -> &mut f32 {
+        &mut self.horizontal_scale_factor
+    }
+
+    /// # Description
+    /// Calculates a tight bounding box of the text, but doesn't actually draw anything
+    /// # Parameters
+    /// - `text` - the text you wish compute bonding box of
+    /// - `x0`,`y0` - the top left corner of the bounding box
+    /// - `size` - the vertical height of the text
+    pub fn calc_text_aabb(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
+        if text.len() != 0 {
+            let src_bb = self.calculate_bounding_box(x0, y0, text);
+            AABB {
+                x: src_bb.x,
+                y: src_bb.y,
+                w: src_bb.w * self.horizontal_scale_factor,
+                h: size,
+            }
+        } else {
+            AABB {
+                x: x0,
+                y: y0,
+                w: 0.,
+                h: 0.,
+            }
+        }
+    }
+
     /// # Description
     /// Calculates a tight bounding box of the text, but doesn't actually draw anything
     /// # Parameters
@@ -238,7 +275,7 @@ impl TextWriter {
     /// - `size` - the vertical height of the text
     /// # Comments
     /// In order to avoid 'squished' looking text, I try to maintain aspect ratio of unscaled glyphs
-    pub fn calc_text_aabb(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
+    pub fn calc_text_aabb_preserved(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
         if text.len() != 0 {
             let src_bb = self.calculate_bounding_box(x0, y0, text);
             let aspect_ratio = src_bb.w / src_bb.h;
@@ -263,7 +300,7 @@ impl TextWriter {
     /// Draws a line of `text`
     /// # Parameters
     /// - `x0` and `y0` are the position of text in the top-left corner\
-    /// - `size` - specifys the height of the text ( aspect ratio is preserved ) width depends on the length(number of chars) of text\
+    /// - `size` - specifys the height of the text ( aspect ratio is **NOT** preserved ) width depends on the length(number of chars) of text\
     /// - `screen_bounds` - the routine *needs* the dimensions of the screen in order to draw correctly\
     /// # Notes
     /// ---
@@ -285,13 +322,61 @@ impl TextWriter {
         if text.len() == 0 {
             return;
         }
+        let gl = self.gl.clone();
+        let (screen_w, screen_h) = screen_bounds.unwrap_or((800, 600));
+        let proj_mat = calc_proj(screen_w as f32, screen_h as f32);
+        let src_bb = self.calculate_bounding_box(x0, y0, text);
+        let resize_matrix = resize_region(
+            src_bb,
+            AABB::new(x0, y0, src_bb.w * self.horizontal_scale_factor, size),
+        );
+        self.draw(&gl, text, x0, y0, proj_mat, resize_matrix);
+    }
 
+    /// # Description
+    /// Draws a line of `text`
+    /// # Parameters
+    /// - `x0` and `y0` are the position of text in the top-left corner\
+    /// - `size` - specifys the height of the text ( aspect ratio is preserved ) width depends on the length(number of chars) of text\
+    /// - `screen_bounds` - the routine *needs* the dimensions of the screen in order to draw correctly\
+    /// # Notes
+    /// ---
+    /// - Characters not present in the atlas are considered whitespace
+    /// - Best performance is when an atlas consists of a SINGLE page(only one decode for entire lifetime of writer).
+    /// - The routine only decodes one page at a time, so rendering can be very, very slow for certain strings.
+    /// ## For exmaple(of worst case scenario):
+    /// suppose character 'a' is in page 0 and character 'b' is in page 1, then the string 'ababab' will
+    /// decode page 0 and 1 SIX times collectively. Decodes are really,relly, really slow.  
+    pub fn draw_text_line_preserved(
+        &mut self,
+        text: &str,
+        x0: f32,
+        y0: f32,
+        size: f32,
+        screen_bounds: Option<(u32, u32)>,
+    ) {
+        //just covering base cases
+        if text.len() == 0 {
+            return;
+        }
         let gl = self.gl.clone();
         let (screen_w, screen_h) = screen_bounds.unwrap_or((800, 600));
         let proj_mat = calc_proj(screen_w as f32, screen_h as f32);
         let src_bb = self.calculate_bounding_box(x0, y0, text);
         let aspect_ratio = src_bb.w / src_bb.h;
         let resize_matrix = resize_region(src_bb, AABB::new(x0, y0, aspect_ratio * size, size));
+        self.draw(&gl, text, x0, y0, proj_mat, resize_matrix);
+    }
+
+    fn draw(
+        &mut self,
+        gl: &GlowGL,
+        text: &str,
+        x0: f32,
+        y0: f32,
+        proj_mat: [f32; 16],
+        resize_matrix: [f32; 16],
+    ) {
         let whitespace = self.whitespace();
 
         //bind program
@@ -412,6 +497,7 @@ impl TextWriter {
             gl.disable(glow::BLEND);
         }
     }
+
     fn decode_page(&mut self, new_page: usize) {
         //decode new page and update OglTexture
         self.atlas.as_ref().map(|atlas| {
@@ -447,7 +533,6 @@ impl TextWriter {
                 let x_adv = atlas.bitmap_table.get(&c).map_or_else(
                     || whitespace,
                     |bitmap| {
-                        
                         let is_ws = c.is_whitespace() as u8 as f32;
                         let not_ws = 1.0 - is_ws;
 
@@ -455,9 +540,9 @@ impl TextWriter {
                         let yoff = bitmap.yoffset as f32;
                         let x = xoff + pen_x;
                         let y = yoff + pen_y;
-                        // makes the width and height of the bitmap = xadvance for whitespace characters 
+                        // makes the width and height of the bitmap = xadvance for whitespace characters
                         // without this the result is a point(AABB with w=0,h=0). And when
-                        // aspect ratio  is corrected we get INF/NANs in the AABB fields 
+                        // aspect ratio  is corrected we get INF/NANs in the AABB fields
                         let w = not_ws * (bitmap.width as f32) + is_ws * (bitmap.xadvance as f32);
                         let h = not_ws * (bitmap.height as f32) + is_ws * (bitmap.xadvance as f32);
 

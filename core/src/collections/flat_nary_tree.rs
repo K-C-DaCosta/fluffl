@@ -147,7 +147,7 @@ impl<T> LinearTree<T> {
             .map(|val| unsafe { val.assume_init_mut() })
     }
 
-    /// get the underlying
+    /// get the underlying reference from `data` field
     pub fn get_mut_uninit<NID>(&mut self, node_id: NID) -> &mut MaybeUninit<T>
     where
         NID: Copy + Into<NodeID>,

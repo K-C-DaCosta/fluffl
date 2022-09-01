@@ -181,7 +181,7 @@ pub async fn main() {
             //draw text here
             let caption_list = ["fluffl"];
             caption_list.iter().enumerate().for_each(|(k, caption)| {
-                main_state.inner.borrow_mut().writer.draw_text_line(
+                main_state.inner.borrow_mut().writer.draw_text_line_preserved(
                     caption,
                     x,
                     y + 64. * k as f32,

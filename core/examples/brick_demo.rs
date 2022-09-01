@@ -263,21 +263,21 @@ pub async fn main() {
                 match gui_state {
                     GuiState::Menu => {
                         app_state.inner.borrow_mut().writer.as_mut().map(|writer| {
-                            writer.draw_text_line(
+                            writer.draw_text_line_preserved(
                                 "Rust Bricks",
                                 screen_bounds.0 as f32 * 0.5 - 155.,
                                 70.,
                                 64.,
                                 Some(screen_bounds),
                             );
-                            writer.draw_text_line(
+                            writer.draw_text_line_preserved(
                                 "Music by: \"SketchyLogic\" on OpenGameArt",
                                 screen_bounds.0 as f32 * 0.5 - 242.4,
                                 screen_bounds.1 as f32 * 0.5 - 32.0,
                                 32.0,
                                 Some(screen_bounds),
                             );
-                            writer.draw_text_line(
+                            writer.draw_text_line_preserved(
                                 "Source At: https://github.com/K-C-DaCosta/fluffl",
                                 screen_bounds.0 as f32 * 0.5 - 300.4,
                                 screen_bounds.1 as f32 * 0.5 + 1.0,
@@ -285,7 +285,7 @@ pub async fn main() {
                                 Some(screen_bounds),
                             );
                             let height = 24. + (((time * 2.0).sin() + 1.0) * 0.5) * 8.0;
-                            writer.draw_text_line(
+                            writer.draw_text_line_preserved(
                                 "Press [spacebar] to start",
                                 screen_bounds.0 as f32 * 0.5 - 100. - height * 1.4,
                                 screen_bounds.1 as f32 * 0.7,

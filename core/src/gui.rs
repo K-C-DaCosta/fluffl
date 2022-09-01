@@ -314,39 +314,51 @@ impl<ProgramState> GuiManager<ProgramState> {
                 comp.frame.edge_color = Vec4::rgb_u32(0x1fA00f);
             })
             .with_listener(GuiEventKind::OnClick, |tb, ek, _| {
-                if let EventKind::MouseDown{x,y,..} = ek {
-                    let aabb  = tb.cursor_area;
-                    if aabb.is_point_inside(Vec2::from([x as f32, y as f32])) {
-                        let dims = aabb.dims();
-                        let new_percentage = (x as f32 - aabb.s0.x())/dims.x();
-                        if new_percentage < 0.1 {
+                if let EventKind::MouseDown { x, y, .. } = ek {
+                    let mouse_pos = Vec2::from([x as f32, y as f32]);
+
+                    if tb.cursor_area.is_point_inside(mouse_pos) {
+                        let dims = tb.cursor_area.dims();
+                        let new_percentage = (x as f32 - tb.cursor_area.s0.x()) / dims.x();
+                        const SNAP_TO_BOUNDS_THRESH: f32 = 0.1;
+                        if new_percentage < SNAP_TO_BOUNDS_THRESH {
                             tb.clipper.request_offset_of_scroll_cursor(1);
                         }
-                        tb.clipper.request_offset_of_scroll_cursor(-1);
+                        if new_percentage > (1. - SNAP_TO_BOUNDS_THRESH) {
+                            tb.clipper.request_offset_of_scroll_cursor(-1);
+                        }
+
+                        tb.clipper.request_offset_of_scroll_cursor(0);
                         tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
+                    } else if tb.text_area.is_point_inside(mouse_pos) {
+                        tb.update_char_cursor(mouse_pos);
+                    
                     }
                 }
             })
             .with_listener_advanced(
                 GuiEventKind::OnDrag,
                 Box::new(|info| {
-                    if let EventKind::MouseMove { x, y, dx, dy } = info.event{
-                        let disp = info.event.disp();
+                    if let EventKind::MouseMove { x, y, .. } = info.event {
                         let tb_key = info.key;
-                        let gui_comp_tree = info.gui_comp_tree;   
+                        let gui_comp_tree = info.gui_comp_tree;
                         let tb = gui_comp_tree
                             .get_mut(tb_key)
                             .expect("tb_key should be valid")
                             .as_any_mut()
                             .downcast_mut::<TextBoxState>()
                             .unwrap();
-                        let cursor_aabb = tb.cursor_area;
-                        if cursor_aabb.is_point_inside(Vec2::from([x as f32, y as f32])) { 
-                            tb.clipper.request_offset_of_scroll_cursor(-disp.x() as isize);
+                        let aabb = tb.cursor_area;
+                        if aabb.is_point_inside(Vec2::from([x as f32, y as f32])) {
+                            let dims = aabb.dims();
+                            let new_percentage = (x as f32 - aabb.s0.x()) / dims.x();
+                            tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
+                        } else {
+                            let disp = info.event.disp();
+                            tb.clipper
+                                .request_offset_of_scroll_cursor(-disp.x() as isize);
                         }
                     }
-
-                   
 
                     None
                 }),
@@ -355,8 +367,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 if let EventKind::KeyDown { code } = e {
                     match code {
                         KeyCode::BACKSPACE => {
-                            comp.caption.pop();
-                            comp.clipper.request_offset_of_scroll_cursor(-1);
+                            comp.remove_char_at_cursor();
                         }
                         KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {
                             comp.clipper.request_offset_of_scroll_cursor(1);
@@ -365,7 +376,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                         _ => {
                             let c = code.key_val().unwrap_or_default();
                             if c.is_ascii() {
-                                comp.caption.push(c);
+                                comp.push_char_at_cursor(c);
                             }
                         }
                     }

@@ -22,14 +22,11 @@ where
         }
     }
 
-    pub fn as_slice(&self) -> &[T] {
-        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, N * M) }
-    }
-
     pub fn with_data(mut self, data: [[T; M]; N]) -> Self {
         self.data = data;
         self
     }
+
     pub fn zero() -> Self {
         Self {
             data: [[T::zero(); M]; N],
@@ -42,6 +39,14 @@ where
             data[i][i] = T::one();
         }
         data
+    }
+    
+    pub fn as_slice(&self) -> &[T] {
+        unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, N * M) }
+    }
+
+    pub fn as_slice_mut(&self) -> &mut [T] {
+        unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr() as *mut T, N * M) }
     }
 }
 
