@@ -53,4 +53,15 @@ where
         self.s0 += translate;
         self.s1 += translate;
     }
+
+}
+
+
+impl<const DIM: usize> AABB<DIM, f32> {
+    pub fn infinity() -> Self {
+        Self {
+            s0: Vector::from_array([f32::NEG_INFINITY; DIM]),
+            s1: Vector::from_array([f32::INFINITY; DIM]),
+        }
+    }
 }

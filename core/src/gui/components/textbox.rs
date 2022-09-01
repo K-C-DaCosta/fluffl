@@ -1,5 +1,7 @@
 use super::*;
 
+use crate::time::{Duration, Instant};
+
 use std::ops::{Index, IndexMut, Range};
 
 /// represents a contigious range in an array or slice that is stored elsewhere.
@@ -45,7 +47,7 @@ impl IdxSlice {
     }
 
     pub fn is_in_range(&self, idx: usize) -> bool {
-        (idx - self.lbound) < self.len
+        idx >= self.lbound && (idx - self.lbound) < self.len
     }
 
     pub fn is_in_range_include_upper_bound(&self, idx: usize) -> bool {
@@ -115,10 +117,10 @@ impl CaptionClipper {
             return "";
         }
 
-        // if self.text_length_unchanged(text) {
-        //     //use cached results if caption hasn't changed
-        //     return &self.visible_text;
-        // }
+        if self.text_length_unchanged(text) {
+            //use cached results if caption hasn't changed
+            return &self.visible_text;
+        }
 
         self.clear();
 
@@ -341,6 +343,7 @@ pub struct TextBoxState {
     pub clipper: CaptionClipper,
     pub text_area: AABB2<f32>,
     pub cursor_area: AABB2<f32>,
+    t0: Instant,
 }
 impl TextBoxState {
     pub fn new() -> Self {
@@ -353,6 +356,7 @@ impl TextBoxState {
             cursor_area: AABB2::zero(),
             text_area: AABB2::zero(),
             text_cursor: 0,
+            t0: Instant::now(),
         }
     }
 }
@@ -419,12 +423,13 @@ impl GuiComponent for TextBoxState {
         win_w: f32,
         win_h: f32,
     ) {
+        const HORIZONTAL_MARGIN: f32 = 20.0;
+
         self.frame.render(gl, state, text_writer, win_w, win_h);
 
         let &old_sf = text_writer.horizontal_scaling_factor();
         *text_writer.horizontal_scaling_factor_mut() = 1.3;
 
-        let horizontal_margin = 20.0;
         let clipper = &mut self.clipper;
         let caption = &self.text;
         let frame_bounds = self.frame.bounds;
@@ -436,7 +441,7 @@ impl GuiComponent for TextBoxState {
             self.text_size,
             frame_bounds,
             text_writer,
-            horizontal_margin + 20.0,
+            HORIZONTAL_MARGIN*2.0,
         );
         let position = state.global_position;
 
@@ -452,7 +457,7 @@ impl GuiComponent for TextBoxState {
 
             text_writer.draw_text_line(
                 clipped_text,
-                aligned_global_position.x() + horizontal_margin,
+                aligned_global_position.x() + HORIZONTAL_MARGIN,
                 aligned_global_position.y(),
                 text_size,
                 Some((win_w as u32, win_h as u32)),
@@ -460,7 +465,7 @@ impl GuiComponent for TextBoxState {
 
             self.text_area = AABB2::from_point_and_lengths(
                 Vec2::from([
-                    aligned_global_position.x() + horizontal_margin,
+                    aligned_global_position.x() + HORIZONTAL_MARGIN,
                     aligned_global_position.y(),
                 ]),
                 Vec2::from([text_aabb.w, text_aabb.h]),
@@ -474,7 +479,7 @@ impl GuiComponent for TextBoxState {
             //draw scroll bar
             let scroll_bar_bounds = Vec2::from([50.0, 12.0]);
             let scroll_bar_pos = [
-                (aligned_global_position.x() + horizontal_margin)
+                (aligned_global_position.x() + HORIZONTAL_MARGIN)
                     + (text_aabb.w - scroll_bar_bounds.x()) * scroll_percentage,
                 aligned_global_position.y() + text_aabb.h,
             ];
@@ -493,12 +498,12 @@ impl GuiComponent for TextBoxState {
             //update cursor area
             self.cursor_area = AABB2::from_segment(
                 Vec2::from([
-                    (aligned_global_position.x() + horizontal_margin)
+                    (aligned_global_position.x() + HORIZONTAL_MARGIN)
                         + (text_aabb.w - scroll_bar_bounds.x()) * 0.0,
                     aligned_global_position.y() + text_aabb.h * 1.0,
                 ]),
                 Vec2::from([
-                    (aligned_global_position.x() + horizontal_margin)
+                    (aligned_global_position.x() + HORIZONTAL_MARGIN)
                         + (text_aabb.w - scroll_bar_bounds.x()) * 1.0,
                     (aligned_global_position.y() + text_aabb.h * 1.5)
                         .min(position.y() + self.frame.bounds.y()),
@@ -544,13 +549,17 @@ impl GuiComponent for TextBoxState {
                 .visible_slice
                 .is_in_range_include_upper_bound(self.text_cursor);
 
-            if is_text_cursor_visible {
+            let elapsed_time_ms = self.t0.elapsed().as_millis();
+            //blink every 1024ms
+            let cursor_blink_index = elapsed_time_ms >> 10;
+
+            if is_text_cursor_visible && cursor_blink_index % 2 == 0 {
                 let visible_cursor_displacement = self
                     .clipper
                     .get_visible_cursor_displacement(self.text_cursor);
 
                 let cursor_pos = Vec2::from([
-                    aligned_global_position.x() + horizontal_margin + visible_cursor_displacement,
+                    aligned_global_position.x() + HORIZONTAL_MARGIN + visible_cursor_displacement,
                     aligned_global_position.y(),
                 ]);
 

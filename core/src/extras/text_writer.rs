@@ -161,8 +161,15 @@ pub struct TextWriter {
     whitespace_len: Option<f32>,
     page_history: [usize; 4],
     page_index: usize,
+
     /// horizontal scaling for un-aspect-ratio-corrected text found in `Self::draw_text_line(..)` and `Self::`
     horizontal_scale_factor: f32,
+
+    /// global dy top of pen p = (x0,y0)
+    global_dy_t: Option<f32>,
+
+    /// global dy top of below pen p = (x0,y0)
+    global_dy_b: Option<f32>,
 }
 
 impl TextWriter {
@@ -230,6 +237,8 @@ impl TextWriter {
                 page_history: [99999; 4],
                 page_index: 0,
                 horizontal_scale_factor: 1.0,
+                global_dy_b: None,
+                global_dy_t: None,
             })
         }
     }
@@ -515,21 +524,51 @@ impl TextWriter {
                 .unwrap();
         });
     }
+
     /// # Description
     /// Computes bounding box of unscaled `text` at pen position: `(x0,y0)`
     /// # Comments
     /// - All coordinates are in standard screen-space
     fn calculate_bounding_box(&self, x0: f32, y0: f32, text: &str) -> AABB {
+        self.calculate_bounding_box_iter(x0, y0, text.chars())
+    }
+
+    fn calculate_global_bounding_box(&mut self) {
+        let char_iter = self
+            .atlas
+            .as_ref()
+            .unwrap()
+            .bitmap_table
+            .iter()
+            .map(|(&k, _)| k);
+        let aabb = self.calculate_bounding_box_iter(0.0, 0.0, char_iter);
+
+        self.global_dy_t = Some(aabb.y);
+        self.global_dy_b = Some(aabb.y + aabb.h);
+    }
+
+    fn calculate_bounding_box_iter(
+        &self,
+        x0: f32,
+        y0: f32,
+        char_iter: impl Iterator<Item = char>,
+    ) -> AABB {
         let mut minx = std::f32::INFINITY;
-        let mut miny = std::f32::INFINITY;
+        let mut miny = self
+            .global_dy_t
+            .map(|dy| y0 + dy)
+            .unwrap_or(std::f32::INFINITY);
         let mut maxx = std::f32::NEG_INFINITY;
-        let mut maxy = std::f32::NEG_INFINITY;
+        let mut maxy = self
+            .global_dy_b
+            .map(|dy| y0 + dy)
+            .unwrap_or(std::f32::NEG_INFINITY);
         let mut pen_x = x0;
         let pen_y = y0;
 
         let whitespace = self.whitespace();
         self.atlas.as_ref().map(|atlas| {
-            text.chars().for_each(|c| {
+            char_iter.for_each(|c| {
                 let x_adv = atlas.bitmap_table.get(&c).map_or_else(
                     || whitespace,
                     |bitmap| {
@@ -686,7 +725,8 @@ impl HasTextWriterBuilder for OglIncomplete<TextWriter> {
         self.inner.atlas = Some(atlus);
         self
     }
-    fn build(self) -> Self::WriterType {
+    fn build(mut self) -> Self::WriterType {
+        self.inner.calculate_global_bounding_box();
         self.inner
     }
 }
