@@ -75,7 +75,7 @@ impl GuiComponent for FrameState {
         unsafe {
             gl.enable(glow::STENCIL_TEST);
             gl.stencil_mask(0xff);
-            gl.stencil_func(glow::EQUAL, level - 1, 0xff);
+            gl.stencil_func(glow::LEQUAL, level - 1, 0xff);
             gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
         }
 

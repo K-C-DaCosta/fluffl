@@ -35,11 +35,16 @@ pub type ListenerCallBack<ProgramState> =
 
 pub struct GuiManager<ProgramState> {
     gl: GlowGL,
-    state: Option<ProgramState>,
-    renderer: GuiRenderer,
-    stack: MatStack<f32>,
 
-    /// copy+paste
+    state: Option<ProgramState>,
+
+    /// lets us actually draw stuff
+    renderer: GuiRenderer,
+
+    /// used to compute global coordinates from scene-graph
+    component_transform_stack: MatStack<f32>,
+
+    /// used for cut+copy+paste
     clipboard: String,
 
     ///component that is currently in "focus"
@@ -54,12 +59,17 @@ pub struct GuiManager<ProgramState> {
     ///encodes the parent child relationship between nodes
     gui_component_tree: LinearTree<Box<dyn GuiComponent>>,
 
-    // key_to_event_handlers_table: HashMap<GuiComponentKey>
+    /// maps a componentKey to its global AABB
     key_to_aabb_table: HashMap<GuiComponentKey, AABB2<f32>>,
 
+    /// maps a componentKey to its event handlers
     key_to_handler_block_table: HashMap<GuiComponentKey, ComponentHandlerBlock<ProgramState>>,
 
+    /// recomputed every Self::render(..), tells us if a component is visible (globally)
     visibility_table: Vec<bool>,
+
+    /// used when doing visibility testing, uses this to compute cumulative intersections aabbs  
+    visibility_intersection_stack: FixedStack<128, bool>,
 
     component_signal_queue: VecDeque<components::ComponentEventSignal>,
 
@@ -78,11 +88,12 @@ impl<ProgramState> GuiManager<ProgramState> {
             gui_component_tree: LinearTree::new(),
             component_signal_queue: VecDeque::new(),
             window_events: VecDeque::new(),
-            stack: MatStack::new(),
+            component_transform_stack: MatStack::new(),
             key_to_aabb_table: HashMap::new(),
             key_to_handler_block_table: HashMap::new(),
             key_down_table: HashSet::new(),
             visibility_table: Vec::new(),
+            visibility_intersection_stack: FixedStack::new(),
             clipboard: String::new(),
             gl,
             state: None,
@@ -121,7 +132,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         self.handle_incoming_events();
 
         let gl = &mut self.gl;
-        let stack = &mut self.stack;
+        let stack = &mut self.component_transform_stack;
 
         let renderer = &mut self.renderer;
         let gui_component_tree = &mut self.gui_component_tree;
@@ -491,6 +502,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let component_signal_queue = &mut self.component_signal_queue;
         let key_down_table = &mut self.key_down_table;
         let visibility_table = &mut self.visibility_table;
+        let visibility_intersection_stack = &mut self.visibility_intersection_stack;
 
         while let Some(event) = window_events.pop_front() {
             let _old_signal_len = component_signal_queue.len();
@@ -546,14 +558,26 @@ impl<ProgramState> GuiManager<ProgramState> {
                     *clicked_component = None;
                     *focused_component = None;
 
-                    for (key, aabb) in
-                        Self::aabb_iter(gui_component_tree, key_to_aabb_table, &visibility_table)
-                    {
-                        if aabb.is_point_inside(mouse_pos) {
+                    // for (key, aabb) in
+                    //     Self::aabb_iter(gui_component_tree, key_to_aabb_table, &visibility_table)
+                    // {
+                    //     if aabb.is_point_inside(mouse_pos) {
+                    //         *clicked_component = Some(key);
+                    //         *focused_component = Some(key);
+                    //     }
+                    // }
+
+                    Self::point_in_aabb_cumulative_intersections(
+                        gui_component_tree,
+                        key_to_aabb_table,
+                        visibility_table,
+                        visibility_intersection_stack,
+                        mouse_pos,
+                        |key| {
                             *clicked_component = Some(key);
                             *focused_component = Some(key);
-                        }
-                    }
+                        },
+                    );
 
                     // handle focused events
                     match (prev_focused_component, *focused_component) {
@@ -628,6 +652,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                             key_to_aabb_table,
                             component_signal_queue,
                             visibility_table,
+                            visibility_intersection_stack,
                             event,
                         );
                     }
@@ -651,13 +676,13 @@ impl<ProgramState> GuiManager<ProgramState> {
                 _ => (),
             }
 
-            // prints the queued events that waiting to be sent to their handlers   
-            if component_signal_queue.len() > _old_signal_len {
-                println!("signal added:");
-                for sig in &component_signal_queue.make_contiguous()[_old_signal_len..] {
-                    println!("{:?}", sig)
-                }
-            }
+            // // prints the queued events that waiting to be sent to their handlers
+            // if component_signal_queue.len() > _old_signal_len {
+            //     println!("signal added:");
+            //     for sig in &component_signal_queue.make_contiguous()[_old_signal_len..] {
+            //         println!("{:?}", sig)
+            //     }
+            // }
         }
     }
 
@@ -680,6 +705,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
         component_signal_queue: &mut VecDeque<ComponentEventSignal>,
         visibility_table: &'a Vec<bool>,
+        visibility_intersection_stack:&'a mut FixedStack<128,bool>, 
         event: EventKind,
     ) {
         match hover_component {
@@ -687,13 +713,29 @@ impl<ProgramState> GuiManager<ProgramState> {
             &mut Some(current_hover_key) => {
                 let mut local_hover = None;
 
-                for (key, aabb) in
-                    Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
-                {
-                    if aabb.is_point_inside(mouse_pos) {
+                // for (key, aabb) in
+                //     Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
+                // {
+                //     if aabb.is_point_inside(mouse_pos) {
+                //         local_hover = Some(key);
+                //     }
+                // }
+
+
+                Self::point_in_aabb_cumulative_intersections(
+                    gui_component_tree,
+                    key_to_aabb_table,
+                    visibility_table,
+                    visibility_intersection_stack,
+                    mouse_pos,
+                    |key| {
                         local_hover = Some(key);
-                    }
-                }
+                    },
+                );
+
+
+
+                
 
                 match local_hover {
                     Some(local_hover_key) => {
@@ -727,13 +769,30 @@ impl<ProgramState> GuiManager<ProgramState> {
             //if nothing is being hovered check if mouse is inside hovering a component
             None => {
                 //run through aabbs in pre-order traversal
-                for (key, aabb) in
-                    Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
-                {
-                    if aabb.is_point_inside(mouse_pos) {
+
+                // for (key, aabb) in
+                //     Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
+                // {
+                //     if aabb.is_point_inside(mouse_pos) {
+                //         *hover_component = Some(key);
+                //     }
+                // }
+
+                Self::point_in_aabb_cumulative_intersections(
+                    gui_component_tree,
+                    key_to_aabb_table,
+                    visibility_table,
+                    visibility_intersection_stack,
+                    mouse_pos,
+                    |key| {
                         *hover_component = Some(key);
-                    }
-                }
+                    },
+                );
+
+
+
+
+
                 if let &mut Some(key) = hover_component {
                     component_signal_queue.push_back(ComponentEventSignal::new(
                         GuiEventKind::OnHoverIn,
@@ -757,6 +816,55 @@ impl<ProgramState> GuiManager<ProgramState> {
                     break;
                 }
                 cur_node_id = parent;
+            }
+        }
+    }
+
+    fn point_in_aabb_cumulative_intersections<'a, CB>(
+        gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
+        key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+        visibility_table: &'a Vec<bool>,
+        visibility_stack: &'a mut FixedStack<128, bool>,
+        mouse_pos: Vec2<f32>,
+        mut callback: CB,
+    ) where
+        CB: FnMut(GuiComponentKey),
+    {
+        visibility_stack.clear_with_root_val(true);
+
+        let node_iter = gui_component_tree
+            .iter_stack_signals()
+            .map(|(sig, id, c)| (sig, GuiComponentKey::from(id), c));
+
+        for (sig, key, c) in node_iter {
+            let &aabb = key_to_aabb_table.get(&key).unwrap();
+            let is_mouse_inside = aabb.is_point_inside(mouse_pos) || c.is_origin();
+
+            let intersected_visibility = match sig {
+                StackSignal::Nop => {
+                    visibility_stack.pop();
+                    let current_visibility = visibility_stack.peek();
+                    let intersected_visibility = current_visibility && is_mouse_inside;
+                    visibility_stack.push(intersected_visibility);
+                    intersected_visibility
+                }
+                StackSignal::Pop { n_times } => {
+                    visibility_stack.pop_multi(n_times + 1);
+                    let current_visibility = visibility_stack.peek();
+                    let intersected_visibility = current_visibility && is_mouse_inside;
+                    visibility_stack.push(intersected_visibility);
+                    intersected_visibility
+                }
+                StackSignal::Push => {
+                    let current_visibility = visibility_stack.peek();
+                    let intersected_visibility = current_visibility && is_mouse_inside;
+                    visibility_stack.push(intersected_visibility);
+                    intersected_visibility
+                }
+            };
+
+            if intersected_visibility && visibility_table[key] {
+                callback(key);
             }
         }
     }

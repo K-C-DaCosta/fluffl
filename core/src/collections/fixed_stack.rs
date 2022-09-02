@@ -19,6 +19,17 @@ where
         }
     }
 
+    pub fn clear(&mut self){
+        self.len = 0;
+        self.cursor = 0;
+    }
+
+    pub fn clear_with_root_val(&mut self,init:V){
+        self.len = 0;
+        self.cursor = 0;
+        self.memory[0] = init;
+    }
+
     pub fn len(&self) -> usize {
         self.len
     }

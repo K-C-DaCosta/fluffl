@@ -53,7 +53,7 @@ pub const ROUNDED_BOX_SHADER_SOURCE: &'static str = r"
             float d_epsilon = length(vec2(dFdx(d),dFdy(d)));
 
 
-            if (d > d_epsilon*(-0.5)){
+            if (d > d_epsilon){
                 discard; 
             }
             

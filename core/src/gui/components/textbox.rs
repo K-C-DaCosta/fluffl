@@ -375,7 +375,7 @@ impl TextBoxState {
         self.text_cursor =
             (self.text_cursor as isize + off).clamp(0, self.text.len() as isize) as usize;
     }
-    
+
     pub fn push_char_at_cursor(&mut self, c: char) {
         self.text_cursor = self.text_cursor.clamp(0, self.text.len());
         self.text.insert(self.text_cursor, c);
@@ -570,13 +570,13 @@ impl GuiComponent for TextBoxState {
                     aligned_global_position.y(),
                 ]);
 
-                let cursor_bounds = Vec2::from([4.0, text_aabb.h]);
+                let cursor_bounds = Vec2::from([2.0, text_aabb.h]);
                 state
                     .renderer
-                    .builder(gl, GuiShaderKind::RoundedBox)
+                    .builder(gl, GuiShaderKind::Rectangle)
                     .set_window(win_w, win_h)
                     .set_position(Vec4::convert(cursor_pos), Vec4::convert(cursor_bounds))
-                    .set_background_color(Vec4::rgb_u32(0))
+                    .set_background_color(Vec4::rgb_u32(0xff0000))
                     .set_edge_color(Vec4::rgb_u32(0xff0000))
                     .set_roundness_vec([1.; 4])
                     .set_bounds(cursor_bounds)
