@@ -70,14 +70,16 @@ impl IdxSlice {
         &mut sliceable[self.as_range()]
     }
 }
+
+/// Given a string of text, this code figures out what substring can fit inside of rectangle
 pub struct CaptionClipper {
     prev_cap_len: usize,
+    visible_text: String,
     visible_slice_first_overflow: Option<IdxSlice>,
     visible_slice: IdxSlice,
-    visible_text: String,
     visible_text_dx: Vec<f32>,
-    can_off_cursor: Option<isize>,
     scroll_cursor: isize,
+    can_off_cursor: Option<isize>,
     scroll_cursor_percentage: f32,
 }
 
@@ -339,7 +341,6 @@ pub struct TextBoxState {
     pub text: String,
     pub text_size: f32,
     pub text_cursor: usize,
-
     pub clipper: CaptionClipper,
     pub text_area: AABB2<f32>,
     pub cursor_area: AABB2<f32>,
@@ -369,6 +370,12 @@ impl TextBoxState {
             .get_text_postion_given_horizontal_disp(relative_horizontal_postion);
         self.text_cursor = new_text_cursor_position;
     }
+
+    pub fn offset_cursor(&mut self, off: isize) {
+        self.text_cursor =
+            (self.text_cursor as isize + off).clamp(0, self.text.len() as isize) as usize;
+    }
+    
     pub fn push_char_at_cursor(&mut self, c: char) {
         self.text_cursor = self.text_cursor.clamp(0, self.text.len());
         self.text.insert(self.text_cursor, c);
@@ -441,7 +448,7 @@ impl GuiComponent for TextBoxState {
             self.text_size,
             frame_bounds,
             text_writer,
-            HORIZONTAL_MARGIN*2.0,
+            HORIZONTAL_MARGIN * 2.0,
         );
         let position = state.global_position;
 

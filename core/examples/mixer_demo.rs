@@ -312,9 +312,10 @@ async fn main_loop(
     //         }));
     //     }
     // }
-
     unsafe {
-        gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
+        gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT | STENCIL_BUFFER_BIT );
+        gl.enable(glow::DEPTH_TEST);
+        gl.depth_func(glow::LEQUAL);
     }
 
     let (win_width, win_height) = win_ptr.window().get_bounds_f32();

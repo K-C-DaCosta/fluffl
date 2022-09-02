@@ -1,4 +1,4 @@
-pub const FRAME_SHADER_SOURCE: &'static str = r"
+pub const ROUNDED_BOX_SHADER_SOURCE: &'static str = r"
     #ifndef HEADER
         #version 300 es
         precision mediump float;
@@ -14,14 +14,10 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
 
     #ifndef VERTEX_SHADER
         layout(location = 0) in vec4 attr_pos;
-        
         out vec4 world_space_pos;
-
         void main(){
             vec4 world_space = modelview*attr_pos;
-
             world_space_pos = world_space;  
-
             //convert worldspace to NDC 
             gl_Position = proj*world_space;
         }
@@ -41,6 +37,7 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
         }
 
         void main(){
+            
             float max_depth = -5.0;
             float band = 3.0;
 
@@ -53,8 +50,12 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
 
             vec4 pos = world_space_pos;
             float d = sdRoundBox(pos.xy - position.xy - bounds.xy*0.5,bounds.xy*0.5,roundness);
-
             float d_epsilon = length(vec2(dFdx(d),dFdy(d)));
+
+
+            if (d > d_epsilon*(-0.5)){
+                discard; 
+            }
             
 
             float w0 = smoothstep(max_depth+band,max_depth,d);
@@ -67,6 +68,37 @@ pub const FRAME_SHADER_SOURCE: &'static str = r"
             
             //edge
             final_color += edge_color*w1 - edge_color*w0;
+
+
+        }
+    #endif
+";
+
+pub const RECTANGLE_SHADER_SOURCE: &'static str = r"
+    #ifndef HEADER
+        #version 300 es
+        precision mediump float;
+        uniform vec4 background_color;
+        uniform mat4 modelview;
+        uniform mat4 proj;  
+    #endif
+
+    #ifndef VERTEX_SHADER
+        layout(location = 0) in vec4 attr_pos;
+        out vec4 world_space_pos;
+        void main(){
+            vec4 world_space = modelview*attr_pos;
+            world_space_pos = world_space;  
+            //convert worldspace to NDC 
+            gl_Position = proj*world_space;
+        }
+    #endif
+
+    #ifndef FRAGMENT_SHADER
+        in vec4 world_space_pos;
+        out vec4 final_color; 
+        void main(){
+            final_color = background_color; 
         }
     #endif
 ";

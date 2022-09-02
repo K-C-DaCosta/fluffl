@@ -54,6 +54,14 @@ impl GuiComponent for SliderState {
         win_w: f32,
         win_h: f32,
     ) {
+        let level = state.level as i32;
+        unsafe {
+            gl.enable(glow::STENCIL_TEST);
+            gl.stencil_mask(0xff);
+            gl.stencil_func(glow::EQUAL, level - 1, 0xff);
+            gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+        }
+
         state
             .renderer
             .builder(gl, GuiShaderKind::RoundedBox)
@@ -67,6 +75,10 @@ impl GuiComponent for SliderState {
                 Vec4::convert(self.slider_frame.bounds),
             )
             .render();
+
+        unsafe {
+            gl.disable(glow::STENCIL_TEST);
+        }
     }
 }
 

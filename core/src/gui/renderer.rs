@@ -1,13 +1,13 @@
 use super::*;
 use glow::HasContext;
 
-
 mod shader_sources;
 use shader_sources::*;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub enum GuiShaderKind {
     RoundedBox = 0,
+    Rectangle = 1,
 }
 
 struct ShaderUniforms {
@@ -197,18 +197,28 @@ impl<'a> RenderBuilder<'a> {
     }
 }
 
-pub struct GuiRenderer {
-    shader_program_table: HashMap<GuiShaderKind, OglProg>,
-    unit_square_vao: ogl::OglArray,
+struct OglProgramBlock {
+    program: OglProg,
     uniforms: ShaderUniforms,
+}
+impl OglProgramBlock {
+    fn new(gl: &GlowGL, source: &str) -> Self {
+        let program = ogl::OglProg::compile_program(&gl, source)
+            .expect("GUI SHADER CODE FAILED TO COMPILE");
+        let uniforms = ShaderUniforms::new().with_location_hooks(&gl, &program);
+
+        Self { program, uniforms }
+    }
+}
+
+pub struct GuiRenderer {
+    shader_program_table: HashMap<GuiShaderKind, OglProgramBlock>,
+    unit_square_vao: ogl::OglArray,
 }
 
 impl GuiRenderer {
+    #[rustfmt::skip]
     pub fn new(gl: &GlowGL) -> Self {
-        //compile the shader
-        let frame_program = ogl::OglProg::compile_program(&gl, FRAME_SHADER_SOURCE)
-            .expect("GUI SHADER CODE FAILED TO COMPILE");
-
         //write-unit-square to vector
         let mut vec_data = Vec::<f32>::new();
 
@@ -231,38 +241,16 @@ impl GuiRenderer {
         let unit_square_vao =
             ogl::OglArray::new(&gl).init(vec![BufferPair::new("verts", Box::new(buf))]);
 
-        let uniforms = ShaderUniforms::new().with_location_hooks(&gl, &frame_program);
 
-        let bounds = Vec4::from_array([300.0, 400.0, 0., 0.]);
-
-        uniforms.set_bounds(&gl, &frame_program, bounds[0], bounds[1]);
-
-        uniforms.set_position(
-            &gl,
-            &frame_program,
-            Vec4::from_array([0., 0., 0., 1.]),
-            bounds,
-        );
-
-        uniforms.set_background_color(&gl, &frame_program, Vec4::rgba_u32(0xA66CFF00));
-
-        uniforms.set_null_color(
-            &gl,
-            &frame_program,
-            // Vec4::from_array([1.0, 0.1, 0.1, 1.]),
-            Vec4::from_array([0.1, 0.1, 0.1, 1.]),
-        );
-
-        uniforms.set_roundness(&gl, &frame_program, 1., 1., 20., 20.);
-
-        uniforms.set_edge_color(&gl, &frame_program, Vec4::rgb_u32(0xB1E1FF));
 
         Self {
             unit_square_vao,
-            uniforms,
-            shader_program_table: vec![(GuiShaderKind::RoundedBox, frame_program)]
-                .into_iter()
-                .collect::<HashMap<_, _>>(),
+            shader_program_table: vec![
+                (GuiShaderKind::RoundedBox, OglProgramBlock::new(gl, ROUNDED_BOX_SHADER_SOURCE)),
+                (GuiShaderKind::Rectangle, OglProgramBlock::new(gl, RECTANGLE_SHADER_SOURCE)),
+            ]
+            .into_iter()
+            .collect::<HashMap<_, _>>(),
         }
     }
 
@@ -270,15 +258,18 @@ impl GuiRenderer {
     where
         'b: 'a,
     {
-        let prog = self
+        let prog_blk = self
             .shader_program_table
             .get(&kind)
             .expect("shader kind not valid");
+
+        prog_blk.program.bind(true);
+
         RenderBuilder {
             gl,
-            prog,
+            prog: &prog_blk.program,
             unit_square_vao: &self.unit_square_vao,
-            uniforms: &self.uniforms,
+            uniforms: &prog_blk.uniforms,
         }
     }
 }

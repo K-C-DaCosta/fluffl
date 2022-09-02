@@ -20,6 +20,10 @@ where
             stack: [Mat4::identity(); N],
         }
     }
+    
+    pub fn len(&self)->usize{
+        self.cursor-1
+    }
 
     pub fn clear(&mut self) {
         self.cursor = 1;

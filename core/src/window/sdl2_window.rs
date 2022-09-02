@@ -132,11 +132,14 @@ impl WindowManager for FlufflWindow {
         let audio = sdl.audio()?;
         let video = sdl.video()?;
 
-      
-
         let gl_attr = video.gl_attr();
+
         gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
         gl_attr.set_context_version(settings.context_major, settings.context_minor);
+        //set stencil buffer
+        video.gl_attr().set_stencil_size(8);
+
+
 
         let win_builder = video.window(settings.title.as_str(), settings.width, settings.height);
 
@@ -171,9 +174,9 @@ impl WindowManager for FlufflWindow {
 
         TouchTracker::init();
 
-        // disable vsync 
+        // disable vsync
         // video.gl_set_swap_interval(0).expect("failed to disable vsync:");
-        
+
         let fluffl_window = Self {
             sdl_gl_context: gl_context,
             sdl_event_pump: event_loop,

@@ -1,3 +1,5 @@
+use glow::KEEP;
+
 use super::*;
 
 #[derive(Clone)]
@@ -8,6 +10,7 @@ pub struct FrameState {
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
     pub is_visible: bool,
+    pub can_overflow: bool,
 }
 
 impl FrameState {
@@ -19,6 +22,7 @@ impl FrameState {
             edge_color: Vec4::rgb_u32(0x89CFFD),
             roundness: Vec4::from([1.0, 1.0, 1.0, 1.0]),
             is_visible: true,
+            can_overflow: false,
         }
     }
 }
@@ -66,6 +70,15 @@ impl GuiComponent for FrameState {
         }
 
         let r = state.renderer;
+        let level = state.level as i32;
+
+        unsafe {
+            gl.enable(glow::STENCIL_TEST);
+            gl.stencil_mask(0xff);
+            gl.stencil_func(glow::EQUAL, level - 1, 0xff);
+            gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+        }
+
         r.builder(gl, GuiShaderKind::RoundedBox)
             .set_window(win_w, win_h)
             .set_roundness_vec(self.roundness)
@@ -75,6 +88,10 @@ impl GuiComponent for FrameState {
             .set_bounds(self.bounds)
             .set_position(state.global_position, Vec4::to_pos(self.bounds))
             .render();
+
+        unsafe {
+            gl.disable(glow::STENCIL_TEST);
+        }
     }
 }
 

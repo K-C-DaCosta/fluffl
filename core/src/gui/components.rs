@@ -66,6 +66,7 @@ impl ComponentEventSignal {
 pub struct RenderState<'a> {
     pub global_position: Vec4<f32>,
     pub renderer: &'a GuiRenderer,
+    pub level:usize, 
     // pub gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
     // pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
@@ -73,12 +74,14 @@ impl<'a> RenderState<'a> {
     pub fn new(
         global_position: Vec4<f32>,
         renderer: &'a GuiRenderer,
+        level:usize, 
         // gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         // key_to_aabb_table: &'a HashMap<GuiComponentKey, math::AABB<2, f32>>,
     ) -> Self {
         Self {
             global_position,
             renderer,
+            level
             // gui_component_tree,
             // key_to_aabb_table,
         }

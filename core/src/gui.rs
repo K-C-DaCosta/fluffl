@@ -125,7 +125,6 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let renderer = &mut self.renderer;
         let gui_component_tree = &mut self.gui_component_tree;
-        let key_to_aabb_table = &mut self.key_to_aabb_table;
         let visibility_table = &mut self.visibility_table;
 
         let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
@@ -167,7 +166,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             if visibility_table[key.as_usize()] {
                 comp.render(
                     gl,
-                    RenderState::new(gpos, renderer), //gui_component_tree, key_to_aabb_table),
+                    RenderState::new(gpos, renderer, stack.len() - 1),
                     text_writer,
                     window_width,
                     window_height,
@@ -187,15 +186,6 @@ impl<ProgramState> GuiManager<ProgramState> {
         let origin =
             manager.add_component(GuiComponentKey::default(), Box::new(OriginState::new()));
 
-        let alt_frame = manager
-            .builder_frame()
-            .with_parent(origin)
-            .with_bounds([200.0, 100.0])
-            .with_roundness([0.0, 0.0, 10.0, 10.])
-            .with_position([64.0, 400.0])
-            .with_drag(true)
-            .build();
-
         let prink_frame = manager
             .builder_frame()
             .with_parent(origin)
@@ -203,6 +193,15 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_roundness([0., 0., 30.0, 30.0])
             .with_position([64.0, 32.0])
             // .with_drag(true)
+            .build();
+
+        let alt_frame = manager
+            .builder_frame()
+            .with_parent(origin)
+            .with_bounds([200.0, 100.0])
+            .with_roundness([0.0, 0.0, 10.0, 10.])
+            .with_position([64.0, 400.0])
+            .with_drag(true)
             .build();
 
         let red_frame = manager
@@ -236,13 +235,13 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let slider_frame = manager
             .builder_slider()
-            .with_parent(origin)
-            .with_position([64.0, 400.0])
-            .with_bounds([256.0, 64.0])
+            .with_parent(prink_frame)
+            .with_position([0.0, 64.0])
+            .with_bounds([128.0, 32.0])
             .with_color(Vec4::rgb_u32(0x554994))
             .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
             .with_roundness([8.0; 4])
-            .with_drag(true)
+            .with_drag(false)
             .with_listener(GuiEventKind::OnFocusIn, |state, _, _| {
                 state.slider_frame.edge_color = Vec4::rgb_u32(0xff0000);
             })
@@ -250,7 +249,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 state.slider_frame.edge_color = Vec4::rgb_u32(0xFFCCB3);
             })
             .with_button_bounds([32.0, 120.0])
-            .with_button_color(Vec4::rgb_u32(0xF675A8))
+            .with_button_color(Vec4::rgb_u32(0x332255))
             .with_button_edge_color(Vec4::rgb_u32(0xF29393))
             .with_button_roundness([8.0; 4])
             .with_button_listener(GuiEventKind::OnHoverIn, |f, _, _| {
@@ -311,7 +310,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 comp.frame.edge_color = Vec4::rgb_u32(0xff0000);
             })
             .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
-                comp.frame.edge_color = Vec4::rgb_u32(0x1fA00f);
+                comp.frame.edge_color = Vec4::rgb_u32(0x89CFFD);
             })
             .with_listener(GuiEventKind::OnClick, |tb, ek, _| {
                 if let EventKind::MouseDown { x, y, .. } = ek {
@@ -332,7 +331,6 @@ impl<ProgramState> GuiManager<ProgramState> {
                         tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
                     } else if tb.text_area.is_point_inside(mouse_pos) {
                         tb.update_char_cursor(mouse_pos);
-                    
                     }
                 }
             })
@@ -348,30 +346,34 @@ impl<ProgramState> GuiManager<ProgramState> {
                             .as_any_mut()
                             .downcast_mut::<TextBoxState>()
                             .unwrap();
-                        let aabb = tb.cursor_area;
-                        if aabb.is_point_inside(Vec2::from([x as f32, y as f32])) {
-                            let dims = aabb.dims();
-                            let new_percentage = (x as f32 - aabb.s0.x()) / dims.x();
+                        let mouse_pos = Vec2::from([x as f32, y as f32]);
+                        if tb.cursor_area.is_point_inside(mouse_pos) {
+                            let dims = tb.cursor_area.dims();
+                            let new_percentage = (x as f32 - tb.cursor_area.s0.x()) / dims.x();
                             tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
-                        } else {
-                            let disp = info.event.disp();
-                            tb.clipper
-                                .request_offset_of_scroll_cursor(-disp.x() as isize);
                         }
                     }
-
                     None
                 }),
             )
+            .with_listener(GuiEventKind::OnWheelWhileFocused, |tb, e, _state| {
+                let wheel_dir = e.wheel();
+                tb.clipper
+                    .request_offset_of_scroll_cursor(wheel_dir as isize);
+            })
             .with_listener(GuiEventKind::OnKeyDown, |comp, e, _state| {
                 if let EventKind::KeyDown { code } = e {
                     match code {
                         KeyCode::BACKSPACE => {
                             comp.remove_char_at_cursor();
                         }
+                        KeyCode::ARROW_LEFT => {
+                            comp.offset_cursor(-1);
+                        }
+                        KeyCode::ARROW_RIGHT => {
+                            comp.offset_cursor(1);
+                        }
                         KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {
-                            comp.clipper.request_offset_of_scroll_cursor(1);
-                            comp.clipper.request_offset_of_scroll_cursor(-1);
                         }
                         _ => {
                             let c = code.key_val().unwrap_or_default();
@@ -649,6 +651,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 _ => (),
             }
 
+            // prints the queued events that waiting to be sent to their handlers   
             if component_signal_queue.len() > _old_signal_len {
                 println!("signal added:");
                 for sig in &component_signal_queue.make_contiguous()[_old_signal_len..] {
@@ -766,7 +769,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         gui_component_tree
             .iter()
             .filter(move |node_info| {
-                /* if you skip invisible nodes you we can ignore avoid events to invisible items */
+                /* skip over invisible nodes and act as if they never existed */
                 let raw_node_id = node_info.id.as_usize();
                 let visibility = visibility_table[raw_node_id];
                 visibility
