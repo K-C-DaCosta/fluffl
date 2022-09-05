@@ -217,7 +217,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             .builder_frame()
             .with_parent(origin)
             .with_bounds([400.0+0.0, 200.0+100.0])
-            .with_roundness([0., 0., 30.0, 30.0])
+            .with_roundness([1., 1., 1.0, 1.0])
             .with_position([64.0, 32.0])
             .with_scrollbars(true)
             // .with_drag(true)
@@ -328,7 +328,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let textbox_key = manager
             .builder_textbox()
             .with_parent(prink_frame)
-            .with_bounds([600.0, 64.0])
+            .with_bounds([1000.0, 64.0])
             .with_position([0.0, 200.0 - 64.0])
             .with_color(Vec4::rgb_u32(0))
             .with_roundness([0.0, 0.0, 32.0, 32.0])
