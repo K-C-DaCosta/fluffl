@@ -33,6 +33,8 @@ use self::{builder::*, components::*, gui_key::*, handler_block::*, renderer::*}
 pub type ListenerCallBack<ProgramState> =
     Box<dyn FnMut(EventListenerInfo<'_, ProgramState>) -> Option<()>>;
 
+type VisibilityStack = FixedStack<128, bool>;
+
 pub struct GuiManager<ProgramState> {
     gl: GlowGL,
 
@@ -69,7 +71,7 @@ pub struct GuiManager<ProgramState> {
     visibility_table: Vec<bool>,
 
     /// used when doing visibility testing, uses this to compute cumulative intersections aabbs  
-    visibility_intersection_stack: FixedStack<128, bool>,
+    visibility_intersection_stack: VisibilityStack,
 
     component_signal_queue: VecDeque<components::ComponentEventSignal>,
 
@@ -137,6 +139,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let renderer = &mut self.renderer;
         let gui_component_tree = &mut self.gui_component_tree;
         let visibility_table = &mut self.visibility_table;
+        let key_to_aabb_table = &mut self.key_to_aabb_table;
 
         let compute_global_position = |rel_pos, stack: &MatStack<f32>| {
             let s = stack;
@@ -149,10 +152,16 @@ impl<ProgramState> GuiManager<ProgramState> {
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
         }
 
+        // forced a clone the gui_component_tree because it is actually very safe mutate
+        // there are very few ways in which this tree could invalidate keys
+        let gui_component_tree_borrowed_by_force =
+            unsafe { crate::mem::force_borrow_mut(gui_component_tree) };
+
         stack.clear();
         for (sig, key, comp) in gui_component_tree.iter_mut_stack_signals() {
             let &rel_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(rel_pos));
+
             // println!("sig:{:?}",sig);
             let gpos = match sig {
                 StackSignal::Nop => {
@@ -177,7 +186,14 @@ impl<ProgramState> GuiManager<ProgramState> {
             if visibility_table[key.as_usize()] {
                 comp.render(
                     gl,
-                    RenderState::new(gpos, renderer, stack.len() - 1),
+                    RenderState::new(
+                        key.into(),
+                        gpos,
+                        renderer,
+                        stack.len() - 1,
+                        gui_component_tree_borrowed_by_force,
+                        key_to_aabb_table,
+                    ),
                     text_writer,
                     window_width,
                     window_height,
@@ -200,9 +216,10 @@ impl<ProgramState> GuiManager<ProgramState> {
         let prink_frame = manager
             .builder_frame()
             .with_parent(origin)
-            .with_bounds([400.0, 200.0])
+            .with_bounds([400.0+0.0, 200.0+100.0])
             .with_roundness([0., 0., 30.0, 30.0])
             .with_position([64.0, 32.0])
+            .with_scrollbars(true)
             // .with_drag(true)
             .build();
 
@@ -311,7 +328,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let textbox_key = manager
             .builder_textbox()
             .with_parent(prink_frame)
-            .with_bounds([400.0, 64.0])
+            .with_bounds([600.0, 64.0])
             .with_position([0.0, 200.0 - 64.0])
             .with_color(Vec4::rgb_u32(0))
             .with_roundness([0.0, 0.0, 32.0, 32.0])
@@ -322,78 +339,6 @@ impl<ProgramState> GuiManager<ProgramState> {
             })
             .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
                 comp.frame.edge_color = Vec4::rgb_u32(0x89CFFD);
-            })
-            .with_listener(GuiEventKind::OnClick, |tb, ek, _| {
-                if let EventKind::MouseDown { x, y, .. } = ek {
-                    let mouse_pos = Vec2::from([x as f32, y as f32]);
-
-                    if tb.cursor_area.is_point_inside(mouse_pos) {
-                        let dims = tb.cursor_area.dims();
-                        let new_percentage = (x as f32 - tb.cursor_area.s0.x()) / dims.x();
-                        const SNAP_TO_BOUNDS_THRESH: f32 = 0.1;
-                        if new_percentage < SNAP_TO_BOUNDS_THRESH {
-                            tb.clipper.request_offset_of_scroll_cursor(1);
-                        }
-                        if new_percentage > (1. - SNAP_TO_BOUNDS_THRESH) {
-                            tb.clipper.request_offset_of_scroll_cursor(-1);
-                        }
-
-                        tb.clipper.request_offset_of_scroll_cursor(0);
-                        tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
-                    } else if tb.text_area.is_point_inside(mouse_pos) {
-                        tb.update_char_cursor(mouse_pos);
-                    }
-                }
-            })
-            .with_listener_advanced(
-                GuiEventKind::OnDrag,
-                Box::new(|info| {
-                    if let EventKind::MouseMove { x, y, .. } = info.event {
-                        let tb_key = info.key;
-                        let gui_comp_tree = info.gui_comp_tree;
-                        let tb = gui_comp_tree
-                            .get_mut(tb_key)
-                            .expect("tb_key should be valid")
-                            .as_any_mut()
-                            .downcast_mut::<TextBoxState>()
-                            .unwrap();
-                        let mouse_pos = Vec2::from([x as f32, y as f32]);
-                        if tb.cursor_area.is_point_inside(mouse_pos) {
-                            let dims = tb.cursor_area.dims();
-                            let new_percentage = (x as f32 - tb.cursor_area.s0.x()) / dims.x();
-                            tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
-                        }
-                    }
-                    None
-                }),
-            )
-            .with_listener(GuiEventKind::OnWheelWhileFocused, |tb, e, _state| {
-                let wheel_dir = e.wheel();
-                tb.clipper
-                    .request_offset_of_scroll_cursor(wheel_dir as isize);
-            })
-            .with_listener(GuiEventKind::OnKeyDown, |comp, e, _state| {
-                if let EventKind::KeyDown { code } = e {
-                    match code {
-                        KeyCode::BACKSPACE => {
-                            comp.remove_char_at_cursor();
-                        }
-                        KeyCode::ARROW_LEFT => {
-                            comp.offset_cursor(-1);
-                        }
-                        KeyCode::ARROW_RIGHT => {
-                            comp.offset_cursor(1);
-                        }
-                        KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {
-                        }
-                        _ => {
-                            let c = code.key_val().unwrap_or_default();
-                            if c.is_ascii() {
-                                comp.push_char_at_cursor(c);
-                            }
-                        }
-                    }
-                }
             })
             .build();
 
@@ -558,15 +503,6 @@ impl<ProgramState> GuiManager<ProgramState> {
                     *clicked_component = None;
                     *focused_component = None;
 
-                    // for (key, aabb) in
-                    //     Self::aabb_iter(gui_component_tree, key_to_aabb_table, &visibility_table)
-                    // {
-                    //     if aabb.is_point_inside(mouse_pos) {
-                    //         *clicked_component = Some(key);
-                    //         *focused_component = Some(key);
-                    //     }
-                    // }
-
                     Self::point_in_aabb_cumulative_intersections(
                         gui_component_tree,
                         key_to_aabb_table,
@@ -705,22 +641,13 @@ impl<ProgramState> GuiManager<ProgramState> {
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
         component_signal_queue: &mut VecDeque<ComponentEventSignal>,
         visibility_table: &'a Vec<bool>,
-        visibility_intersection_stack:&'a mut FixedStack<128,bool>, 
+        visibility_intersection_stack: &'a mut FixedStack<128, bool>,
         event: EventKind,
     ) {
         match hover_component {
             // if something is being hovered check if mouse has left the component
             &mut Some(current_hover_key) => {
                 let mut local_hover = None;
-
-                // for (key, aabb) in
-                //     Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
-                // {
-                //     if aabb.is_point_inside(mouse_pos) {
-                //         local_hover = Some(key);
-                //     }
-                // }
-
 
                 Self::point_in_aabb_cumulative_intersections(
                     gui_component_tree,
@@ -732,10 +659,6 @@ impl<ProgramState> GuiManager<ProgramState> {
                         local_hover = Some(key);
                     },
                 );
-
-
-
-                
 
                 match local_hover {
                     Some(local_hover_key) => {
@@ -769,15 +692,6 @@ impl<ProgramState> GuiManager<ProgramState> {
             //if nothing is being hovered check if mouse is inside hovering a component
             None => {
                 //run through aabbs in pre-order traversal
-
-                // for (key, aabb) in
-                //     Self::aabb_iter(gui_component_tree, key_to_aabb_table, visibility_table)
-                // {
-                //     if aabb.is_point_inside(mouse_pos) {
-                //         *hover_component = Some(key);
-                //     }
-                // }
-
                 Self::point_in_aabb_cumulative_intersections(
                     gui_component_tree,
                     key_to_aabb_table,
@@ -788,10 +702,6 @@ impl<ProgramState> GuiManager<ProgramState> {
                         *hover_component = Some(key);
                     },
                 );
-
-
-
-
 
                 if let &mut Some(key) = hover_component {
                     component_signal_queue.push_back(ComponentEventSignal::new(
@@ -824,7 +734,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
         visibility_table: &'a Vec<bool>,
-        visibility_stack: &'a mut FixedStack<128, bool>,
+        visibility_stack: &'a mut VisibilityStack,
         mouse_pos: Vec2<f32>,
         mut callback: CB,
     ) where
@@ -869,26 +779,6 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
     }
 
-    fn aabb_iter<'a>(
-        gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
-        key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
-        visibility_table: &'a Vec<bool>,
-    ) -> impl Iterator<Item = (GuiComponentKey, AABB2<f32>)> + 'a {
-        gui_component_tree
-            .iter()
-            .filter(move |node_info| {
-                /* skip over invisible nodes and act as if they never existed */
-                let raw_node_id = node_info.id.as_usize();
-                let visibility = visibility_table[raw_node_id];
-                visibility
-            })
-            .map(move |node_info| {
-                let &key = &GuiComponentKey::from(node_info.id);
-                let &aabb = key_to_aabb_table.get(&key).unwrap();
-                (key, aabb)
-            })
-    }
-
     fn recompute_aabb_table(&mut self) {
         self.key_to_aabb_table.clear();
         //force a split borrow, safe because key_to_aabb_table is never mutated in the component_global_position_top_down(..) function
@@ -928,65 +818,5 @@ impl<ProgramState> GuiManager<ProgramState> {
                 }
                 (sig, GuiComponentKey::from(key), *s.peek())
             })
-    }
-
-    #[allow(dead_code)]
-    fn component_global_position_bottom_up<CB>(&self, mut cb: CB)
-    where
-        CB: FnMut(GuiComponentKey, Mat4<f32>) -> bool,
-    {
-        let mut mat_stack = MatStack::new();
-        let mut key_stack = FixedStack::<32, GuiComponentKey>::new();
-
-        let mut it = self.gui_component_tree.iter_stack_signals();
-
-        let mut peek_and_prop = |matstack: &MatStack<_>, keystack: &FixedStack<32, _>| {
-            let &mat = matstack.peek();
-            let key = keystack.peek();
-            cb(key, mat)
-        };
-
-        while let Some((sig, key, comp)) = it.next() {
-            let &comp_pos = comp.rel_position();
-            let transform = translate4(Vec4::to_pos(comp_pos));
-
-            match sig {
-                StackSignal::Nop => {
-                    if peek_and_prop(&mat_stack, &key_stack) {
-                        return;
-                    }
-                    mat_stack.pop();
-                    key_stack.pop();
-
-                    mat_stack.push(transform);
-                    key_stack.push(key.into());
-                }
-                StackSignal::Pop { n_times } => {
-                    for _ in 0..n_times + 1 {
-                        if peek_and_prop(&mat_stack, &key_stack) {
-                            return;
-                        }
-                        mat_stack.pop();
-                        key_stack.pop();
-                    }
-
-                    mat_stack.push(transform);
-                    key_stack.push(key.into());
-                }
-                StackSignal::Push => {
-                    mat_stack.push(transform);
-                    key_stack.push(key.into());
-                }
-            }
-        }
-
-        //flush remaining items in stack
-        while key_stack.len() > 0 {
-            if peek_and_prop(&mat_stack, &key_stack) {
-                return;
-            }
-            mat_stack.pop();
-            key_stack.pop();
-        }
     }
 }

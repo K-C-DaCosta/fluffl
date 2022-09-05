@@ -62,28 +62,38 @@ impl ComponentEventSignal {
     }
 }
 
-#[derive(Copy,Clone)]
 pub struct RenderState<'a> {
     pub global_position: Vec4<f32>,
     pub renderer: &'a GuiRenderer,
-    pub level:usize, 
-    // pub gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
-    // pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+    pub level: usize,
+    pub key: GuiComponentKey,
+    pub gui_component_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
+    pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
 }
+
+impl<'a> Clone for RenderState<'a> {
+    fn clone(&self) -> Self {
+        //literally just shallow copies the struct 
+        unsafe { std::mem::transmute_copy(self) }
+    }
+}
+
 impl<'a> RenderState<'a> {
     pub fn new(
+        key: GuiComponentKey,
         global_position: Vec4<f32>,
         renderer: &'a GuiRenderer,
-        level:usize, 
-        // gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
-        // key_to_aabb_table: &'a HashMap<GuiComponentKey, math::AABB<2, f32>>,
+        level: usize,
+        gui_component_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
+        key_to_aabb_table: &'a HashMap<GuiComponentKey, math::AABB<2, f32>>,
     ) -> Self {
         Self {
+            key,
             global_position,
+            gui_component_tree,
             renderer,
-            level
-            // gui_component_tree,
-            // key_to_aabb_table,
+            level,
+            key_to_aabb_table,
         }
     }
 }
@@ -141,5 +151,21 @@ pub trait GuiComponent {
 
     fn is_origin(&self) -> bool {
         self.as_any().downcast_ref::<OriginState>().is_some()
+    }
+}
+
+/// used
+pub fn layer_lock(gl: &GlowGL, layer_id: usize) {
+    unsafe {
+        gl.enable(glow::STENCIL_TEST);
+        gl.stencil_mask(0xff);
+        gl.stencil_func(glow::LEQUAL, (layer_id as i32) - 1, 0xff);
+        gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+    }
+}
+
+pub fn layer_unlock(gl: &GlowGL) {
+    unsafe {
+        gl.disable(glow::STENCIL_TEST);
     }
 }

@@ -337,15 +337,16 @@ impl CaptionClipper {
 
 pub struct TextBoxState {
     pub frame: FrameState,
-    pub alignment: [TextAlignment; 2],
-    pub text: String,
-    pub text_size: f32,
-    pub text_cursor: usize,
-    pub clipper: CaptionClipper,
-    pub text_area: AABB2<f32>,
-    pub cursor_area: AABB2<f32>,
+    alignment: [TextAlignment; 2],
+    text: String,
+    text_size: f32,
+    text_cursor: usize,
+    clipper: CaptionClipper,
+    text_area: AABB2<f32>,
+    cursor_area: AABB2<f32>,
     t0: Instant,
 }
+
 impl TextBoxState {
     pub fn new() -> Self {
         Self {
@@ -364,7 +365,7 @@ impl TextBoxState {
 
 impl TextBoxState {
     pub fn update_char_cursor(&mut self, mouse_position: Vec2<f32>) {
-        let relative_horizontal_postion = (mouse_position - self.text_area.s0).x();
+        let relative_horizontal_postion = (mouse_position - self.text_area.min_pos).x();
         let new_text_cursor_position = self
             .clipper
             .get_text_postion_given_horizontal_disp(relative_horizontal_postion);
@@ -432,7 +433,9 @@ impl GuiComponent for TextBoxState {
     ) {
         const HORIZONTAL_MARGIN: f32 = 20.0;
 
-        self.frame.render(gl, state, text_writer, win_w, win_h);
+        self.frame.render(gl, state.clone(), text_writer, win_w, win_h);
+
+        layer_lock(gl, state.level);
 
         let &old_sf = text_writer.horizontal_scaling_factor();
         *text_writer.horizontal_scaling_factor_mut() = 1.3;
@@ -587,6 +590,8 @@ impl GuiComponent for TextBoxState {
                 gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
             }
 
+            layer_unlock(gl);
+
             //restore previous sf
             *text_writer.horizontal_scaling_factor_mut() = old_sf;
         }
@@ -687,7 +692,81 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
         &mut self.textbox_key
     }
 
-    fn build(self) -> GuiComponentKey {
+    fn build(mut self) -> GuiComponentKey {
+        
+        // add default event listeners 
+        self = self.with_listener(GuiEventKind::OnClick, |tb, ek, _| {
+            if let EventKind::MouseDown { x, y, .. } = ek {
+                let mouse_pos = Vec2::from([x as f32, y as f32]);
+
+                if tb.cursor_area.is_point_inside(mouse_pos) {
+                    let dims = tb.cursor_area.dims();
+                    let new_percentage = (x as f32 - tb.cursor_area.min_pos.x()) / dims.x();
+                    const SNAP_TO_BOUNDS_THRESH: f32 = 0.1;
+                    if new_percentage < SNAP_TO_BOUNDS_THRESH {
+                        tb.clipper.request_offset_of_scroll_cursor(1);
+                    }
+                    if new_percentage > (1. - SNAP_TO_BOUNDS_THRESH) {
+                        tb.clipper.request_offset_of_scroll_cursor(-1);
+                    }
+
+                    tb.clipper.request_offset_of_scroll_cursor(0);
+                    tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
+                } else if tb.text_area.is_point_inside(mouse_pos) {
+                    tb.update_char_cursor(mouse_pos);
+                }
+            }
+        })
+        .with_listener_advanced(
+            GuiEventKind::OnDrag,
+            Box::new(|info| {
+                if let EventKind::MouseMove { x, y, .. } = info.event {
+                    let tb_key = info.key;
+                    let gui_comp_tree = info.gui_comp_tree;
+                    let tb = gui_comp_tree
+                        .get_mut(tb_key)
+                        .expect("tb_key should be valid")
+                        .as_any_mut()
+                        .downcast_mut::<TextBoxState>()
+                        .unwrap();
+                    let mouse_pos = Vec2::from([x as f32, y as f32]);
+                    if tb.cursor_area.is_point_inside(mouse_pos) {
+                        let dims = tb.cursor_area.dims();
+                        let new_percentage = (x as f32 - tb.cursor_area.min_pos.x()) / dims.x();
+                        tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
+                    }
+                }
+                None
+            }),
+        )
+        .with_listener(GuiEventKind::OnWheelWhileFocused, |tb, e, _state| {
+            let wheel_dir = e.wheel();
+            tb.clipper
+                .request_offset_of_scroll_cursor(wheel_dir as isize);
+        })
+        .with_listener(GuiEventKind::OnKeyDown, |comp, e, _state| {
+            if let EventKind::KeyDown { code } = e {
+                match code {
+                    KeyCode::BACKSPACE => {
+                        comp.remove_char_at_cursor();
+                    }
+                    KeyCode::ARROW_LEFT => {
+                        comp.offset_cursor(-1);
+                    }
+                    KeyCode::ARROW_RIGHT => {
+                        comp.offset_cursor(1);
+                    }
+                    KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {}
+                    _ => {
+                        let c = code.key_val().unwrap_or_default();
+                        if c.is_ascii() {
+                            comp.push_char_at_cursor(c);
+                        }
+                    }
+                }
+            }
+        });
+
         let manager = self.manager;
         let textbox_parent_node_id = self.parent_key.unwrap_or_default();
         let textbox_node_id = self.textbox_key.expect("textbox key missing");

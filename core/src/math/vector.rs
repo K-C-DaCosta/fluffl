@@ -29,7 +29,7 @@ where
 
 impl<const N: usize, T> Vector<N, T>
 where
-    T:  Default + Copy + HasScalar,
+    T: Default + Copy + HasScalar,
 {
     pub fn zero() -> Self {
         Self {
@@ -46,6 +46,12 @@ where
         for k in 0..M.min(N) {
             res[k] = b[k];
         }
+        res
+    }
+    
+    pub fn axis(self, index: usize) -> Self {
+        let mut res = Self::zero();
+        res[index] = self[index];
         res
     }
 

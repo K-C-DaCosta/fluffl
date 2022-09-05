@@ -365,6 +365,73 @@ impl<T> LinearTree<T> {
         }
     }
 
+    /// loops through just children of `root`
+    pub fn iter_children<'a, NID: Into<NodeID>>(
+        &'a self,
+        root: NID,
+    ) -> impl Iterator<Item = NodeInfo<'a, T>> {
+        let root = root.into();
+        self.iter_subtree(root)
+            .filter(move |node| node.parent.is_some() && node.parent.unwrap() == root)
+    }
+
+    pub fn iter_children_mut<'a, NID: Into<NodeID>>(
+        &'a mut self,
+        root: NID,
+    ) -> impl Iterator<Item = NodeInfoMut<'a, T>> {
+        let root = root.into();
+        self.iter_subtree_mut(root)
+            .filter(move |node| node.parent.is_some() && node.parent.unwrap() == root)
+    }
+
+    /// traverses through a subtree of nodes starting at `root`
+    pub fn iter_subtree<'a, NID: Into<NodeID>>(
+        &'a self,
+        root: NID,
+    ) -> impl Iterator<Item = NodeInfo<'a, T>> {
+        let ptr = self.resolve_id_to_ptr(root.into());
+        let len = self.len();
+        let level = &self.level;
+        let node_id = &self.node_id;
+        let data = &self.data;
+        let parent = &self.parent;
+        let root_level = self.level[ptr];
+
+        (ptr.as_usize() + 1..)
+            .take_while(move |&ptr| ptr < len && level[ptr] > root_level)
+            .map(move |ptr| NodeInfo {
+                parent: (parent[ptr] != Ptr::null()).then(|| node_id[parent[ptr]]),
+                id: node_id[ptr],
+                val: unsafe { data[ptr].assume_init_ref() },
+            })
+    }
+
+    pub fn iter_subtree_mut<'a, NID: Into<NodeID>>(
+        &'a mut self,
+        root: NID,
+    ) -> impl Iterator<Item = NodeInfoMut<'a, T>> {
+        let ptr = self.resolve_id_to_ptr(root.into());
+        let len = self.len();
+        let level = &mut self.level;
+        let node_id_ptr = &mut self.node_id as *mut Vec<_>;
+        let data_ptr = &mut self.data as *mut Vec<MaybeUninit<_>>;
+        let parent_ptr = &mut self.parent as *mut Vec<_>;
+        let root_level = level[ptr];
+
+        (ptr.as_usize() + 1..)
+            .take_while(move |&ptr| ptr < len && level[ptr] > root_level)
+            .map(move |ptr| unsafe {
+                let node_id = &mut *node_id_ptr;
+                let data = &mut *data_ptr;
+                let parent = &mut *parent_ptr;
+                NodeInfoMut {
+                    parent: (parent[ptr] != Ptr::null()).then(|| node_id[parent[ptr]]),
+                    id: node_id[ptr],
+                    val: data[ptr].assume_init_mut(),
+                }
+            })
+    }
+
     pub fn remove(&mut self, id: NodeID, removed_vals: &mut Vec<T>) {
         //before anything happens make sure result buffer is clear
         removed_vals.clear();
