@@ -2,6 +2,7 @@ use super::*;
 use crate::collections::flat_nary_tree::NodeInfoMut;
 
 #[derive(Copy, Clone)]
+/// at this point this is basically a 3x3 basis 
 pub struct SliderRail {
     min: Vec2<f32>,
     horizontal_disp: Vec2<f32>,
@@ -29,7 +30,7 @@ pub struct FrameState {
     components_aabb: AABB2<f32>,
     horizontal_scroll_area: AABB2<f32>,
     vertical_scroll_area: AABB2<f32>,
-    last_known_mouse_pos: Vec2<f32>, 
+    last_known_mouse_pos: Vec2<f32>,
 }
 
 impl FrameState {
@@ -78,35 +79,30 @@ impl FrameState {
         if self.rails.is_some() {
             return;
         }
+        self.components_aabb = compute_component_bounds(gui_component_tree, root_key);
+        self.update_component_bounds_assuming_new_bounds_already_set();
+    }
 
-        let mut aabb = AABB2::flipped_infinity();
-        for NodeInfoMut { val, .. } in gui_component_tree.iter_children_mut(root_key).skip(1) {
-            let &pos = val.rel_position();
-            let bounds = val.get_bounds();
-            let rel_aabb = AABB2::from_point_and_lengths(pos, bounds);
-            aabb.merge(rel_aabb);
+    fn update_component_bounds_assuming_new_bounds_already_set(&mut self) {
+        if self.rails.is_some() {
+            return;
         }
+        // overflow vectors for the "right" and "down" half-spaces of the frame
+        // we don't care about overflow on the "left" and "top" half-spaces
+        let horizontal_disp = Vec2::from([
+            (self.bounds.x() - self.components_aabb.max_pos.x()).min(0.0),
+            0.0,
+        ]);
+        let vertical_disp = Vec2::from([
+            0.0,
+            (self.bounds.y() - self.components_aabb.max_pos.y()).min(0.0),
+        ]);
 
-        self.components_aabb = aabb;
-
-        match self.rails.as_mut() {
-            Some(rail) => {
-                // rail.vertical_disp = vertical_disp;
-                // rail.horizontal_disp = horizontal_disp;
-            }
-            None => {
-                let vertical_disp = Vec2::from([0.0, -self.components_aabb.min_pos.x().min(0.0)]);
-                let horizontal_disp = Vec2::from([
-                    (self.bounds.x() - self.components_aabb.max_pos.x()).min(0.0),
-                    0.0,
-                ]);
-                self.rails = Some(SliderRail {
-                    min: self.components_aabb.min_pos,
-                    vertical_disp,
-                    horizontal_disp,
-                });
-            }
-        }
+        self.rails = Some(SliderRail {
+            min: self.components_aabb.min_pos,
+            vertical_disp,
+            horizontal_disp,
+        });
     }
 }
 
@@ -167,9 +163,10 @@ impl GuiComponent for FrameState {
             .set_bounds(self.bounds)
             .set_position(state.global_position, Vec4::to_pos(self.bounds))
             .render();
+        layer_unlock(gl);
 
         //compute global horizontal bounding box
-        const HORIZONTAL_SCROLL_HEIGHT: f32 = 32.0;
+        const HORIZONTAL_SCROLL_HEIGHT: f32 = 20.0;
         self.horizontal_scroll_area = AABB2::from_point_and_lengths(
             Vec2::from([
                 pos.x(),
@@ -190,8 +187,6 @@ impl GuiComponent for FrameState {
             let cursor_aabb = AABB2::from_point_and_lengths(cursor_pos, cursor_bounds);
             Self::draw_rectangle(gl, r, win_w, win_h, cursor_aabb);
         }
-
-        layer_unlock(gl);
     }
 }
 
@@ -278,7 +273,7 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
 
     pub fn with_scrollbars(mut self, enable: bool) -> Self {
         if enable {
-            self.state.as_mut().unwrap().is_scrollbars_enabled = true; 
+            self.state.as_mut().unwrap().is_scrollbars_enabled = true;
 
             self.with_listener_advanced(
                 GuiEventKind::OnDrag,
@@ -286,59 +281,87 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
                     let root_key = info.key;
                     let gui_component_tree = info.gui_comp_tree;
                     let mouse_pos = info.event.mouse_pos();
-                    // let disp = info.event.disp();
 
-                    get_frame(
+                    let frame = get_frame(
                         unsafe { crate::mem::force_borrow_mut(gui_component_tree) },
                         root_key,
-                    )
-                    .update_component_bounds(gui_component_tree, root_key);
+                    );
+                    frame.update_component_bounds(gui_component_tree, root_key);
 
-                    let frame = get_frame(gui_component_tree, root_key);
-                    let frame_pos = info.key_to_aabb_table.get(&root_key).unwrap().min_pos;
-                    let frame_bounds = frame.bounds;
-                    let u = ((mouse_pos.x() - frame_pos.x()) / (frame_bounds.x())).clamp(0.0, 1.0);
-                    let new_min = frame.rails.unwrap().eval(u, 0.0);
-                    let disp = new_min - frame.components_aabb.min_pos;
+                    let new_component_bounding_box =
+                        compute_component_bounds(gui_component_tree, root_key);
+                    let old_component_bounding_box = frame.components_aabb;
+                    const EPSILON: f32 = 0.001;
 
-                    frame.last_known_mouse_pos = mouse_pos; 
+                    let component_bounding_box_changed_dramatically = new_component_bounding_box
+                        .dims()
+                        .iter()
+                        .zip(old_component_bounding_box.dims().iter())
+                        .all(|(&cur, &prev)| (cur - prev).abs() < EPSILON)
+                        == false;
 
-                    if frame.horizontal_scroll_area.is_point_inside(mouse_pos) {
-                        frame.percentages[0] = u;
-                        translate_children(gui_component_tree, root_key, disp);
+                    if component_bounding_box_changed_dramatically {
+                        let old_uv = frame.percentages;
+                        scroll_elements(gui_component_tree, root_key, Vec2::zero());
+                        frame.rails = None;
+                        frame.update_component_bounds(gui_component_tree, root_key);
+                        scroll_elements(gui_component_tree, root_key, old_uv);
                     }
 
+                    let uv = {
+                        let frame = get_frame(gui_component_tree, root_key);
+                        let frame_pos = info.key_to_aabb_table.get(&root_key).unwrap().min_pos;
+                        let frame_bounds = frame.bounds;
+                        let mut uv = (mouse_pos - frame_pos) / frame_bounds;
+                        uv.iter_mut().for_each(|comp| *comp = comp.clamp(0.0, 1.0));
+                        uv
+                    };
+
+                    let (horizontal_scroll_area, _vertical_scroll_area) = {
+                        let frame = get_frame(gui_component_tree, root_key);
+                        let hsa = frame.horizontal_scroll_area;
+                        let vsa = frame.vertical_scroll_area;
+                        (hsa, vsa)
+                    };
+
+                    if horizontal_scroll_area.is_point_inside(mouse_pos) {
+                        frame.percentages[0] = uv.x();
+                        let uv = frame.percentages;
+                        scroll_elements(gui_component_tree, root_key, uv);
+                    }
                     None
                 }),
-            ) .with_listener_advanced(
-                GuiEventKind::OnWheelWhileHovered,
-                Box::new(|info| {
-                    let root_key = info.key;
-                    let gui_component_tree = info.gui_comp_tree;
-                    let mouse_pos = info.event.mouse_pos();
-                    let frame = get_frame(gui_component_tree, root_key);
-                    let wheel = info.event.wheel() * 0.1;
-             
-                    if frame.horizontal_scroll_area.is_point_inside(frame.last_known_mouse_pos) {
-                        frame.percentages[0] += wheel;
-                        frame.percentages[0] = frame.percentages[0].clamp(0.0, 1.0);
-                    }
-                    None
-                }))
-            
+            )
             .with_listener_advanced(
                 GuiEventKind::OnWheelWhileHovered,
                 Box::new(|info| {
                     let root_key = info.key;
                     let gui_component_tree = info.gui_comp_tree;
-                    let mouse_pos = info.event.mouse_pos();
                     let frame = get_frame(gui_component_tree, root_key);
                     let wheel = info.event.wheel() * 0.1;
-             
-                    if frame.horizontal_scroll_area.is_point_inside(frame.last_known_mouse_pos) {
+
+                    if frame
+                        .horizontal_scroll_area
+                        .is_point_inside(frame.last_known_mouse_pos)
+                    {
                         frame.percentages[0] += wheel;
                         frame.percentages[0] = frame.percentages[0].clamp(0.0, 1.0);
+
+                        let uv = frame.percentages;
+
+                        scroll_elements(gui_component_tree, root_key, uv);
                     }
+                    None
+                }),
+            )
+            .with_listener_advanced(
+                GuiEventKind::OnMouseMove,
+                Box::new(|info| {
+                    let root_key = info.key;
+                    let gui_component_tree = info.gui_comp_tree;
+                    let mouse_pos = info.event.mouse_pos();
+                    let frame = get_frame(gui_component_tree, root_key);
+                    frame.last_known_mouse_pos = mouse_pos;
                     None
                 }),
             )
@@ -413,4 +436,58 @@ fn translate_children<'a>(
     let frame = get_frame(tree, root_key);
     frame.camera += disp;
     frame.components_aabb.translate(disp);
+}
+
+fn scroll_elements(
+    gui_component_tree: &mut LinearTree<Box<dyn GuiComponent>>,
+    root_key: GuiComponentKey,
+    uv: Vec2<f32>,
+) {
+    let frame = get_frame(gui_component_tree, root_key);
+    let new_min = frame.rails.unwrap().eval(uv.x(), uv.y());
+    let disp = new_min - frame.components_aabb.min_pos;
+    frame.percentages = uv;
+    translate_children(gui_component_tree, root_key, disp)
+}
+
+fn compute_component_bounds(
+    gui_component_tree: &mut LinearTree<Box<dyn GuiComponent>>,
+    root_key: GuiComponentKey,
+) -> AABB2<f32> {
+    let mut aabb = AABB2::flipped_infinity();
+    for NodeInfoMut { val, .. } in gui_component_tree.iter_children_mut(root_key).skip(1) {
+        let &pos = val.rel_position();
+        let bounds = val.get_bounds();
+        let rel_aabb = AABB2::from_point_and_lengths(pos, bounds);
+        aabb.merge(rel_aabb);
+    }
+    aabb
+}
+
+fn resize_component_bounds_if_needed(
+    gui_component_tree: &mut LinearTree<Box<dyn GuiComponent>>,
+    root_key: GuiComponentKey,
+) {
+    let new_component_bounding_box = compute_component_bounds(gui_component_tree, root_key);
+    let old_component_bounding_box = get_frame(gui_component_tree, root_key).components_aabb;
+    const EPSILON: f32 = 0.001;
+
+    let component_bounding_box_changed_dramatically = new_component_bounding_box
+        .dims()
+        .iter()
+        .zip(old_component_bounding_box.dims().iter())
+        .all(|(&cur, &prev)| (cur - prev).abs() < EPSILON)
+        == false;
+
+    if component_bounding_box_changed_dramatically {
+        let old_uv = get_frame(gui_component_tree, root_key).percentages;
+        scroll_elements(gui_component_tree, root_key, Vec2::zero());
+
+        let frame = get_frame(gui_component_tree, root_key);
+        frame.rails = None;
+        frame.components_aabb = new_component_bounding_box;
+        frame.update_component_bounds_assuming_new_bounds_already_set();
+
+        scroll_elements(gui_component_tree, root_key, old_uv);
+    }
 }

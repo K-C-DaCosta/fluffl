@@ -48,7 +48,7 @@ where
         }
         res
     }
-    
+
     pub fn axis(self, index: usize) -> Self {
         let mut res = Self::zero();
         res[index] = self[index];
@@ -66,6 +66,77 @@ where
 
     pub fn from_array(data: [T; N]) -> Self {
         Self { data }
+    }
+}
+
+impl<const N: usize, T> Vector<N, T>
+where
+    T: Default + Copy + Add<Output = T> + Mul<Output = T>,
+{
+    pub fn dot(lhs: Self, rhs: Self) -> T {
+        lhs.data
+            .iter()
+            .zip(rhs.data)
+            .fold(T::default(), |acc, (&lhs, rhs)| acc + (lhs * rhs))
+    }
+
+    pub fn length_squared(self) -> T {
+        Self::dot(self, self)
+    }
+}
+
+impl<const N: usize, T> Vector<N, T>
+where
+    T: Default + Copy + Mul<Output = T>,
+{
+    fn component_wise_multiplication(lhs: Self, rhs: Self) -> Self {
+        let mut data = [T::default(); N];
+        data.iter_mut()
+            .zip(lhs.iter())
+            .zip(rhs.iter())
+            .for_each(|((res, &lhs), &rhs)| {
+                *res = lhs * rhs;
+            });
+        Self { data }
+    }
+
+    fn scale(lhs: Self, rhs: T) -> Self {
+        let mut data = [T::default(); N];
+        data.iter_mut().zip(lhs.iter()).for_each(|(res, &lhs)| {
+            *res = lhs * rhs;
+        });
+        Self { data }
+    }
+}
+
+impl<const N: usize, T> Vector<N, T>
+where
+    T: Default + Copy + Div<Output = T>,
+{
+    fn component_wise_division(lhs: Self, rhs: Self) -> Self {
+        let mut data = [T::default(); N];
+        data.iter_mut()
+            .zip(lhs.iter())
+            .zip(rhs.iter())
+            .for_each(|((res, &lhs), &rhs)| {
+                *res = lhs / rhs;
+            });
+        Self { data }
+    }
+}
+
+impl<const N: usize, T> Vector<N, T>
+where
+    T: MulAssign + Copy,
+{
+    fn scale_assign(&mut self, scalar: T) {
+        self.data.iter_mut().for_each(|comp| *comp *= scalar);
+    }
+}
+
+impl<const N: usize> Vector<N, f32> {
+    pub fn length(self) -> f32 {
+        self.length_squared().sqrt()
     }
 }
 
@@ -139,18 +210,22 @@ where
 
 impl<const N: usize, T> Mul for Vector<N, T>
 where
-    T: Default + Mul<Output = T> + Add<Output = T> + Copy,
+    T: Default + Mul<Output = T> + Copy,
 {
-    type Output = T;
+    type Output = Self;
 
     fn mul(self, rhs: Self) -> Self::Output {
-        let dot = self
-            .data
-            .iter()
-            .zip(rhs.data)
-            .fold(T::default(), |acc, (&lhs, rhs)| acc + (lhs * rhs));
+        Self::component_wise_multiplication(self, rhs)
+    }
+}
 
-        dot
+impl<const N: usize, T> Div for Vector<N, T>
+where
+    T: Default + Div<Output = T> + Copy,
+{
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        Self::component_wise_division(self, rhs)
     }
 }
 
@@ -161,13 +236,7 @@ where
     type Output = Self;
 
     fn mul(self, rhs: T) -> Self::Output {
-        let mut data = [T::default(); N];
-        data.iter_mut()
-            .zip(self.data.iter())
-            .for_each(|(res, &lhs)| {
-                *res = lhs * rhs;
-            });
-        Self { data }
+        Self::scale(self, rhs)
     }
 }
 
@@ -176,7 +245,7 @@ where
     T: Default + Mul<Output = T> + MulAssign + Copy,
 {
     fn mul_assign(&mut self, rhs: T) {
-        self.data.iter_mut().for_each(|comp| *comp *= rhs);
+        self.scale_assign(rhs)
     }
 }
 

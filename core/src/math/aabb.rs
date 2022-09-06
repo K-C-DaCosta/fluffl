@@ -100,7 +100,7 @@ where
 
 impl<const DIM: usize, T> AABB<DIM, T>
 where
-    T: Copy + Default + PartialOrd + HasScalar,
+    T: Copy + Default + PartialOrd ,
 {
     /// merges curent aabbs with `other` so that the resulting AABB contains the minimal area AABB such that points from both `self` and `other`
     pub fn merge(&mut self, other: AABB<DIM, T>) {

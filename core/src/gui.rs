@@ -216,7 +216,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let prink_frame = manager
             .builder_frame()
             .with_parent(origin)
-            .with_bounds([400.0+0.0, 200.0+100.0])
+            .with_bounds([400.0 + 0.0, 200.0 + 100.0])
             .with_roundness([1., 1., 1.0, 1.0])
             .with_position([64.0, 32.0])
             .with_scrollbars(true)
@@ -264,7 +264,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let slider_frame = manager
             .builder_slider()
             .with_parent(prink_frame)
-            .with_position([0.0, 64.0])
+            .with_position([4.0, 64.0])
             .with_bounds([128.0, 32.0])
             .with_color(Vec4::rgb_u32(0x554994))
             .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
@@ -286,10 +286,10 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_button_listener(GuiEventKind::OnHoverOut, |f, _, _| {
                 f.color *= 10. / 9.;
             })
-            .with_button_listener(GuiEventKind::OnClick, |f, _, _| {
+            .with_button_listener(GuiEventKind::OnMouseDown, |f, _, _| {
                 f.color = Vec4::from([1.0; 4]) - f.color;
             })
-            .with_button_listener(GuiEventKind::OnRelease, |f, _, _| {
+            .with_button_listener(GuiEventKind::OnMouseRelease, |f, _, _| {
                 f.color = Vec4::from([1.0; 4]) - f.color;
             })
             .build();
@@ -314,10 +314,10 @@ impl<ProgramState> GuiManager<ProgramState> {
                     frame.color *= 2.0;
                     frame.color[3] = 1.0;
                 })
-                .with_listener(GuiEventKind::OnClick, |frame, _, _| {
+                .with_listener(GuiEventKind::OnMouseDown, |frame, _, _| {
                     frame.color = Vec4::rgb_u32(!0);
                 })
-                .with_listener(GuiEventKind::OnRelease, move |frame, _, _| {
+                .with_listener(GuiEventKind::OnMouseRelease, move |frame, _, _| {
                     frame.color = color * 0.5;
                     frame.color[3] = 1.0;
                 })
@@ -329,7 +329,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             .builder_textbox()
             .with_parent(prink_frame)
             .with_bounds([1000.0, 64.0])
-            .with_position([0.0, 200.0 - 64.0])
+            .with_position([4.0, 200.0 - 64.0])
             .with_color(Vec4::rgb_u32(0))
             .with_roundness([0.0, 0.0, 32.0, 32.0])
             .with_font_size(32.0)
@@ -488,7 +488,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 EventKind::MouseUp { .. } => {
                     if let &mut Some(gui_comp_key) = clicked_component {
                         component_signal_queue.push_back(ComponentEventSignal::new(
-                            GuiEventKind::OnRelease,
+                            GuiEventKind::OnMouseRelease,
                             gui_comp_key,
                             event,
                         ));
@@ -553,7 +553,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
                     if let &mut Some(clicked) = clicked_component {
                         component_signal_queue.push_back(ComponentEventSignal::new(
-                            GuiEventKind::OnClick,
+                            GuiEventKind::OnMouseDown,
                             clicked,
                             event,
                         ));
@@ -563,12 +563,22 @@ impl<ProgramState> GuiManager<ProgramState> {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
                     let _disp = Vec2::from([dx as f32, dy as f32]);
 
+                    if let &mut Some(hover_key) = hover_component {
+                        if visibility_table[hover_key] {
+                            component_signal_queue.push_back(ComponentEventSignal::new(
+                                GuiEventKind::OnMouseMove,
+                                hover_key,
+                                event,
+                            ));
+                        }
+                    }
+
                     if let &mut Some(clicked_key) = clicked_component {
                         //force release of component if its being clicked on while being invisible
                         if visibility_table[clicked_key] == false && clicked_component.is_some() {
                             let clicked_key = clicked_component.expect("clicked should be valid");
                             component_signal_queue.push_back(ComponentEventSignal::new(
-                                GuiEventKind::OnRelease,
+                                GuiEventKind::OnMouseRelease,
                                 clicked_key,
                                 event,
                             ));

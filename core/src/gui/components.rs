@@ -25,14 +25,15 @@ pub enum GuiEventKind {
     OnHoverIn           =  0,
     OnHoverOut          =  1,
     OnDrag              =  2,
-    OnClick             =  3,
-    OnRelease           =  4,
-    OnKeyDown           =  5,
-    OnKeyRelease        =  6,
-    OnFocusIn           =  7, 
-    OnFocusOut          =  8,
-    OnWheelWhileFocused =  9, 
-    OnWheelWhileHovered = 10,
+    OnMouseDown         =  3,
+    OnMouseRelease      =  4,
+    OnMouseMove         =  5,
+    OnKeyDown           =  6,
+    OnKeyRelease        =  7,
+    OnFocusIn           =  8, 
+    OnFocusOut          =  9,
+    OnWheelWhileFocused = 10, 
+    OnWheelWhileHovered = 11,
 }
 
 pub struct ComponentEventListener<ProgramState> {

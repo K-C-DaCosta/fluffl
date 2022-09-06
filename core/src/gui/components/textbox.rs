@@ -695,7 +695,7 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
     fn build(mut self) -> GuiComponentKey {
         
         // add default event listeners 
-        self = self.with_listener(GuiEventKind::OnClick, |tb, ek, _| {
+        self = self.with_listener(GuiEventKind::OnMouseDown, |tb, ek, _| {
             if let EventKind::MouseDown { x, y, .. } = ek {
                 let mouse_pos = Vec2::from([x as f32, y as f32]);
 
