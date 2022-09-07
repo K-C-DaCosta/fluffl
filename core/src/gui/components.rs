@@ -3,11 +3,13 @@ use super::{builder::*, *};
 use crate::{extras::text_writer::TextWriter, math::AABB2};
 use std::any::Any;
 
+pub mod component_flags;
 mod frame;
 mod origin;
 mod slider;
 mod textbox;
 
+use self::component_flags::ComponentFlags;
 pub use self::{frame::*, origin::*, slider::*, textbox::*};
 
 #[derive(Copy, Clone)]
@@ -74,7 +76,7 @@ pub struct RenderState<'a> {
 
 impl<'a> Clone for RenderState<'a> {
     fn clone(&self) -> Self {
-        //literally just shallow copies the struct 
+        //literally just shallow copies the struct
         unsafe { std::mem::transmute_copy(self) }
     }
 }
@@ -117,18 +119,12 @@ impl<'a, ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>>
 
 pub trait GuiComponent {
     fn as_any(&self) -> &dyn Any;
-
     fn as_any_mut(&mut self) -> &mut dyn Any;
-
-    fn is_visible(&self) -> bool;
-    fn set_visible(&mut self, is_visible: bool);
-
+    fn flags(&self) -> &ComponentFlags;
+    fn flags_mut(&mut self) -> &mut ComponentFlags;
     fn get_bounds(&self) -> Vec2<f32>;
-
     fn set_bounds(&mut self, bounds: Vec2<f32>);
-
     fn rel_position(&self) -> &Vec2<f32>;
-
     fn set_rel_position(&mut self, pos: Vec2<f32>);
 
     fn render<'a>(
@@ -139,6 +135,26 @@ pub trait GuiComponent {
         win_w: f32,
         win_h: f32,
     );
+
+    fn is_visible(&self) -> bool {
+        self.flags().is_set(component_flags::VISIBLE)
+    }
+
+    fn set_visible(&mut self, is_visible: bool) {
+        self.flags_mut().unset(component_flags::VISIBLE);
+        self.flags_mut()
+            .set(component_flags::VISIBLE & ComponentFlags::as_mask(is_visible))
+    }
+
+    fn set_overflowable(&mut self, overflowable: bool) {
+        self.flags_mut().unset(component_flags::OVERFLOWABLE);
+        self.flags_mut()
+            .set(component_flags::OVERFLOWABLE & ComponentFlags::as_mask(overflowable))
+    }
+
+    fn is_overflowable(&self) -> bool {
+        self.flags().is_set(component_flags::OVERFLOWABLE)
+    }
 
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
         let bounds = self.get_bounds();
@@ -156,12 +172,18 @@ pub trait GuiComponent {
 }
 
 /// used
-pub fn layer_lock(gl: &GlowGL, layer_id: usize) {
-    unsafe {
-        gl.enable(glow::STENCIL_TEST);
-        gl.stencil_mask(0xff);
-        gl.stencil_func(glow::LEQUAL, (layer_id as i32) - 1, 0xff);
-        gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+pub fn layer_lock(gl: &GlowGL, layer_id: usize, flags: ComponentFlags) {
+    if flags.is_set(component_flags::OVERFLOWABLE) == false {
+        unsafe {
+            gl.enable(glow::STENCIL_TEST);
+            gl.stencil_mask(0xff);
+            gl.stencil_func(glow::LEQUAL, (layer_id as i32) - 1, 0xff);
+            gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+        }
+    } else {
+        unsafe {
+            gl.disable(glow::STENCIL_TEST);
+        }
     }
 }
 

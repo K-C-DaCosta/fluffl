@@ -5,6 +5,7 @@ use crate::{
         segment_tree::{index_types::GlobalIndex, CircularSegmentTree, TreeIterState},
         Ptr,
     },
+    math::Vec4,
     math::FP64,
     mem,
 };
@@ -62,7 +63,7 @@ impl MixerCursor {
         let hi = self.t0.sum(&self.delta).elapsed_in_ms_fp();
         Interval { lo, hi }
     }
-    
+
     #[allow(dead_code)]
     pub fn to_interval_tuple_ms_f32(&self) -> (f32, f32) {
         let lo = self.t0.elapsed_in_ms_f32();
@@ -310,7 +311,7 @@ impl Mixer {
             );
 
             //sound gets added to
-            mix_resample_audio_both_2_channels(
+            resample_and_mix_assumed_2_channels(
                 &sample_scratch_space[0..samples_read],
                 &mut output_buffer[..],
             );
@@ -370,7 +371,7 @@ impl Mixer {
                 );
 
                 //sound gets added to
-                mix_resample_audio_both_2_channels(
+                resample_and_mix_assumed_2_channels(
                     &sample_scratch_space[0..samples_read],
                     &mut output_buffer[..],
                 );
@@ -410,15 +411,13 @@ impl Mixer {
     }
 
     fn remove_irrelevent_tracks(&mut self, _cursor: MixerCursor) {
-        self.remove_irrelevent_tracks_predicate(| track| {
+        self.remove_irrelevent_tracks_predicate(|track| {
             track.time_remaining_in_ms() < FP64::from(1)
         })
     }
 
-    fn remove_irrelevent_tracks_predicate<Predicate>(
-        &mut self,
-        can_be_removed: Predicate,
-    ) where
+    fn remove_irrelevent_tracks_predicate<Predicate>(&mut self, can_be_removed: Predicate)
+    where
         Predicate: Fn(&Box<dyn HasAudioStream>) -> bool,
     {
         let track_chart = &mut self.track_chart;
@@ -514,8 +513,8 @@ impl Mixer {
                 }
                 MixerRequest::Seek(offset_kind) => {
                     Self::request_operation_seek(track_chart, global_t, offset_kind);
-                    mixer_ref.remove_irrelevent_tracks_predicate( |track|{
-                        track.interval().is_within( global_t.elapsed_in_ms_fp()) == false
+                    mixer_ref.remove_irrelevent_tracks_predicate(|track| {
+                        track.interval().is_within(global_t.elapsed_in_ms_fp()) == false
                     });
                 }
             }
@@ -763,16 +762,18 @@ impl Mixer {
 }
 
 /// `src` and `dst` are both assumed to be 2 channels interleaved
-fn mix_resample_audio_both_2_channels(src: &[f32], dst: &mut [f32]) {
-    const NUM_CHANNELS: usize = 2;
+fn resample_and_mix_assumed_2_channels(src: &[f32], dst: &mut [f32]) {
+    mix_resample_audio_both_2_channels_iterator_version_vectorized(src, dst)
+}
 
+#[allow(dead_code)]
+fn mix_resample_audio_both_2_channels_slow_reference(src: &[f32], dst: &mut [f32]) {
+    const NUM_CHANNELS: usize = 2;
     let src_sample_count = src.len() / NUM_CHANNELS;
     let dst_sample_count = dst.len() / NUM_CHANNELS;
-
     if src_sample_count == 0 || dst_sample_count == 0 {
         return;
     }
-
     let scale_ratio = src_sample_count as f32 / dst_sample_count as f32;
     for dst_i in 0..dst_sample_count {
         let src_i_estimate = dst_i as f32 * scale_ratio;
@@ -797,3 +798,90 @@ fn mix_resample_audio_both_2_channels(src: &[f32], dst: &mut [f32]) {
         }
     }
 }
+
+#[allow(dead_code)]
+fn mix_resample_audio_both_2_channels_iterator_version_vectorized(src: &[f32], dst: &mut [f32]) {
+    const NUM_CHANNELS: usize = 2;
+
+    let src_sample_count = src.len() / NUM_CHANNELS;
+    let dst_sample_count = dst.len() / NUM_CHANNELS;
+
+    if src_sample_count == 0 || dst_sample_count == 0 {
+        return;
+    }
+
+    let scale_ratio = src_sample_count as f32 / dst_sample_count as f32;
+
+    dst.chunks_mut(2)
+        .enumerate()
+        .flat_map(|(dst_i, dst_chunk)| {
+            let src_i_estimate = dst_i as f32 * scale_ratio;
+            let src_i = src_i_estimate as usize;
+            let lerp_t = src_i_estimate.fract();
+            let cur_block = (src_i + 0).max(0);
+            let nxt_block = (src_i + 1).min(src_sample_count - 1);
+            //interpolate both channels
+            dst_chunk.iter_mut().enumerate().map(move |(k, dst)| {
+                let (cur, nxt) = unsafe {
+                    (
+                        src.get_unchecked(NUM_CHANNELS * cur_block + k),
+                        src.get_unchecked(NUM_CHANNELS * nxt_block + k),
+                    )
+                };
+                let new_value = (nxt - cur) * lerp_t + cur;
+                (dst, new_value)
+            })
+        })
+        .for_each(|(dst, new_value)| *dst += new_value);
+}
+
+#[allow(dead_code)]
+pub fn mix_resample_audio_test(src: &[f32], dst: &mut [f32]) {
+    const NUM_CHANNELS: usize = 2;
+    let src_sample_count = src.len() / NUM_CHANNELS;
+    let dst_sample_count = dst.len() / NUM_CHANNELS;
+    if src_sample_count == 0 || dst_sample_count == 0 {
+        return;
+    }
+
+    let delta = src_sample_count as f32 / dst_sample_count as f32;
+    let mut src_full = Vec4::from([0., 1., 2., 3.]) * delta;
+    let step = Vec4::from([2.0; 4]) * delta;
+    dst.chunks_mut(4).for_each(|chunks| {
+        chunks.iter_mut().enumerate().for_each(|(k, dst)| unsafe {
+            let src_floor = *src_full.get_unchecked(k / 2) as usize;
+            *dst += *src.get_unchecked(NUM_CHANNELS * src_floor);
+        });
+        src_full += step;
+    });
+}
+pub fn integrate(cur_lst: &mut [Vec4<f32>], pre_lst: &mut [Vec4<f32>]) {
+    for k in 0..cur_lst.len() {
+        let pre = pre_lst[k];
+        let cur = cur_lst[k];
+        let new = (cur - pre) + cur;
+        pre_lst[k] = cur;
+        cur_lst[k] = new;
+    }
+}
+
+pub fn integrate2(cur_lst: &mut [Vec4<f32>], pre_lst: &mut [Vec4<f32>]) {
+    cur_lst
+        .iter_mut()
+        .zip(pre_lst.iter_mut())
+        .for_each(|(cur, pre)| {
+            let new = (*cur - *pre) + *cur;
+            *pre = *cur;
+            *cur = new;
+        });
+}
+
+
+pub fn roots(a: &[f32], b: &[f32], c: &[f32], root: &mut [f32]) {
+    root.iter_mut()
+        .zip(a.iter().zip(b.iter().zip(c.iter())))
+        .for_each(|(root, (&a, (&b, &c)))| {
+            *root = -(b + (b * b - 4.0 * a * c).sqrt()) / (2.0 * a);
+        })
+}
+

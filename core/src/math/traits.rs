@@ -6,6 +6,29 @@ pub trait HasScalar {
     fn from_i32(val: i32) -> Self;
 }
 
+impl HasScalar for isize {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+    fn from_i32(val: i32) -> Self {
+        val as Self
+    }
+}
+
+impl HasScalar for usize {
+    fn zero() -> Self {
+        0
+    }
+    fn one() -> Self {
+        1
+    }
+    fn from_i32(val: i32) -> Self {
+        val.max(0) as Self
+    }
+}
 impl HasScalar for f32 {
     fn zero() -> Self {
         0.0

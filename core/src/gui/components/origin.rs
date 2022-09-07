@@ -1,14 +1,14 @@
 use super::*;
 
 pub struct OriginState {
+    flags:ComponentFlags,
     rel_position: Vec2<f32>,
-    is_visible: bool,
 }
 impl OriginState {
     pub fn new() -> Self {
         Self {
             rel_position: Vec2::zero(),
-            is_visible: true,
+            flags: component_flags::VISIBLE,
         }
     }
 }
@@ -22,6 +22,13 @@ impl GuiComponent for OriginState {
         self
     }
 
+    fn flags(&self) -> &ComponentFlags {
+        &self.flags
+    }
+    fn flags_mut(&mut self) -> &mut ComponentFlags {
+        &mut  self.flags
+    }
+
     fn get_bounds(&self) -> Vec2<f32> {
         Vec2::zero()
     }
@@ -30,14 +37,6 @@ impl GuiComponent for OriginState {
 
     fn rel_position(&self) -> &Vec2<f32> {
         &self.rel_position
-    }
-
-    fn is_visible(&self) -> bool {
-        self.is_visible
-    }
-
-    fn set_visible(&mut self, is_visible: bool) {
-        self.is_visible = is_visible;
     }
 
     fn set_rel_position(&mut self, pos: Vec2<f32>) {

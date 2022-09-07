@@ -237,7 +237,8 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_parent(prink_frame)
             .with_bounds([400., 45.])
             .with_color([0.7, 0.2, 0., 1.0])
-            .with_position([0.0, 0.0])
+            .with_position([0.0, -40.0])
+            .with_flags(component_flags::TITLEBAR | component_flags::OVERFLOWABLE)
             .with_drag_highest(true)
             .build();
 
@@ -756,28 +757,32 @@ impl<ProgramState> GuiManager<ProgramState> {
             .iter_stack_signals()
             .map(|(sig, id, c)| (sig, GuiComponentKey::from(id), c));
 
-        for (sig, key, c) in node_iter {
+        for (sig, key, component) in node_iter {
             let &aabb = key_to_aabb_table.get(&key).unwrap();
-            let is_mouse_inside = aabb.is_point_inside(mouse_pos) || c.is_origin();
+            let is_mouse_inside = aabb.is_point_inside(mouse_pos) || component.is_origin();
+            let is_overflowable = component.is_overflowable();
+          
+            let calc_intersected_visibility =
+                |current_visibility| (current_visibility || is_overflowable) && is_mouse_inside;
 
             let intersected_visibility = match sig {
                 StackSignal::Nop => {
                     visibility_stack.pop();
                     let current_visibility = visibility_stack.peek();
-                    let intersected_visibility = current_visibility && is_mouse_inside;
+                    let intersected_visibility = calc_intersected_visibility(current_visibility);
                     visibility_stack.push(intersected_visibility);
                     intersected_visibility
                 }
                 StackSignal::Pop { n_times } => {
                     visibility_stack.pop_multi(n_times + 1);
                     let current_visibility = visibility_stack.peek();
-                    let intersected_visibility = current_visibility && is_mouse_inside;
+                    let intersected_visibility = calc_intersected_visibility(current_visibility);
                     visibility_stack.push(intersected_visibility);
                     intersected_visibility
                 }
                 StackSignal::Push => {
                     let current_visibility = visibility_stack.peek();
-                    let intersected_visibility = current_visibility && is_mouse_inside;
+                    let intersected_visibility = calc_intersected_visibility(current_visibility);
                     visibility_stack.push(intersected_visibility);
                     intersected_visibility
                 }

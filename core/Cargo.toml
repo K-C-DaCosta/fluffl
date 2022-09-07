@@ -98,3 +98,7 @@ glow = { version = "0.6.1", default-features = false, features = ["sdl2"] }
 futures = { version = "0.3.5", default-features = false, features = [
     "executor",
 ] }
+
+
+[profile.release]
+debug = true

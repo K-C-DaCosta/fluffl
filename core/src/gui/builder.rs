@@ -73,6 +73,7 @@ pub trait HasComponentBuilder<ProgramState>: Sized {
     /// drags the highest ancestor that ISN'T the origin
     fn with_drag_highest(self, enable: bool) -> Self {
         if enable {
+            
             self.with_listener_advanced(
                 GuiEventKind::OnDrag,
                 Box::new(|info| {

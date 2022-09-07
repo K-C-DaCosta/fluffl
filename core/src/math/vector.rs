@@ -57,9 +57,15 @@ where
 
     pub fn to_pos<const M: usize>(b: Vector<M, T>) -> Self {
         let mut res = Self::zero();
-        for k in 0..M.min(N - 1) {
-            res[k] = b[k];
-        }
+
+        res.iter_mut()
+            .zip(b.iter())
+            .take(M.min(N - 1))
+            .for_each(|(r, &e)| *r = e);
+
+        // for k in 0..M.min(N - 1) {
+        //     res[k] = b[k];
+        // }
         res[N - 1] = T::one();
         res
     }

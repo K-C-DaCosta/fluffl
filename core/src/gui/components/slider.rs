@@ -17,15 +17,26 @@ impl SliderState {
 }
 
 impl GuiComponent for SliderState {
+    fn flags(&self) -> &ComponentFlags {
+        self.slider_frame.flags()
+    }
+
+    fn flags_mut(&mut self) -> &mut ComponentFlags {
+        self.slider_frame.flags_mut()
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
+    
     fn is_visible(&self) -> bool {
-        self.slider_frame.is_visible
+        self.slider_frame.is_visible()
     }
+
     fn set_visible(&mut self, is_visible: bool) {
-        self.slider_frame.is_visible = is_visible;
+        self.slider_frame.set_visible(is_visible);
     }
+
     fn as_any_mut(&mut self) -> &mut dyn Any {
         self
     }
@@ -54,10 +65,9 @@ impl GuiComponent for SliderState {
         win_w: f32,
         win_h: f32,
     ) {
-        
-        //makes sure whatever gets render is bound within the parent 
-        layer_lock(gl, state.level);
-        
+        //makes sure whatever gets render is bound within the parent
+        layer_lock(gl, state.level,*self.flags());
+
         state
             .renderer
             .builder(gl, GuiShaderKind::RoundedBox)
