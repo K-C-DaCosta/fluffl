@@ -28,7 +28,7 @@ impl GuiComponent for SliderState {
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
+
     fn is_visible(&self) -> bool {
         self.slider_frame.is_visible()
     }
@@ -57,7 +57,7 @@ impl GuiComponent for SliderState {
         self.slider_frame.bounds = bounds;
     }
 
-    fn render<'a>(
+    fn render_entry<'a>(
         &mut self,
         gl: &GlowGL,
         state: RenderState<'a>,
@@ -66,7 +66,7 @@ impl GuiComponent for SliderState {
         win_h: f32,
     ) {
         //makes sure whatever gets render is bound within the parent
-        layer_lock(gl, state.level,*self.flags());
+        layer_lock(gl, state.level, *self.flags());
 
         state
             .renderer
@@ -83,6 +83,17 @@ impl GuiComponent for SliderState {
             .render();
 
         layer_unlock(gl);
+    }
+
+    fn render_exit<'a>(
+        &mut self,
+        _gl: &GlowGL,
+        _state: RenderState<'a>,
+        _text_writer: &mut TextWriter,
+        _win_w: f32,
+        _win_h: f32,
+    ) {
+        /* not implemented on purpose  */
     }
 }
 

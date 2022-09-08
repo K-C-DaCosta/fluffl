@@ -127,6 +127,6 @@ fn standard_mixer_state_cb(state: &mut StandardMixerState, output: &mut [f32]) {
         state.channels as u32,
     ));
     //for debug purposes
-    state.recording.encode(output);
+    // state.recording.encode(output);
     
 }

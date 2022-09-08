@@ -127,7 +127,8 @@ pub trait GuiComponent {
     fn rel_position(&self) -> &Vec2<f32>;
     fn set_rel_position(&mut self, pos: Vec2<f32>);
 
-    fn render<'a>(
+    /// this fires the first occurrence in the tree 
+    fn render_entry<'a>(
         &mut self,
         gl: &GlowGL,
         state: RenderState<'a>,
@@ -135,6 +136,18 @@ pub trait GuiComponent {
         win_w: f32,
         win_h: f32,
     );
+
+    /// this fires after everything in the component subtree has been rendered 
+    fn render_exit<'a>(
+        &mut self,
+        gl: &GlowGL,
+        state: RenderState<'a>,
+        text_writer: &mut TextWriter,
+        win_w: f32,
+        win_h: f32,
+    );
+
+    
 
     fn is_visible(&self) -> bool {
         self.flags().is_set(component_flags::VISIBLE)
@@ -174,16 +187,20 @@ pub trait GuiComponent {
 /// used
 pub fn layer_lock(gl: &GlowGL, layer_id: usize, flags: ComponentFlags) {
     if flags.is_set(component_flags::OVERFLOWABLE) == false {
-        unsafe {
-            gl.enable(glow::STENCIL_TEST);
-            gl.stencil_mask(0xff);
-            gl.stencil_func(glow::LEQUAL, (layer_id as i32) - 1, 0xff);
-            gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
-        }
+        layer_lock_always(gl, layer_id);
     } else {
         unsafe {
             gl.disable(glow::STENCIL_TEST);
         }
+    }
+}
+
+pub fn layer_lock_always(gl: &GlowGL, layer_id: usize) {
+    unsafe {
+        gl.enable(glow::STENCIL_TEST);
+        gl.stencil_mask(0xff);
+        gl.stencil_func(glow::LEQUAL, (layer_id as i32) - 1, 0xff);
+        gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
     }
 }
 

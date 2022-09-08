@@ -100,5 +100,3 @@ futures = { version = "0.3.5", default-features = false, features = [
 ] }
 
 
-[profile.release]
-debug = true

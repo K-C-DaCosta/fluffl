@@ -1,7 +1,12 @@
 use super::*;
-use crate::collections::flat_nary_tree::NodeInfoMut;
+use crate::{
+    collections::flat_nary_tree::NodeInfoMut,
+};
 
 mod scrollbar;
+
+pub const HORIZONTAL_SCROLL_HEIGHT: f32 = 20.0;
+pub const VERTICAL_SCROLL_WIDTH: f32 = 20.0;
 
 #[derive(Copy, Clone)]
 /// at this point this is basically a 3x3 basis
@@ -63,17 +68,30 @@ impl FrameState {
         }
     }
 
-    fn draw_rectangle(gl: &GlowGL, r: &GuiRenderer, win_w: f32, win_h: f32, rect: AABB2<f32>) {
-        unsafe {
-            gl.blend_func(glow::ONE, glow::ONE);
-        }
+    fn draw_rectangle<T>(
+        gl: &GlowGL,
+        r: &GuiRenderer,
+        win_w: f32,
+        win_h: f32,
+        rect: AABB2<f32>,
+        roundness: T,
+        depth: f32,
+    ) where
+        T: Into<Vec4<f32>>,
+    {
+        // unsafe {
+        //     gl.blend_func(glow::ONE, glow::ONE);
+        // }
+        let mut position = Vec4::convert(rect.min_pos);
+        position[2] = depth;
+
         r.builder(gl, GuiShaderKind::RoundedBox)
             .set_window(win_w, win_h)
-            .set_roundness_vec([1.0; 4])
+            .set_roundness_vec(roundness.into())
             .set_edge_color(Vec4::rgb_u32(!0))
             .set_background_color(Vec4::rgb_u32(0))
             .set_bounds(rect.dims())
-            .set_position(Vec4::convert(rect.min_pos), Vec4::convert(rect.dims()))
+            .set_position(position, Vec4::convert(rect.dims()))
             .render();
 
         unsafe {
@@ -89,12 +107,13 @@ impl FrameState {
         // overflow vectors for the "right" and "down" half-spaces of the frame
         // we don't care about overflow on the "left" and "top" half-spaces
         let horizontal_disp = Vec2::from([
-            (self.bounds.x() - self.components_aabb.max_pos.x()).min(0.0),
+            (self.bounds.x() - self.components_aabb.max_pos.x() - VERTICAL_SCROLL_WIDTH).min(0.0),
             0.0,
         ]);
         let vertical_disp = Vec2::from([
             0.0,
-            (self.bounds.y() - self.components_aabb.max_pos.y()).min(0.0),
+            (self.bounds.y() - self.components_aabb.max_pos.y() - HORIZONTAL_SCROLL_HEIGHT)
+                .min(0.0),
         ]);
 
         self.rails = Some(SliderRail {
@@ -137,7 +156,7 @@ impl GuiComponent for FrameState {
         &self.rel_pos
     }
 
-    fn render<'b>(
+    fn render_entry<'b>(
         &mut self,
         gl: &GlowGL,
         state: RenderState<'b>,
@@ -168,7 +187,6 @@ impl GuiComponent for FrameState {
         layer_unlock(gl);
 
         //compute global horizontal bounding box
-        const HORIZONTAL_SCROLL_HEIGHT: f32 = 20.0;
         self.horizontal_scroll_area = AABB2::from_point_and_lengths(
             Vec2::from([
                 pos.x(),
@@ -176,18 +194,77 @@ impl GuiComponent for FrameState {
             ]),
             Vec2::from([self.bounds.x(), HORIZONTAL_SCROLL_HEIGHT]),
         );
+
+        self.vertical_scroll_area = AABB2::from_point_and_lengths(
+            Vec2::from([pos.x() + self.bounds.x() - VERTICAL_SCROLL_WIDTH, pos.y()]),
+            Vec2::from([
+                VERTICAL_SCROLL_WIDTH,
+                self.bounds.y() - HORIZONTAL_SCROLL_HEIGHT,
+            ]),
+        );
+    }
+
+    fn render_exit<'a>(
+        &mut self,
+        gl: &GlowGL,
+        state: RenderState<'a>,
+        _text_writer: &mut TextWriter,
+        win_w: f32,
+        win_h: f32,
+    ) {
+        let r = state.renderer;
+
         if self.is_scrollbars_enabled {
-            Self::draw_rectangle(gl, r, win_w, win_h, self.horizontal_scroll_area);
+            const SCROLLBAR_DEPTH: f32 = 0.0;
+            //draw horizontal scroll bar
+            Self::draw_rectangle(
+                gl,
+                r,
+                win_w,
+                win_h,
+                self.horizontal_scroll_area,
+                self.roundness,
+                SCROLLBAR_DEPTH,
+            );
 
             let s0 = self.horizontal_scroll_area.min_pos;
             let u = self.percentages.x();
-
-            let cursor_bounds = Vec2::from([15.0, HORIZONTAL_SCROLL_HEIGHT]);
+            let cursor_bounds_h = Vec2::from([15.0, HORIZONTAL_SCROLL_HEIGHT]);
             let cursor_pos =
-                Vec2::from([(self.bounds.x() - cursor_bounds.x()) * u + s0.x(), s0.y()]);
+                Vec2::from([(self.bounds.x() - cursor_bounds_h.x()) * u + s0.x(), s0.y()]);
 
-            let cursor_aabb = AABB2::from_point_and_lengths(cursor_pos, cursor_bounds);
-            Self::draw_rectangle(gl, r, win_w, win_h, cursor_aabb);
+            let cursor_aabb = AABB2::from_point_and_lengths(cursor_pos, cursor_bounds_h);
+            Self::draw_rectangle(
+                gl,
+                r,
+                win_w,
+                win_h,
+                cursor_aabb,
+                self.roundness,
+                SCROLLBAR_DEPTH,
+            );
+
+            //draw vertical scroll bar
+            Self::draw_rectangle(
+                gl,
+                r,
+                win_w,
+                win_h,
+                self.vertical_scroll_area,
+                [0.0; 4],
+                SCROLLBAR_DEPTH,
+            );
+
+            let s0 = self.vertical_scroll_area.min_pos;
+            let v = self.percentages.y();
+            let cursor_bounds_v = Vec2::from([VERTICAL_SCROLL_WIDTH, HORIZONTAL_SCROLL_HEIGHT]);
+            let cursor_pos = Vec2::from([
+                s0.x(),
+                (self.bounds.y() - cursor_bounds_v.y() - cursor_bounds_h.y()) * v + s0.y(),
+            ]);
+
+            let cursor_aabb = AABB2::from_point_and_lengths(cursor_pos, cursor_bounds_v);
+            Self::draw_rectangle(gl, r, win_w, win_h, cursor_aabb, [1.0; 4], SCROLLBAR_DEPTH);
         }
     }
 }
@@ -272,7 +349,7 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
         self.state.as_mut().unwrap().rel_pos = Vec2::from(pos);
         self
     }
-    
+
     pub fn with_flags(mut self, flags: ComponentFlags) -> Self {
         self.state.as_mut().unwrap().flags.set(flags);
         self

@@ -106,6 +106,7 @@ impl ShaderUniforms {
         let scale = math::scale4(bounds);
         let translate = math::translate4(position);
         let modelview = translate * scale;
+        
         unsafe {
             gl.uniform_4_f32_slice(self.position_loc.as_ref(), position.as_slice());
             gl.uniform_matrix_4_f32_slice(self.modelview_loc.as_ref(), true, modelview.as_slice());

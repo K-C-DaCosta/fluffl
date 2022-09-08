@@ -424,7 +424,7 @@ impl GuiComponent for TextBoxState {
         self.frame.rel_pos = pos;
     }
 
-    fn render<'a>(
+    fn render_entry<'a>(
         &mut self,
         gl: &GlowGL,
         state: RenderState<'a>,
@@ -435,7 +435,7 @@ impl GuiComponent for TextBoxState {
         const HORIZONTAL_MARGIN: f32 = 20.0;
 
         self.frame
-            .render(gl, state.clone(), text_writer, win_w, win_h);
+            .render_entry(gl, state.clone(), text_writer, win_w, win_h);
 
         layer_lock(gl, state.level, *self.flags());
 
@@ -597,6 +597,18 @@ impl GuiComponent for TextBoxState {
             //restore previous sf
             *text_writer.horizontal_scaling_factor_mut() = old_sf;
         }
+    }
+
+
+    fn render_exit<'a>(
+            &mut self,
+            _gl: &GlowGL,
+            _state: RenderState<'a>,
+            _text_writer: &mut TextWriter,
+            _win_w: f32,
+            _win_h: f32,
+        ) {
+        /* not implemented on purpose  */
     }
 }
 

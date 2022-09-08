@@ -3,3 +3,6 @@ members =  [
 	"core",
 	"macros"
 ]
+
+[profile.release]
+debug = true

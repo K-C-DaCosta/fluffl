@@ -1,7 +1,7 @@
 //literally just a wrapper for std time on desktop
 use std::time;
 
-
+#[derive(Copy,Clone)]
 pub struct Instant{
     inst:time::Instant,
 }

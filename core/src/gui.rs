@@ -133,6 +133,8 @@ impl<ProgramState> GuiManager<ProgramState> {
     pub fn render(&mut self, text_writer: &mut TextWriter, window_width: f32, window_height: f32) {
         self.handle_incoming_events();
 
+        let mut node_stack = FixedStack::<256, NodeID>::new();
+
         let gl = &mut self.gl;
         let stack = &mut self.component_transform_stack;
 
@@ -166,25 +168,58 @@ impl<ProgramState> GuiManager<ProgramState> {
             let gpos = match sig {
                 StackSignal::Nop => {
                     stack.pop();
+                    node_stack.pop();
+
                     let gpos = compute_global_position(rel_pos, stack);
                     stack.push(transform);
+                    node_stack.push(key);
+
                     gpos
                 }
                 StackSignal::Pop { n_times } => {
-                    stack.pop_multi(n_times + 1);
+                    // stack.pop_multi(n_times + 1);
+
+                    for _ in 0..n_times + 1 {
+                        let popped = Some(stack.pop()).zip(node_stack.pop());
+                        if let Some((global_frame, node)) = popped {
+                            let global_position = global_frame * Vec4::from([0., 0., 0., 1.0]);
+                            let visibility = visibility_table[node.as_usize()];
+                            let tree =
+                                unsafe { force_borrow_mut(gui_component_tree_borrowed_by_force) };
+                            if visibility {
+                                let state = RenderState::new(
+                                    key.into(),
+                                    global_position,
+                                    renderer,
+                                    stack.len() - 1,
+                                    gui_component_tree_borrowed_by_force,
+                                    key_to_aabb_table,
+                                );
+                                tree.get_mut(node).unwrap().render_exit(
+                                    gl,
+                                    state,
+                                    text_writer,
+                                    window_width,
+                                    window_height,
+                                );
+                            }
+                        }
+                    }
                     let gpos = compute_global_position(rel_pos, stack);
                     stack.push(transform);
+                    node_stack.push(key);
                     gpos
                 }
                 StackSignal::Push => {
                     let gpos = compute_global_position(rel_pos, stack);
                     stack.push(transform);
+                    node_stack.push(key);
                     gpos
                 }
             };
 
             if visibility_table[key.as_usize()] {
-                comp.render(
+                comp.render_entry(
                     gl,
                     RenderState::new(
                         key.into(),
@@ -199,6 +234,8 @@ impl<ProgramState> GuiManager<ProgramState> {
                     window_height,
                 );
             }
+
+            
         }
 
         unsafe {
@@ -217,7 +254,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             .builder_frame()
             .with_parent(origin)
             .with_bounds([400.0 + 0.0, 200.0 + 100.0])
-            .with_roundness([1., 1., 1.0, 1.0])
+            .with_roundness([1., 1., 10.0, 10.0])
             .with_position([64.0, 32.0])
             .with_scrollbars(true)
             // .with_drag(true)
@@ -237,7 +274,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_parent(prink_frame)
             .with_bounds([400., 45.])
             .with_color([0.7, 0.2, 0., 1.0])
-            .with_position([0.0, -40.0])
+            .with_position([0.0, -41.0])
             .with_flags(component_flags::TITLEBAR | component_flags::OVERFLOWABLE)
             .with_drag_highest(true)
             .build();
@@ -761,7 +798,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             let &aabb = key_to_aabb_table.get(&key).unwrap();
             let is_mouse_inside = aabb.is_point_inside(mouse_pos) || component.is_origin();
             let is_overflowable = component.is_overflowable();
-          
+
             let calc_intersected_visibility =
                 |current_visibility| (current_visibility || is_overflowable) && is_mouse_inside;
 

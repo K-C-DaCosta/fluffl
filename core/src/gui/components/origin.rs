@@ -1,7 +1,7 @@
 use super::*;
 
 pub struct OriginState {
-    flags:ComponentFlags,
+    flags: ComponentFlags,
     rel_position: Vec2<f32>,
 }
 impl OriginState {
@@ -26,7 +26,7 @@ impl GuiComponent for OriginState {
         &self.flags
     }
     fn flags_mut(&mut self) -> &mut ComponentFlags {
-        &mut  self.flags
+        &mut self.flags
     }
 
     fn get_bounds(&self) -> Vec2<f32> {
@@ -43,7 +43,7 @@ impl GuiComponent for OriginState {
         self.rel_position = pos;
     }
 
-    fn render<'a>(
+    fn render_entry<'a>(
         &mut self,
         _gl: &GlowGL,
         _state: RenderState<'a>,
@@ -52,5 +52,16 @@ impl GuiComponent for OriginState {
         _win_h: f32,
     ) {
         /* not implemented on purpose*/
+    }
+
+    fn render_exit<'a>(
+        &mut self,
+        _gl: &GlowGL,
+        _state: RenderState<'a>,
+        _text_writer: &mut TextWriter,
+        _win_w: f32,
+        _win_h: f32,
+    ) {
+        /* not implemented on purpose  */
     }
 }

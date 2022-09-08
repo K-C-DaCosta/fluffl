@@ -20,17 +20,20 @@ pub fn wheel<ProgramState>() -> ListenerCallBack<ProgramState> {
 
         let frame = get_frame(gui_component_tree, root_key);
         let wheel = info.event.wheel() * 0.125;
+        let horizontal_scroll_area = frame.horizontal_scroll_area;
 
-        if frame
-            .horizontal_scroll_area
-            .is_point_inside(frame.last_known_mouse_pos)
-        {
+        if horizontal_scroll_area.is_point_inside(frame.last_known_mouse_pos) {
             frame.percentages[0] += wheel;
             frame.percentages[0] = frame.percentages[0].clamp(0.0, 1.0);
             let uv = frame.percentages;
-
+            scroll_elements(gui_component_tree, root_key, uv);
+        } else {
+            frame.percentages[1] += -wheel;
+            frame.percentages[1] = frame.percentages[1].clamp(0.0, 1.0);
+            let uv = frame.percentages;
             scroll_elements(gui_component_tree, root_key, uv);
         }
+
         None
     })
 }
@@ -55,18 +58,26 @@ pub fn drag<ProgramState>() -> ListenerCallBack<ProgramState> {
             uv
         };
 
-        let (horizontal_scroll_area, _vertical_scroll_area) = {
+        let (horizontal_scroll_area, vertical_scroll_area, uv) = {
             let frame = get_frame(gui_component_tree, root_key);
             let hsa = frame.horizontal_scroll_area;
             let vsa = frame.vertical_scroll_area;
-            (hsa, vsa)
+
+            (hsa, vsa, frame.percentages)
         };
 
         if horizontal_scroll_area.is_point_inside(mouse_pos) {
             scroll_elements(
                 gui_component_tree,
                 root_key,
-                Vec2::from([mouse_uv.x(), 0.0]),
+                Vec2::from([mouse_uv.x(), uv.y()]),
+            );
+        }
+        if vertical_scroll_area.is_point_inside(mouse_pos) {
+            scroll_elements(
+                gui_component_tree,
+                root_key,
+                Vec2::from([uv.x(), mouse_uv.y()]),
             );
         }
         None
@@ -91,7 +102,7 @@ fn translate_children<'a>(
 ) {
     for NodeInfoMut { val, .. } in tree
         .iter_children_mut(root_key)
-        .filter(|node| node.val.flags().is_set(component_flags::TITLEBAR) == false )
+        .filter(|node| node.val.flags().is_set(component_flags::TITLEBAR) == false)
     {
         val.translate(disp);
     }
