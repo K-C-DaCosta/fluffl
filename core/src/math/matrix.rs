@@ -40,7 +40,7 @@ where
         }
         data
     }
-    
+
     pub fn as_slice(&self) -> &[T] {
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, N * M) }
     }
@@ -75,6 +75,16 @@ where
     type Output = Vector<N, T>;
     fn mul(self, rhs: Vector<N, T>) -> Self::Output {
         let mut result = Self::Output::zero();
+
+        // result
+        //     .iter_mut()
+        //     .zip(self.data.iter())
+        //     .for_each(|(res, row)| {
+        //         *res = row
+        //             .iter()
+        //             .zip(rhs.iter())
+        //             .fold(T::zero(), |acc, (&r, &c)| acc + r * c)
+        //     });
         for i in 0..N {
             for j in 0..M {
                 result[i] += rhs[j] * self.data[i][j];

@@ -73,7 +73,7 @@ pub struct GuiManager<ProgramState> {
     /// used when doing visibility testing, uses this to compute cumulative intersections aabbs  
     visibility_intersection_stack: VisibilityStack,
 
-    component_signal_queue: VecDeque<components::ComponentEventSignal>,
+    component_signal_bus: VecDeque<components::ComponentEventSignal>,
 
     key_down_table: HashSet<KeyCode>,
 
@@ -88,7 +88,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             clicked_component: None,
             hover_component: None,
             gui_component_tree: LinearTree::new(),
-            component_signal_queue: VecDeque::new(),
+            component_signal_bus: VecDeque::new(),
             window_events: VecDeque::new(),
             component_transform_stack: MatStack::new(),
             key_to_aabb_table: HashMap::new(),
@@ -234,8 +234,6 @@ impl<ProgramState> GuiManager<ProgramState> {
                     window_height,
                 );
             }
-
-            
         }
 
         unsafe {
@@ -442,13 +440,13 @@ impl<ProgramState> GuiManager<ProgramState> {
     fn handle_incoming_events(&mut self) {
         self.recompute_visibility();
         self.recompute_aabb_table();
-        self.process_window_events_to_generate_signals_and_queue_them_for_processing();
+        self.queue_signals_to_bus();
         self.process_signal_queue();
     }
 
     fn process_signal_queue(&mut self) {
         let gui_component_tree = &mut self.gui_component_tree;
-        let component_signal_queue = &mut self.component_signal_queue;
+        let component_signal_queue = &mut self.component_signal_bus;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let key_to_handler_block_table = &mut self.key_to_handler_block_table;
         let program_state = self
@@ -474,7 +472,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
     }
 
-    fn process_window_events_to_generate_signals_and_queue_them_for_processing(&mut self) {
+    fn queue_signals_to_bus(&mut self) {
         let window_events = &mut self.window_events;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let gui_component_tree = &mut self.gui_component_tree;
@@ -482,13 +480,13 @@ impl<ProgramState> GuiManager<ProgramState> {
         let focused_component = &mut self.focused_component;
         let clicked_component = &mut self.clicked_component;
         let hover_component = &mut self.hover_component;
-        let component_signal_queue = &mut self.component_signal_queue;
+        let component_signal_bus = &mut self.component_signal_bus;
         let key_down_table = &mut self.key_down_table;
         let visibility_table = &mut self.visibility_table;
         let visibility_intersection_stack = &mut self.visibility_intersection_stack;
 
         while let Some(event) = window_events.pop_front() {
-            let _old_signal_len = component_signal_queue.len();
+            let _old_signal_len = component_signal_bus.len();
             match event {
                 EventKind::KeyDown { code } => {
                     if let KeyCode::BRAKET_RIGHT = code {
@@ -504,7 +502,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
                     if key_down_table.contains(&code) == false {
                         if let &mut Some(fkey) = focused_component {
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnKeyDown,
                                 fkey,
                                 event,
@@ -515,7 +513,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 }
                 EventKind::KeyUp { code } => {
                     if key_down_table.contains(&code) && focused_component.is_some() {
-                        component_signal_queue.push_back(ComponentEventSignal::new(
+                        component_signal_bus.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnKeyRelease,
                             focused_component.expect("focused key should exist"),
                             event,
@@ -525,7 +523,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 }
                 EventKind::MouseUp { .. } => {
                     if let &mut Some(gui_comp_key) = clicked_component {
-                        component_signal_queue.push_back(ComponentEventSignal::new(
+                        component_signal_bus.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnMouseRelease,
                             gui_comp_key,
                             event,
@@ -556,14 +554,14 @@ impl<ProgramState> GuiManager<ProgramState> {
                     // handle focused events
                     match (prev_focused_component, *focused_component) {
                         (None, Some(cur_key)) => {
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnFocusIn,
                                 cur_key,
                                 event,
                             ));
                         }
                         (Some(prev_key), None) => {
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnFocusOut,
                                 prev_key,
                                 event,
@@ -571,12 +569,12 @@ impl<ProgramState> GuiManager<ProgramState> {
                         }
                         (Some(prev_key), Some(cur_key)) => {
                             if prev_key != cur_key {
-                                component_signal_queue.push_back(ComponentEventSignal::new(
+                                component_signal_bus.push_back(ComponentEventSignal::new(
                                     GuiEventKind::OnFocusOut,
                                     prev_key,
                                     event,
                                 ));
-                                component_signal_queue.push_back(ComponentEventSignal::new(
+                                component_signal_bus.push_back(ComponentEventSignal::new(
                                     GuiEventKind::OnFocusIn,
                                     cur_key,
                                     event,
@@ -590,7 +588,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     }
 
                     if let &mut Some(clicked) = clicked_component {
-                        component_signal_queue.push_back(ComponentEventSignal::new(
+                        component_signal_bus.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnMouseDown,
                             clicked,
                             event,
@@ -603,7 +601,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
                     if let &mut Some(hover_key) = hover_component {
                         if visibility_table[hover_key] {
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnMouseMove,
                                 hover_key,
                                 event,
@@ -615,7 +613,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                         //force release of component if its being clicked on while being invisible
                         if visibility_table[clicked_key] == false && clicked_component.is_some() {
                             let clicked_key = clicked_component.expect("clicked should be valid");
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnMouseRelease,
                                 clicked_key,
                                 event,
@@ -624,7 +622,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                         }
 
                         Self::object_is_clicked_so_send_drag_signal_to_focused_component(
-                            component_signal_queue,
+                            component_signal_bus,
                             clicked_key,
                             event,
                         );
@@ -634,7 +632,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                             hover_component,
                             gui_component_tree,
                             key_to_aabb_table,
-                            component_signal_queue,
+                            component_signal_bus,
                             visibility_table,
                             visibility_intersection_stack,
                             event,
@@ -643,14 +641,14 @@ impl<ProgramState> GuiManager<ProgramState> {
                 }
                 EventKind::MouseWheel { .. } => {
                     if let &mut Some(focused_key) = focused_component {
-                        component_signal_queue.push_back(ComponentEventSignal::new(
+                        component_signal_bus.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnWheelWhileFocused,
                             focused_key,
                             event,
                         ));
                     }
                     if let &mut Some(hovered_key) = hover_component {
-                        component_signal_queue.push_back(ComponentEventSignal::new(
+                        component_signal_bus.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnWheelWhileHovered,
                             hovered_key,
                             event,
@@ -671,11 +669,11 @@ impl<ProgramState> GuiManager<ProgramState> {
     }
 
     fn object_is_clicked_so_send_drag_signal_to_focused_component(
-        component_signal_queue: &mut VecDeque<ComponentEventSignal>,
+        component_signal_bus: &mut VecDeque<ComponentEventSignal>,
         clicked_component: GuiComponentKey,
         event: EventKind,
     ) {
-        component_signal_queue.push_back(ComponentEventSignal::new(
+        component_signal_bus.push_back(ComponentEventSignal::new(
             GuiEventKind::OnDrag,
             clicked_component,
             event,
@@ -687,7 +685,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         hover_component: &mut Option<GuiComponentKey>,
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
-        component_signal_queue: &mut VecDeque<ComponentEventSignal>,
+        component_signal_bus: &mut VecDeque<ComponentEventSignal>,
         visibility_table: &'a Vec<bool>,
         visibility_intersection_stack: &'a mut FixedStack<128, bool>,
         event: EventKind,
@@ -712,12 +710,12 @@ impl<ProgramState> GuiManager<ProgramState> {
                     Some(local_hover_key) => {
                         //mouse has left the current component and has entered another component
                         if local_hover_key != current_hover_key {
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnHoverOut,
                                 current_hover_key,
                                 event,
                             ));
-                            component_signal_queue.push_back(ComponentEventSignal::new(
+                            component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnHoverIn,
                                 local_hover_key,
                                 event,
@@ -727,7 +725,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     }
                     //mouse has left the current component and is hovering over nothing
                     None => {
-                        component_signal_queue.push_back(ComponentEventSignal::new(
+                        component_signal_bus.push_back(ComponentEventSignal::new(
                             GuiEventKind::OnHoverOut,
                             current_hover_key,
                             event,
@@ -752,7 +750,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 );
 
                 if let &mut Some(key) = hover_component {
-                    component_signal_queue.push_back(ComponentEventSignal::new(
+                    component_signal_bus.push_back(ComponentEventSignal::new(
                         GuiEventKind::OnHoverIn,
                         key,
                         event,

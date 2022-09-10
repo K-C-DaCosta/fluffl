@@ -3,7 +3,7 @@ use std::{
     ops::{Add, AddAssign, Deref, DerefMut, Div, Index, IndexMut, Mul, MulAssign, Sub},
 };
 
-use super::HasScalar;
+use super::{HasScalar, Mat3};
 
 pub type Vec2<T> = Vector<2, T>;
 pub type Vec3<T> = Vector<3, T>;
@@ -429,4 +429,17 @@ pub fn position_test() {
     let a = Vec3::<f32>::from_array([3., 5., 9.5]);
     let b = Vec4::to_pos(a);
     println!("{}\nto\n{}", a, b);
+}
+
+
+#[test]
+pub fn mat3(){
+    let v = Vec3::from([1.,0.,1.]);
+    let m = Mat3::new().with_data([
+          [10.0,0.0,50.0],
+          [0.0,1.0,50.0],
+          [0.0,0.0,1.0],
+        ]);
+    let res = m*v; 
+    println!("res = {res}");
 }

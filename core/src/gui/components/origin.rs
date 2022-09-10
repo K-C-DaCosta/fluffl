@@ -1,19 +1,28 @@
 use super::*;
 
 pub struct OriginState {
-    flags: ComponentFlags,
+    common: GuiCommonState, 
     rel_position: Vec2<f32>,
 }
 impl OriginState {
     pub fn new() -> Self {
         Self {
             rel_position: Vec2::zero(),
-            flags: component_flags::VISIBLE,
+            common: GuiCommonState::new().with_flags(component_flags::VISIBLE),
         }
     }
 }
 
 impl GuiComponent for OriginState {
+    
+    fn common(&self) -> &GuiCommonState {
+        &self.common
+    }
+    
+    fn common_mut(&mut self) -> &mut GuiCommonState {
+        &mut self.common
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -22,18 +31,13 @@ impl GuiComponent for OriginState {
         self
     }
 
-    fn flags(&self) -> &ComponentFlags {
-        &self.flags
-    }
-    fn flags_mut(&mut self) -> &mut ComponentFlags {
-        &mut self.flags
-    }
-
     fn get_bounds(&self) -> Vec2<f32> {
         Vec2::zero()
     }
+    
+    fn set_bounds(&mut self, _bounds: Vec2<f32>) {
 
-    fn set_bounds(&mut self, _bounds: Vec2<f32>) {}
+    }
 
     fn rel_position(&self) -> &Vec2<f32> {
         &self.rel_position

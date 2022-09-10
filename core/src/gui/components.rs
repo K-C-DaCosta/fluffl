@@ -117,17 +117,58 @@ impl<'a, ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>>
     }
 }
 
+
+#[derive(Clone)]
+pub struct GuiCommonState {
+    flags: ComponentFlags,
+    name: String,
+}
+
+impl GuiCommonState {
+    pub fn new() -> Self {
+        Self { 
+            flags: ComponentFlags::default(),
+            name: String::new(),
+        }
+    }
+    
+    pub fn with_flags(mut self, flags: ComponentFlags) -> Self {
+        self.flags = flags;
+        self
+    }
+}
+
 pub trait GuiComponent {
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
-    fn flags(&self) -> &ComponentFlags;
-    fn flags_mut(&mut self) -> &mut ComponentFlags;
+    fn common(&self) -> &GuiCommonState;
+    fn common_mut(&mut self) -> &mut GuiCommonState;
+
+    fn get_name(&self)->&str{
+        self.common().name.as_str()
+    }
+
+    fn set_name(&mut self, name:&str){
+        let common = self.common_mut();
+        common.name.clear(); 
+        common.name.push_str(name);
+    }
+
+    fn flags(&self) -> &ComponentFlags {
+        &self.common().flags
+    }
+
+    fn flags_mut(&mut self) -> &mut ComponentFlags {
+        &mut self.common_mut().flags
+    }
+
     fn get_bounds(&self) -> Vec2<f32>;
     fn set_bounds(&mut self, bounds: Vec2<f32>);
+
     fn rel_position(&self) -> &Vec2<f32>;
     fn set_rel_position(&mut self, pos: Vec2<f32>);
 
-    /// this fires the first occurrence in the tree 
+    /// this fires the first occurrence in the tree
     fn render_entry<'a>(
         &mut self,
         gl: &GlowGL,
@@ -137,7 +178,7 @@ pub trait GuiComponent {
         win_h: f32,
     );
 
-    /// this fires after everything in the component subtree has been rendered 
+    /// this fires after everything in the component subtree has been rendered
     fn render_exit<'a>(
         &mut self,
         gl: &GlowGL,
@@ -146,8 +187,6 @@ pub trait GuiComponent {
         win_w: f32,
         win_h: f32,
     );
-
-    
 
     fn is_visible(&self) -> bool {
         self.flags().is_set(component_flags::VISIBLE)

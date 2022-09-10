@@ -1,7 +1,6 @@
 use super::*;
 
-use crate::time::{Duration, Instant};
-
+use crate::time::Instant;
 use std::ops::{Index, IndexMut, Range};
 
 /// represents a contigious range in an array or slice that is stored elsewhere.
@@ -392,12 +391,12 @@ impl TextBoxState {
 }
 
 impl GuiComponent for TextBoxState {
-    fn flags(&self) -> &ComponentFlags {
-        self.frame.flags()
+    fn common(&self) -> &GuiCommonState {
+        self.frame.common()
     }
-
-    fn flags_mut(&mut self) -> &mut ComponentFlags {
-        self.frame.flags_mut()
+    
+    fn common_mut(&mut self) -> &mut GuiCommonState {
+        self.frame.common_mut()
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -599,15 +598,14 @@ impl GuiComponent for TextBoxState {
         }
     }
 
-
     fn render_exit<'a>(
-            &mut self,
-            _gl: &GlowGL,
-            _state: RenderState<'a>,
-            _text_writer: &mut TextWriter,
-            _win_w: f32,
-            _win_h: f32,
-        ) {
+        &mut self,
+        _gl: &GlowGL,
+        _state: RenderState<'a>,
+        _text_writer: &mut TextWriter,
+        _win_w: f32,
+        _win_h: f32,
+    ) {
         /* not implemented on purpose  */
     }
 }

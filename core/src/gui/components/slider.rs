@@ -17,14 +17,13 @@ impl SliderState {
 }
 
 impl GuiComponent for SliderState {
-    fn flags(&self) -> &ComponentFlags {
-        self.slider_frame.flags()
+    fn common(&self) -> &GuiCommonState {
+        self.slider_frame.common()
     }
-
-    fn flags_mut(&mut self) -> &mut ComponentFlags {
-        self.slider_frame.flags_mut()
+    fn common_mut(&mut self) -> &mut GuiCommonState {
+        self.slider_frame.common_mut()
     }
-
+    
     fn as_any(&self) -> &dyn Any {
         self
     }

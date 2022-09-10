@@ -1,7 +1,5 @@
 use super::*;
-use crate::{
-    collections::flat_nary_tree::NodeInfoMut,
-};
+use crate::collections::flat_nary_tree::NodeInfoMut;
 
 mod scrollbar;
 
@@ -9,7 +7,11 @@ pub const HORIZONTAL_SCROLL_HEIGHT: f32 = 20.0;
 pub const VERTICAL_SCROLL_WIDTH: f32 = 20.0;
 
 #[derive(Copy, Clone)]
-/// at this point this is basically a 3x3 basis
+
+/// at this point this is basically a 3x3 basis that can be written like:
+///         [ horizontal.x , vertical.x, min.x]  
+/// M_3x3 = [ horizontal.y , vertical.y, min.y]
+///         [     0       ,    0      ,   1   ]
 pub struct SliderRail {
     min: Vec2<f32>,
     horizontal_disp: Vec2<f32>,
@@ -32,12 +34,13 @@ impl Default for SliderRail {
 
 #[derive(Clone)]
 pub struct FrameState {
-    pub flags: ComponentFlags,
+    pub common: GuiCommonState,
     pub bounds: Vec2<f32>,
     pub rel_pos: Vec2<f32>,
     pub color: Vec4<f32>,
     pub edge_color: Vec4<f32>,
     pub roundness: Vec4<f32>,
+
     is_scrollbars_enabled: bool,
     camera: Vec2<f32>,
     rails: Option<SliderRail>,
@@ -51,7 +54,7 @@ pub struct FrameState {
 impl FrameState {
     pub fn new() -> Self {
         Self {
-            flags: component_flags::VISIBLE,
+            common: GuiCommonState::new().with_flags(component_flags::VISIBLE),
             bounds: Vec2::from([128.; 2]),
             rel_pos: Vec2::from([0.0; 2]),
             color: Vec4::rgb_u32(0xF94892),
@@ -129,12 +132,11 @@ impl GuiComponent for FrameState {
         self
     }
 
-    fn flags(&self) -> &ComponentFlags {
-        &self.flags
+    fn common(&self) -> &GuiCommonState {
+        &self.common
     }
-
-    fn flags_mut(&mut self) -> &mut ComponentFlags {
-        &mut self.flags
+    fn common_mut(&mut self) -> &mut GuiCommonState {
+        &mut self.common
     }
 
     fn as_any_mut(&mut self) -> &mut dyn Any {
@@ -144,6 +146,7 @@ impl GuiComponent for FrameState {
     fn get_bounds(&self) -> Vec2<f32> {
         self.bounds
     }
+
     fn set_bounds(&mut self, bounds: Vec2<f32>) {
         self.bounds = bounds;
     }
@@ -351,7 +354,7 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
     }
 
     pub fn with_flags(mut self, flags: ComponentFlags) -> Self {
-        self.state.as_mut().unwrap().flags.set(flags);
+        self.state.as_mut().unwrap().flags_mut().set(flags);
         self
     }
 
