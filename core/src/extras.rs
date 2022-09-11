@@ -20,8 +20,6 @@ pub mod shapes;
 // A very simple packing/upacking library used to load SDF fonts.
 pub use hiero_pack;
 
-
-
 pub mod math_util; 
 
 

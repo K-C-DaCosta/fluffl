@@ -92,13 +92,13 @@ pub trait HasComponentBuilder<ProgramState>: Sized {
                     let root_bounds = {
                         let root = comp_tree.get_mut(cur_node_key).expect("root not found");
                         root.translate(disp);
-                        root.get_bounds()
+                        root.bounds()
                     };
 
                     let cur_node = comp_tree
                         .get_mut(info.key)
                         .expect("gui manager somehow sent invalid key");
-                    let cur_bounds = cur_node.get_bounds();
+                    let cur_bounds = cur_node.bounds();
 
                     cur_node.set_bounds(Vec2::from([root_bounds[0], cur_bounds[1]]));
 

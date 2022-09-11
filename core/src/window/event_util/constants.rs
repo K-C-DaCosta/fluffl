@@ -93,15 +93,16 @@ pub enum EventKind {
     },
 }
 impl EventKind {
-
     pub fn mouse_pos(&self) -> Vec2<f32> {
         match self {
+            &Self::MouseDown { x, y, .. } => Vec2::from([x as f32, y as f32]),
+            &Self::MouseUp { x, y, .. } => Vec2::from([x as f32, y as f32]),
             &Self::MouseMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
             &Self::TouchMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
             _ => Vec2::zero(),
         }
     }
-    
+
     pub fn disp(&self) -> Vec2<f32> {
         match self {
             &Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
@@ -109,7 +110,7 @@ impl EventKind {
             _ => Vec2::zero(),
         }
     }
-    
+
     pub fn wheel(&self) -> f32 {
         match self {
             &Self::MouseWheel {

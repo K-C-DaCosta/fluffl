@@ -15,8 +15,8 @@ impl<ProgramState> ComponentHandlerBlock<ProgramState> {
         }
         Self { handlers }
     }
-    
-    pub fn clear_handlers(&mut self, kind:GuiEventKind){
+
+    pub fn clear_handlers(&mut self, kind: GuiEventKind) {
         self.handlers[kind as usize].clear();
     }
 
@@ -29,9 +29,17 @@ impl<ProgramState> ComponentHandlerBlock<ProgramState> {
         kind: GuiEventKind,
         state: EventListenerInfo<'a, ProgramState>,
     ) {
-        for handle in self.handlers[kind as usize].iter_mut(){
-            let state:EventListenerInfo<ProgramState> = unsafe{std::mem::transmute_copy(&state)};
+        for handle in self.handlers[kind as usize].iter_mut() {
+            let state: EventListenerInfo<ProgramState> =
+                unsafe { std::mem::transmute_copy(&state) };
             handle(state);
         }
+    }
+}
+
+impl<ProgramState> std::ops::Deref for ComponentHandlerBlock<ProgramState> {
+    type Target = Vec<Vec<ListenerCallBack<ProgramState>>>;
+    fn deref(&self) -> &Self::Target {
+        &self.handlers
     }
 }

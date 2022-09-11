@@ -108,11 +108,9 @@ fn synth_callback_cb(state: &mut AudioState, output: &mut [f32]) {
         let is_in_bounds = |wave: &&SoundWave| {
             time_in_ms > (wave.interval.0 + -1.0) && time_in_ms < (wave.interval.1 + 1.0)
         };
-
+        
         for wave in state.sound_waves.iter().filter(is_in_bounds) {
-            let old = dst;
-            let new = wave.evaluate(time_in_seconds as f32);
-            dst = old + new;
+            dst+= wave.evaluate(time_in_seconds as f32);
         }
 
         output[2 * samp_idx + 0] = dst;

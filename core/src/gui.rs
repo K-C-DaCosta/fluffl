@@ -194,14 +194,12 @@ impl<ProgramState> GuiManager<ProgramState> {
                                     stack.len() - 1,
                                     gui_component_tree_borrowed_by_force,
                                     key_to_aabb_table,
-                                );
-                                tree.get_mut(node).unwrap().render_exit(
-                                    gl,
-                                    state,
-                                    text_writer,
                                     window_width,
                                     window_height,
                                 );
+                                tree.get_mut(node)
+                                    .unwrap()
+                                    .render_exit(gl, state, text_writer);
                             }
                         }
                     }
@@ -217,7 +215,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     gpos
                 }
             };
-
+            
             if visibility_table[key.as_usize()] {
                 comp.render_entry(
                     gl,
@@ -228,10 +226,10 @@ impl<ProgramState> GuiManager<ProgramState> {
                         stack.len() - 1,
                         gui_component_tree_borrowed_by_force,
                         key_to_aabb_table,
+                        window_width,
+                        window_height,
                     ),
                     text_writer,
-                    window_width,
-                    window_height,
                 );
             }
         }
@@ -248,7 +246,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let origin =
             manager.add_component(GuiComponentKey::default(), Box::new(OriginState::new()));
 
-        let prink_frame = manager
+        let pink_frame = manager
             .builder_frame()
             .with_parent(origin)
             .with_bounds([400.0 + 0.0, 200.0 + 100.0])
@@ -269,7 +267,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let red_frame = manager
             .builder_frame()
-            .with_parent(prink_frame)
+            .with_parent(pink_frame)
             .with_bounds([400., 45.])
             .with_color([0.7, 0.2, 0., 1.0])
             .with_position([0.0, -41.0])
@@ -287,7 +285,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let orange_frame = manager
             .builder_frame()
-            .with_parent(prink_frame)
+            .with_parent(pink_frame)
             .with_bounds([256., 128.])
             .with_color(Vec4::rgb_u32(0xFF7F3F))
             .with_roundness(Vec4::from([1., 1., 30., 30.]))
@@ -299,7 +297,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let slider_frame = manager
             .builder_slider()
-            .with_parent(prink_frame)
+            .with_parent(pink_frame)
             .with_position([4.0, 64.0])
             .with_bounds([128.0, 32.0])
             .with_color(Vec4::rgb_u32(0x554994))
@@ -330,7 +328,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             })
             .build();
 
-        for k in 0..1 {
+        for k in 0..20 {
             let row = k / 7;
             let col = k % 7;
             let color = Vec4::<f32>::rgb_u32(0x277BC0);
@@ -363,7 +361,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let textbox_key = manager
             .builder_textbox()
-            .with_parent(prink_frame)
+            .with_parent(pink_frame)
             .with_bounds([1000.0, 64.0])
             .with_position([4.0, 200.0 - 64.0])
             .with_color(Vec4::rgb_u32(0))
@@ -476,7 +474,6 @@ impl<ProgramState> GuiManager<ProgramState> {
         let window_events = &mut self.window_events;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let gui_component_tree = &mut self.gui_component_tree;
-
         let focused_component = &mut self.focused_component;
         let clicked_component = &mut self.clicked_component;
         let hover_component = &mut self.hover_component;
@@ -484,6 +481,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let key_down_table = &mut self.key_down_table;
         let visibility_table = &mut self.visibility_table;
         let visibility_intersection_stack = &mut self.visibility_intersection_stack;
+        let key_to_handler_block_table = &mut self.key_to_handler_block_table;
 
         while let Some(event) = window_events.pop_front() {
             let _old_signal_len = component_signal_bus.len();
@@ -647,12 +645,16 @@ impl<ProgramState> GuiManager<ProgramState> {
                             event,
                         ));
                     }
+
                     if let &mut Some(hovered_key) = hover_component {
-                        component_signal_bus.push_back(ComponentEventSignal::new(
-                            GuiEventKind::OnWheelWhileHovered,
+                        Self::push_signal_to_bus_and_bubble(
+                            component_signal_bus,
+                            &gui_component_tree,
+                            &key_to_handler_block_table,
                             hovered_key,
+                            GuiEventKind::OnWheelWhileHovered,
                             event,
-                        ));
+                        );
                     }
                 }
                 _ => (),
@@ -868,5 +870,61 @@ impl<ProgramState> GuiManager<ProgramState> {
                 }
                 (sig, GuiComponentKey::from(key), *s.peek())
             })
+    }
+
+    /// pushes the signal onto the bus headed for `key` but if `key` has no handler for `sig_kind`
+    /// it will redirect signal to an ancestor of `key`
+    fn push_signal_to_bus_and_bubble(
+        component_signal_bus: &mut VecDeque<ComponentEventSignal>,
+        gui_component_tree: &LinearTree<Box<dyn GuiComponent>>,
+        key_to_handler_block_table: &HashMap<GuiComponentKey, ComponentHandlerBlock<ProgramState>>,
+        key: GuiComponentKey,
+        sig_kind: GuiEventKind,
+        event: EventKind,
+    ) {
+        let current_node_has_listener = key_to_handler_block_table
+            .get(&key)
+            .and_then(|block| block.get(sig_kind as usize))
+            .map(|wheel_hovered_handlers| wheel_hovered_handlers.is_empty() == false)
+            .unwrap_or(false);
+
+        if current_node_has_listener {
+            component_signal_bus.push_back(ComponentEventSignal::new(sig_kind, key, event));
+        } else {
+            let parent_query = Self::find_ancestor_with_event_handler_kind(
+                key,
+                sig_kind,
+                gui_component_tree,
+                key_to_handler_block_table,
+            );
+            if let Some(parent) = parent_query {
+                component_signal_bus.push_back(ComponentEventSignal::new(sig_kind, parent, event));
+            }
+        }
+    }
+
+    fn find_ancestor_with_event_handler_kind(
+        root: GuiComponentKey,
+        target_event_kind: GuiEventKind,
+        gui_component_tree: &LinearTree<Box<dyn GuiComponent>>,
+        key_to_handler_block_table: &HashMap<GuiComponentKey, ComponentHandlerBlock<ProgramState>>,
+    ) -> Option<GuiComponentKey> {
+        let mut node = root;
+
+        while let Some(parent) = gui_component_tree.get_parent_id(node) {
+            let number_of_listeners_for_target_event = key_to_handler_block_table
+                .get(&parent.into())
+                .expect("listener block not found")
+                .get(target_event_kind as usize)
+                .expect("handler block not initalized")
+                .len();
+
+            if number_of_listeners_for_target_event > 0 {
+                return Some(parent.into());
+            }
+            node = parent.into();
+        }
+
+        None
     }
 }

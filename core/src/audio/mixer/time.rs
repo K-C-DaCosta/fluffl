@@ -105,7 +105,7 @@ impl SampleTime {
     /// Computes a new SampleTime,with info from `self`, given `dt` in milliseconds
     pub fn from_time_in_ms_u64(&self, dt: u64) -> Self {
         let sample_rate = self.sample_rate;
-        let sample_count = FP64::from(self.sample_rate as u64 * dt) / FP64::from(1000);
+        let sample_count = FP64::from(self.sample_rate as u64 * dt) / 1000;
         Self {
             samples_count: sample_count.as_i64() as u64,
             sample_rate,

@@ -23,7 +23,7 @@ impl GuiComponent for SliderState {
     fn common_mut(&mut self) -> &mut GuiCommonState {
         self.slider_frame.common_mut()
     }
-    
+
     fn as_any(&self) -> &dyn Any {
         self
     }
@@ -40,20 +40,12 @@ impl GuiComponent for SliderState {
         self
     }
 
-    fn rel_position(&self) -> &Vec2<f32> {
-        &self.slider_frame.rel_pos
-    }
-
-    fn set_rel_position(&mut self, pos: Vec2<f32>) {
-        self.slider_frame.rel_pos = pos;
-    }
-
-    fn get_bounds(&self) -> Vec2<f32> {
-        self.slider_frame.bounds
+    fn bounds(&self) -> Vec2<f32> {
+        self.slider_frame.bounds()
     }
 
     fn set_bounds(&mut self, bounds: Vec2<f32>) {
-        self.slider_frame.bounds = bounds;
+        self.slider_frame.set_bounds(bounds);
     }
 
     fn render_entry<'a>(
@@ -61,9 +53,10 @@ impl GuiComponent for SliderState {
         gl: &GlowGL,
         state: RenderState<'a>,
         _text_writer: &mut TextWriter,
-        win_w: f32,
-        win_h: f32,
     ) {
+        let win_w = state.win_w;
+        let win_h = state.win_h;
+        
         //makes sure whatever gets render is bound within the parent
         layer_lock(gl, state.level, *self.flags());
 
@@ -72,12 +65,12 @@ impl GuiComponent for SliderState {
             .builder(gl, GuiShaderKind::RoundedBox)
             .set_window(win_w, win_h)
             .set_background_color(self.slider_frame.color)
-            .set_bounds(self.slider_frame.bounds)
+            .set_bounds(self.slider_frame.bounds())
             .set_edge_color(self.slider_frame.edge_color)
             .set_roundness_vec(self.slider_frame.roundness)
             .set_position(
                 state.global_position,
-                Vec4::convert(self.slider_frame.bounds),
+                Vec4::convert(self.slider_frame.bounds()),
             )
             .render();
 
@@ -89,8 +82,7 @@ impl GuiComponent for SliderState {
         _gl: &GlowGL,
         _state: RenderState<'a>,
         _text_writer: &mut TextWriter,
-        _win_w: f32,
-        _win_h: f32,
+
     ) {
         /* not implemented on purpose  */
     }
@@ -132,7 +124,7 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
             .as_mut()
             .unwrap()
             .slider_frame
-            .bounds = bounds.into();
+            .set_bounds(bounds.into());
         self
     }
 
@@ -145,8 +137,8 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
         self.slider_frame_state
             .as_mut()
             .unwrap()
-            .slider_frame
-            .rel_pos = rel_pos.into();
+            .set_rel_position(rel_pos.into());
+
         self
     }
 
@@ -174,7 +166,10 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
     }
 
     pub fn with_button_bounds<T: Into<Vec2<f32>>>(mut self, bounds: T) -> Self {
-        self.slider_button_state.as_mut().unwrap().bounds = bounds.into();
+        self.slider_button_state
+            .as_mut()
+            .unwrap()
+            .set_bounds(bounds.into());
         self
     }
 
@@ -256,19 +251,20 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for SliderBuilder<'a, P
                 .expect("slider button state not found");
 
             //used to clamp and verticially center slider_button
-            let slider_frame_bounds = slider_frame_state.get_bounds();
-            let mut slider_button_bounds = slider_button_state.get_bounds();
+            let slider_frame_bounds = slider_frame_state.bounds();
+            let mut slider_button_bounds = slider_button_state.bounds();
 
             //this clamps max height of button to be the parents height
             slider_button_bounds[1] = slider_button_bounds[1].clamp(0.0, slider_frame_bounds[1]);
 
             //assign newly clamped bounds to state
-            slider_button_state.bounds[1] = slider_button_bounds[1];
+            slider_button_state.set_bounds(slider_button_bounds);
 
             //center slider
-            slider_button_state.rel_pos[0] = 0.0;
-            slider_button_state.rel_pos[1] =
-                (slider_frame_bounds[1] - slider_button_bounds[1]) * 0.5;
+            slider_button_state.set_rel_position(Vec2::from([
+                0.0,
+                (slider_frame_bounds[1] - slider_button_bounds[1]) * 0.5,
+            ]));
 
             //finally write components to the deferred tree nodes
             *self
@@ -308,12 +304,12 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for SliderBuilder<'a, P
                     let frame_bounds = tree
                         .get(slider_frame_key)
                         .expect("slider_frame component")
-                        .get_bounds();
+                        .bounds();
 
                     let button_bounds = tree
                         .get(slider_button_key)
                         .expect("slider_button component")
-                        .get_bounds();
+                        .bounds();
 
                     //translate the slider like normal
                     tree.get_mut(slider_button_key)
@@ -377,12 +373,12 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for SliderBuilder<'a, P
                     let frame_bounds = tree
                         .get(slider_frame_key)
                         .expect("slider_frame component")
-                        .get_bounds();
+                        .bounds();
 
                     let button_bounds = tree
                         .get(slider_button_key)
                         .expect("slider_button component")
-                        .get_bounds();
+                        .bounds();
 
                     //move slider button,horizontally by increments of 5% of the parent bounds width
                     let wheel_dx = (frame_bounds[0] * 0.05) * wheel;

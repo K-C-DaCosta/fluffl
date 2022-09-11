@@ -5,6 +5,7 @@ use std::any::Any;
 
 pub mod component_flags;
 mod frame;
+mod label;
 mod origin;
 mod slider;
 mod textbox;
@@ -72,6 +73,8 @@ pub struct RenderState<'a> {
     pub key: GuiComponentKey,
     pub gui_component_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+    pub win_w: f32,
+    pub win_h: f32,
 }
 
 impl<'a> Clone for RenderState<'a> {
@@ -89,6 +92,8 @@ impl<'a> RenderState<'a> {
         level: usize,
         gui_component_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, math::AABB<2, f32>>,
+        window_width: f32,
+        window_height: f32,
     ) -> Self {
         Self {
             key,
@@ -97,6 +102,8 @@ impl<'a> RenderState<'a> {
             renderer,
             level,
             key_to_aabb_table,
+            win_h: window_height,
+            win_w: window_width,
         }
     }
 }
@@ -117,23 +124,31 @@ impl<'a, ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>>
     }
 }
 
-
 #[derive(Clone)]
 pub struct GuiCommonState {
+    rel_pos: Vec2<f32>,
+    bounds: Vec2<f32>,
     flags: ComponentFlags,
     name: String,
 }
 
 impl GuiCommonState {
     pub fn new() -> Self {
-        Self { 
+        Self {
             flags: ComponentFlags::default(),
             name: String::new(),
+            rel_pos: Vec2::zero(),
+            bounds: Vec2::zero(),
         }
     }
-    
+
     pub fn with_flags(mut self, flags: ComponentFlags) -> Self {
         self.flags = flags;
+        self
+    }
+
+    pub fn with_bounds<T: Into<Vec2<f32>>>(mut self, bounds: T) -> Self {
+        self.bounds = bounds.into();
         self
     }
 }
@@ -144,13 +159,13 @@ pub trait GuiComponent {
     fn common(&self) -> &GuiCommonState;
     fn common_mut(&mut self) -> &mut GuiCommonState;
 
-    fn get_name(&self)->&str{
+    fn get_name(&self) -> &str {
         self.common().name.as_str()
     }
 
-    fn set_name(&mut self, name:&str){
+    fn set_name(&mut self, name: &str) {
         let common = self.common_mut();
-        common.name.clear(); 
+        common.name.clear();
         common.name.push_str(name);
     }
 
@@ -162,31 +177,21 @@ pub trait GuiComponent {
         &mut self.common_mut().flags
     }
 
-    fn get_bounds(&self) -> Vec2<f32>;
-    fn set_bounds(&mut self, bounds: Vec2<f32>);
+    fn rel_position(&self) -> &Vec2<f32> {
+        &self.common().rel_pos
+    }
 
-    fn rel_position(&self) -> &Vec2<f32>;
-    fn set_rel_position(&mut self, pos: Vec2<f32>);
+    fn set_rel_position(&mut self, pos: Vec2<f32>) {
+        self.common_mut().rel_pos = pos;
+    }
 
-    /// this fires the first occurrence in the tree
-    fn render_entry<'a>(
-        &mut self,
-        gl: &GlowGL,
-        state: RenderState<'a>,
-        text_writer: &mut TextWriter,
-        win_w: f32,
-        win_h: f32,
-    );
+    fn bounds(&self) -> Vec2<f32> {
+        self.common().bounds
+    }
 
-    /// this fires after everything in the component subtree has been rendered
-    fn render_exit<'a>(
-        &mut self,
-        gl: &GlowGL,
-        state: RenderState<'a>,
-        text_writer: &mut TextWriter,
-        win_w: f32,
-        win_h: f32,
-    );
+    fn set_bounds(&mut self, bounds: Vec2<f32>) {
+        self.common_mut().bounds = bounds;
+    }
 
     fn is_visible(&self) -> bool {
         self.flags().is_set(component_flags::VISIBLE)
@@ -209,7 +214,7 @@ pub trait GuiComponent {
     }
 
     fn get_aabb(&self, global_x0: Vec4<f32>) -> AABB2<f32> {
-        let bounds = self.get_bounds();
+        let bounds = self.bounds();
         AABB2::from_point_and_lengths(Vec2::convert(global_x0), bounds)
     }
 
@@ -221,6 +226,22 @@ pub trait GuiComponent {
     fn is_origin(&self) -> bool {
         self.as_any().downcast_ref::<OriginState>().is_some()
     }
+
+    /// this fires the first occurrence in the tree
+    fn render_entry<'a>(
+        &mut self,
+        gl: &GlowGL,
+        state: RenderState<'a>,
+        text_writer: &mut TextWriter,
+    );
+
+    /// this fires after everything in the component subtree has been rendered
+    fn render_exit<'a>(
+        &mut self,
+        gl: &GlowGL,
+        state: RenderState<'a>,
+        text_writer: &mut TextWriter,
+    );
 }
 
 /// used

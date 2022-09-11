@@ -1,5 +1,62 @@
 use super::*;
 
+pub fn mousedown<ProgramState>() -> ListenerCallBack<ProgramState> {
+    Box::new(|info| {
+        let root_key = info.key;
+        let gui_component_tree = info.gui_comp_tree;
+        let mouse_pos = info.event.mouse_pos();
+
+        let scroll_percentages =
+            compute_scrollbar_percentages(gui_component_tree, root_key, mouse_pos);
+
+        let (horizontal_scroll_area, vertical_scroll_area, percentages) = {
+            let frame = get_frame(gui_component_tree, root_key);
+            let hsa = frame.horizontal_scroll_area;
+            let vsa = frame.vertical_scroll_area;
+            let percentages = frame.percentages;
+            (hsa, vsa, percentages)
+        };
+
+        if horizontal_scroll_area.is_point_inside(mouse_pos) {
+            {
+                let frame = get_frame(gui_component_tree, root_key);
+                frame.focused_scrollbar = FocusedScrollBarKind::Horizontal;
+            }
+            scroll_elements(
+                gui_component_tree,
+                root_key,
+                Vec2::from([scroll_percentages.x(), percentages.y()]),
+            );
+        } else if vertical_scroll_area.is_point_inside(mouse_pos) {
+            {
+                let frame = get_frame(gui_component_tree, root_key);
+                frame.focused_scrollbar = FocusedScrollBarKind::Vertical;
+            }
+            scroll_elements(
+                gui_component_tree,
+                root_key,
+                Vec2::from([percentages.x(), scroll_percentages.y()]),
+            );
+        } else {
+            {
+                let frame = get_frame(gui_component_tree, root_key);
+                frame.focused_scrollbar = FocusedScrollBarKind::Nothing;
+            }
+        }
+        None
+    })
+}
+
+pub fn mouseup<ProgramState>() -> ListenerCallBack<ProgramState> {
+    Box::new(|info| {
+        let root_key = info.key;
+        let gui_component_tree = info.gui_comp_tree;
+        let frame = get_frame(gui_component_tree, root_key);
+        frame.focused_scrollbar = FocusedScrollBarKind::Nothing;
+        None
+    })
+}
+
 pub fn mousemove<ProgramState>() -> ListenerCallBack<ProgramState> {
     Box::new(|info| {
         let root_key = info.key;
@@ -21,8 +78,10 @@ pub fn wheel<ProgramState>() -> ListenerCallBack<ProgramState> {
         let frame = get_frame(gui_component_tree, root_key);
         let wheel = info.event.wheel() * 0.125;
         let horizontal_scroll_area = frame.horizontal_scroll_area;
+        let can_update_horizontal =
+            horizontal_scroll_area.is_point_inside(frame.last_known_mouse_pos);
 
-        if horizontal_scroll_area.is_point_inside(frame.last_known_mouse_pos) {
+        if can_update_horizontal {
             frame.percentages[0] += wheel;
             frame.percentages[0] = frame.percentages[0].clamp(0.0, 1.0);
             let uv = frame.percentages;
@@ -45,41 +104,35 @@ pub fn drag<ProgramState>() -> ListenerCallBack<ProgramState> {
 
         let mouse_pos = info.event.mouse_pos();
 
-        // found the percentages have to have a low-resolution step size otherwise
-        // positioning gets fucked up for some reason
-        // currently percentages are in { 0.01*k | k > 0 && k < 99 }
-        let mouse_uv = {
-            let frame = get_frame(gui_component_tree, root_key);
-            let frame_pos = info.key_to_aabb_table.get(&root_key).unwrap().min_pos;
-            let frame_bounds = frame.bounds;
-            let mut uv = (mouse_pos - frame_pos) / (frame_bounds * 0.99);
-            uv.iter_mut()
-                .for_each(|comp| *comp = (comp.clamp(0.0, 1.0) * 100.0).floor() / 100.0);
-            uv
-        };
+        let mouse_uv = compute_scrollbar_percentages(gui_component_tree, root_key, mouse_pos);
 
         let (horizontal_scroll_area, vertical_scroll_area, uv) = {
             let frame = get_frame(gui_component_tree, root_key);
             let hsa = frame.horizontal_scroll_area;
             let vsa = frame.vertical_scroll_area;
-
             (hsa, vsa, frame.percentages)
         };
 
-        if horizontal_scroll_area.is_point_inside(mouse_pos) {
+        let frame = get_frame(gui_component_tree, root_key);
+        let focused_scrollbar = frame.focused_scrollbar;
+
+        let can_update_horizontal = focused_scrollbar == FocusedScrollBarKind::Horizontal;
+        let can_update_vertical = focused_scrollbar == FocusedScrollBarKind::Vertical;
+
+        if can_update_horizontal {
             scroll_elements(
                 gui_component_tree,
                 root_key,
                 Vec2::from([mouse_uv.x(), uv.y()]),
             );
-        }
-        if vertical_scroll_area.is_point_inside(mouse_pos) {
+        } else if can_update_vertical {
             scroll_elements(
                 gui_component_tree,
                 root_key,
                 Vec2::from([uv.x(), mouse_uv.y()]),
             );
         }
+
         None
     })
 }
@@ -131,7 +184,7 @@ fn compute_component_bounds(
     let mut executed = false;
     for NodeInfoMut { val, .. } in gui_component_tree.iter_children_mut(root_key).skip(1) {
         let &pos = val.rel_position();
-        let bounds = val.get_bounds();
+        let bounds = val.bounds();
         let rel_aabb = AABB2::from_point_and_lengths(pos, bounds);
         aabb.merge(rel_aabb);
         executed = true;
@@ -172,4 +225,28 @@ fn resize_component_bounds_if_needed(
 
         scroll_elements(gui_component_tree, root_key, old_uv);
     }
+}
+
+/// found the percentages have to have a low-resolution step size otherwise
+/// positioning gets fucked up for some reason
+/// currently percentages are in { 0.01*k | k > 0 && k < 99 }
+fn compute_scrollbar_percentages(
+    gui_component_tree: &mut LinearTree<Box<dyn GuiComponent>>,
+    root_key: GuiComponentKey,
+    mouse_pos: Vec2<f32>,
+) -> Vec2<f32> {
+    let frame = get_frame(gui_component_tree, root_key);
+    let vertical_scroll_area = frame.vertical_scroll_area;
+    let horizontal_scroll_area = frame.horizontal_scroll_area;
+    let mut mouse_percentages = Vec2::from([
+        (mouse_pos.x() - horizontal_scroll_area.min_pos.x())
+            / (horizontal_scroll_area.dims().x() * 0.99),
+        (mouse_pos.y() - vertical_scroll_area.min_pos.y())
+            / (vertical_scroll_area.dims().y() * 0.99),
+    ]);
+
+    mouse_percentages
+        .iter_mut()
+        .for_each(|comp| *comp = (comp.clamp(0.0, 1.0) * 100.0).floor() / 100.0);
+    mouse_percentages
 }

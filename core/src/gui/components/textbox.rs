@@ -1,74 +1,6 @@
 use super::*;
 
-use crate::time::Instant;
-use std::ops::{Index, IndexMut, Range};
-
-/// represents a contigious range in an array or slice that is stored elsewhere.
-/// This range has documented operations to make certain parts of my code more readable
-#[derive(Copy, Clone, Default, Debug)]
-pub struct IdxSlice {
-    lbound: usize,
-    len: usize,
-}
-
-impl IdxSlice {
-    pub fn new(lbound: usize) -> Self {
-        Self { lbound, len: 0 }
-    }
-
-    pub fn pop_front(&mut self, off: usize) {
-        self.lbound += off;
-        self.len -= off;
-    }
-
-    pub fn push_rear(&mut self, off: usize) {
-        self.len += off;
-    }
-
-    pub fn len(&self) -> usize {
-        self.len
-    }
-
-    pub fn clear(&mut self) {
-        self.len = 0;
-    }
-
-    /// equivalent to poping the front and pushing the rear
-    pub fn shift(&mut self, off: usize) {
-        self.lbound += off;
-    }
-
-    pub fn as_range(&self) -> Range<usize> {
-        Range {
-            start: self.lbound,
-            end: self.lbound + self.len,
-        }
-    }
-
-    pub fn is_in_range(&self, idx: usize) -> bool {
-        idx >= self.lbound && (idx - self.lbound) < self.len
-    }
-
-    pub fn is_in_range_include_upper_bound(&self, idx: usize) -> bool {
-        idx >= self.lbound && (idx - self.lbound) <= self.len
-    }
-
-    pub fn get_slice<'a, A, B>(&self, sliceable: &'a A) -> &'a B
-    where
-        A: ?Sized + Index<Range<usize>, Output = B>,
-        B: ?Sized,
-    {
-        &sliceable[self.as_range()]
-    }
-
-    pub fn get_slice_mut<'a, A, B>(&self, sliceable: &'a mut A) -> &'a mut B
-    where
-        A: ?Sized + Index<Range<usize>, Output = B> + IndexMut<Range<usize>>,
-        B: ?Sized,
-    {
-        &mut sliceable[self.as_range()]
-    }
-}
+use crate::{slice::IdxSlice, time::Instant};
 
 /// Given a string of text, this code figures out what substring can fit inside of rectangle
 pub struct CaptionClipper {
@@ -298,7 +230,7 @@ impl CaptionClipper {
     pub fn get_text_postion_given_horizontal_disp(&self, disp_x: f32) -> usize {
         let mut total_len = 0.0;
         let mut local_idx = 0;
-        let mut global_idx = self.visible_slice.lbound;
+        let mut global_idx = self.visible_slice.lbound();
 
         // let visible_text_len = self.visible_text.len();
         while total_len < disp_x && local_idx < self.visible_text_dx.len() {
@@ -316,7 +248,7 @@ impl CaptionClipper {
     pub fn get_visible_cursor_displacement(&self, global_text_index: usize) -> f32 {
         self.visible_text_dx
             .iter()
-            .take(global_text_index - self.visible_slice.lbound)
+            .take(global_text_index - self.visible_slice.lbound())
             .fold(0.0, |acc, &e| acc + e)
     }
 
@@ -394,7 +326,7 @@ impl GuiComponent for TextBoxState {
     fn common(&self) -> &GuiCommonState {
         self.frame.common()
     }
-    
+
     fn common_mut(&mut self) -> &mut GuiCommonState {
         self.frame.common_mut()
     }
@@ -407,34 +339,18 @@ impl GuiComponent for TextBoxState {
         self
     }
 
-    fn get_bounds(&self) -> Vec2<f32> {
-        self.frame.bounds
-    }
-
-    fn set_bounds(&mut self, bounds: Vec2<f32>) {
-        self.frame.set_bounds(bounds);
-    }
-
-    fn rel_position(&self) -> &Vec2<f32> {
-        &self.frame.rel_pos
-    }
-
-    fn set_rel_position(&mut self, pos: Vec2<f32>) {
-        self.frame.rel_pos = pos;
-    }
-
     fn render_entry<'a>(
         &mut self,
         gl: &GlowGL,
         state: RenderState<'a>,
         text_writer: &mut TextWriter,
-        win_w: f32,
-        win_h: f32,
     ) {
         const HORIZONTAL_MARGIN: f32 = 20.0;
+        let win_w = state.win_w;
+        let win_h = state.win_h;
 
         self.frame
-            .render_entry(gl, state.clone(), text_writer, win_w, win_h);
+            .render_entry(gl, state.clone(), text_writer);
 
         layer_lock(gl, state.level, *self.flags());
 
@@ -443,7 +359,7 @@ impl GuiComponent for TextBoxState {
 
         let clipper = &mut self.clipper;
         let caption = &self.text;
-        let frame_bounds = self.frame.bounds;
+        let frame_bounds = self.frame.bounds();
         let text_size = self.text_size;
 
         let scroll_percentage = clipper.get_scroll_cursor_percentage();
@@ -462,7 +378,7 @@ impl GuiComponent for TextBoxState {
             let aligned_global_position = compute_alignment_position(
                 Vec2::convert(position),
                 Vec2::from([text_aabb.w, text_aabb.h]),
-                self.frame.bounds,
+                self.frame.bounds(),
                 &self.alignment,
             );
 
@@ -517,7 +433,7 @@ impl GuiComponent for TextBoxState {
                     (aligned_global_position.x() + HORIZONTAL_MARGIN)
                         + (text_aabb.w - scroll_bar_bounds.x()) * 1.0,
                     (aligned_global_position.y() + text_aabb.h * 1.5)
-                        .min(position.y() + self.frame.bounds.y()),
+                        .min(position.y() + self.frame.bounds().y()),
                 ]),
             );
 
@@ -603,8 +519,6 @@ impl GuiComponent for TextBoxState {
         _gl: &GlowGL,
         _state: RenderState<'a>,
         _text_writer: &mut TextWriter,
-        _win_w: f32,
-        _win_h: f32,
     ) {
         /* not implemented on purpose  */
     }
@@ -633,7 +547,7 @@ impl<'a, ProgramState> TextBoxBuilder<'a, ProgramState> {
         Vec2<f32>: From<T>,
     {
         let bounds = Vec2::from(bounds);
-        self.state.as_mut().unwrap().frame.bounds = bounds;
+        self.state.as_mut().unwrap().set_bounds(bounds);
         self
     }
 
@@ -665,7 +579,10 @@ impl<'a, ProgramState> TextBoxBuilder<'a, ProgramState> {
     where
         Vec2<f32>: From<T>,
     {
-        self.state.as_mut().unwrap().frame.rel_pos = Vec2::from(pos);
+        self.state
+            .as_mut()
+            .unwrap()
+            .set_rel_position(Vec2::from(pos));
         self
     }
 
