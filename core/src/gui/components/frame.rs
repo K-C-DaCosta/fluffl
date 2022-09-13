@@ -208,7 +208,7 @@ impl GuiComponent for FrameState {
         let r = state.renderer;
         let win_w = state.win_w;
         let win_h = state.win_h;
-        
+
         let can_draw_horizontal =
             self.rails.is_some() && self.rails.unwrap().horizontal_disp.length_squared() > 0.01;
         let can_draw_vertical =
@@ -279,27 +279,6 @@ impl GuiComponent for FrameState {
             }
         }
     }
-}
-
-pub fn compute_alignment_position(
-    global_position: Vec2<f32>,
-    text_bounds: Vec2<f32>,
-    component_bounds: Vec2<f32>,
-    alignment: &[TextAlignment; 2],
-) -> Vec2<f32> {
-    let mut res = Vec2::zero();
-    for pos_idx in 0..res.len() {
-        let comp_gpos = global_position[pos_idx];
-        let comp_dim = component_bounds[pos_idx];
-        let text_dim = text_bounds[pos_idx];
-        let alignment_mode = alignment[pos_idx];
-        res[pos_idx] = match alignment_mode {
-            TextAlignment::Left | TextAlignment::Stretch => comp_gpos,
-            TextAlignment::Right => comp_gpos + comp_dim - text_dim,
-            TextAlignment::Center => comp_gpos + (comp_dim - text_dim) * 0.5,
-        };
-    }
-    res
 }
 
 pub struct FrameBuilder<'a, ProgramState> {

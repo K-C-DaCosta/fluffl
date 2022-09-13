@@ -106,11 +106,10 @@ pub fn drag<ProgramState>() -> ListenerCallBack<ProgramState> {
 
         let mouse_uv = compute_scrollbar_percentages(gui_component_tree, root_key, mouse_pos);
 
-        let (horizontal_scroll_area, vertical_scroll_area, uv) = {
+        let uv = {
             let frame = get_frame(gui_component_tree, root_key);
-            let hsa = frame.horizontal_scroll_area;
-            let vsa = frame.vertical_scroll_area;
-            (hsa, vsa, frame.percentages)
+
+            frame.percentages
         };
 
         let frame = get_frame(gui_component_tree, root_key);

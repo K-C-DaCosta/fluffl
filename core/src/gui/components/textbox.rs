@@ -268,7 +268,7 @@ impl CaptionClipper {
 
 pub struct TextBoxState {
     pub frame: FrameState,
-    alignment: [TextAlignment; 2],
+    aligner: TextAligner2D,
     text: String,
     text_size: f32,
     text_cursor: usize,
@@ -282,7 +282,7 @@ impl TextBoxState {
     pub fn new() -> Self {
         Self {
             frame: FrameState::new(),
-            alignment: [TextAlignment::Center; 2],
+            aligner: TextAligner2D::new(),
             text: String::new(),
             text_size: 12.0,
             clipper: CaptionClipper::new(),
@@ -349,8 +349,7 @@ impl GuiComponent for TextBoxState {
         let win_w = state.win_w;
         let win_h = state.win_h;
 
-        self.frame
-            .render_entry(gl, state.clone(), text_writer);
+        self.frame.render_entry(gl, state.clone(), text_writer);
 
         layer_lock(gl, state.level, *self.flags());
 
@@ -375,11 +374,10 @@ impl GuiComponent for TextBoxState {
         if clipped_text.is_empty() == false {
             let text_aabb = text_writer.calc_text_aabb(clipped_text, 0.0, 0.0, text_size);
 
-            let aligned_global_position = compute_alignment_position(
+            let aligned_global_position = self.aligner.compute_position(
                 Vec2::convert(position),
                 Vec2::from([text_aabb.w, text_aabb.h]),
                 self.frame.bounds(),
-                &self.alignment,
             );
 
             text_writer.draw_text_line(
@@ -592,7 +590,7 @@ impl<'a, ProgramState> TextBoxBuilder<'a, ProgramState> {
     }
 
     pub fn with_alignment(mut self, alignment: [TextAlignment; 2]) -> Self {
-        self.state.as_mut().unwrap().alignment = alignment;
+        self.state.as_mut().unwrap().aligner.alignment_mode_per_axis = alignment;
         self
     }
 

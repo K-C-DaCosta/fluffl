@@ -34,6 +34,8 @@ pub type ListenerCallBack<ProgramState> =
     Box<dyn FnMut(EventListenerInfo<'_, ProgramState>) -> Option<()>>;
 
 type VisibilityStack = FixedStack<128, bool>;
+type LevelStack = FixedStack<128, i32>;
+type NodeStack = FixedStack<256, NodeID>;
 
 pub struct GuiManager<ProgramState> {
     gl: GlowGL,
@@ -133,10 +135,11 @@ impl<ProgramState> GuiManager<ProgramState> {
     pub fn render(&mut self, text_writer: &mut TextWriter, window_width: f32, window_height: f32) {
         self.handle_incoming_events();
 
-        let mut node_stack = FixedStack::<256, NodeID>::new();
+        let mut level_stack = LevelStack::new();
+        let mut node_stack = NodeStack::new();
 
         let gl = &mut self.gl;
-        let stack = &mut self.component_transform_stack;
+        let transform_stack = &mut self.component_transform_stack;
 
         let renderer = &mut self.renderer;
         let gui_component_tree = &mut self.gui_component_tree;
@@ -149,6 +152,17 @@ impl<ProgramState> GuiManager<ProgramState> {
             let &transform = s.peek();
             transform * pos
         };
+
+        let compute_current_level = |stack: &LevelStack, comp: &Box<dyn GuiComponent>| {
+            let parent_level = stack.peek();
+
+            if comp.flags().is_set(component_flags::OVERFLOWABLE) {
+                (-127, -126)
+            } else {
+                (parent_level, parent_level + 1)
+            }
+        };
+
         unsafe {
             gl.enable(glow::BLEND);
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
@@ -159,28 +173,38 @@ impl<ProgramState> GuiManager<ProgramState> {
         let gui_component_tree_borrowed_by_force =
             unsafe { crate::mem::force_borrow_mut(gui_component_tree) };
 
-        stack.clear();
+        transform_stack.clear();
+        level_stack.clear_with_root_val(0);
+
         for (sig, key, comp) in gui_component_tree.iter_mut_stack_signals() {
             let &rel_pos = comp.rel_position();
             let transform = translate4(Vec4::to_pos(rel_pos));
 
             // println!("sig:{:?}",sig);
-            let gpos = match sig {
+            let (cur_level, gpos) = match sig {
                 StackSignal::Nop => {
-                    stack.pop();
+                    transform_stack.pop();
                     node_stack.pop();
+                    level_stack.pop();
 
-                    let gpos = compute_global_position(rel_pos, stack);
-                    stack.push(transform);
+                    let (cur_level, new_level) = compute_current_level(&level_stack, &comp);
+                    let gpos = compute_global_position(rel_pos, transform_stack);
+
+                    transform_stack.push(transform);
                     node_stack.push(key);
+                    level_stack.push(new_level);
 
-                    gpos
+                    (cur_level, gpos)
                 }
                 StackSignal::Pop { n_times } => {
                     // stack.pop_multi(n_times + 1);
 
+                    // i just said "fuck it" and popped all removable levels in one step
+                    // because don't care if level is accurate for render_exit(..)
+                    level_stack.pop_multi(n_times + 1);
+
                     for _ in 0..n_times + 1 {
-                        let popped = Some(stack.pop()).zip(node_stack.pop());
+                        let popped = Some(transform_stack.pop()).zip(node_stack.pop());
                         if let Some((global_frame, node)) = popped {
                             let global_position = global_frame * Vec4::from([0., 0., 0., 1.0]);
                             let visibility = visibility_table[node.as_usize()];
@@ -191,7 +215,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                                     key.into(),
                                     global_position,
                                     renderer,
-                                    stack.len() - 1,
+                                    transform_stack.len() as i32 - 1,
                                     gui_component_tree_borrowed_by_force,
                                     key_to_aabb_table,
                                     window_width,
@@ -203,19 +227,27 @@ impl<ProgramState> GuiManager<ProgramState> {
                             }
                         }
                     }
-                    let gpos = compute_global_position(rel_pos, stack);
-                    stack.push(transform);
+
+                    let (cur_level, new_level) = compute_current_level(&level_stack, comp);
+                    let gpos = compute_global_position(rel_pos, transform_stack);
+
+                    transform_stack.push(transform);
                     node_stack.push(key);
-                    gpos
+                    level_stack.push(new_level);
+
+                    (cur_level, gpos)
                 }
                 StackSignal::Push => {
-                    let gpos = compute_global_position(rel_pos, stack);
-                    stack.push(transform);
+                    let (cur_level, new_level) = compute_current_level(&level_stack, comp);
+                    let gpos = compute_global_position(rel_pos, transform_stack);
+
+                    transform_stack.push(transform);
                     node_stack.push(key);
-                    gpos
+                    level_stack.push(new_level);
+                    (cur_level, gpos)
                 }
             };
-            
+
             if visibility_table[key.as_usize()] {
                 comp.render_entry(
                     gl,
@@ -223,7 +255,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                         key.into(),
                         gpos,
                         renderer,
-                        stack.len() - 1,
+                        cur_level,
                         gui_component_tree_borrowed_by_force,
                         key_to_aabb_table,
                         window_width,
@@ -280,7 +312,8 @@ impl<ProgramState> GuiManager<ProgramState> {
             .with_parent(red_frame)
             .with_bounds([32., 32.])
             .with_color(Vec4::rgb_u32(0x277BC0))
-            .with_position([8.0, 8.0])
+            .with_position([-16.0, -16.0])
+            .with_drag(true)
             .build();
 
         let orange_frame = manager
@@ -328,52 +361,60 @@ impl<ProgramState> GuiManager<ProgramState> {
             })
             .build();
 
-        for k in 0..20 {
-            let row = k / 7;
-            let col = k % 7;
-            let color = Vec4::<f32>::rgb_u32(0x277BC0);
-            let _blue_button = manager
-                .builder_frame()
-                .with_parent(orange_frame)
-                .with_bounds([32., 32.])
-                .with_color(color)
-                .with_roundness(Vec4::from([1., 1., 1., 1.]))
-                .with_edge_color([0., 0., 0., 1.0])
-                .with_position([7.0 + 35.0 * (col as f32), 5.0 + 33.0 * (row as f32)])
-                .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
-                    frame.color *= 0.5;
-                    frame.color[3] = 1.0;
-                })
-                .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _e| {
-                    frame.color *= 2.0;
-                    frame.color[3] = 1.0;
-                })
-                .with_listener(GuiEventKind::OnMouseDown, |frame, _, _| {
-                    frame.color = Vec4::rgb_u32(!0);
-                })
-                .with_listener(GuiEventKind::OnMouseRelease, move |frame, _, _| {
-                    frame.color = color * 0.5;
-                    frame.color[3] = 1.0;
-                })
-                .with_drag(true)
-                .build();
-        }
+        // for k in 0..20 {
+        //     let row = k / 7;
+        //     let col = k % 7;
+        //     let color = Vec4::<f32>::rgb_u32(0x277BC0);
+        //     let _blue_button = manager
+        //         .builder_frame()
+        //         .with_parent(orange_frame)
+        //         .with_bounds([32., 32.])
+        //         .with_color(color)
+        //         .with_roundness(Vec4::from([1., 1., 1., 1.]))
+        //         .with_edge_color([0., 0., 0., 1.0])
+        //         .with_position([7.0 + 35.0 * (col as f32), 5.0 + 33.0 * (row as f32)])
+        //         .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
+        //             frame.color *= 0.5;
+        //             frame.color[3] = 1.0;
+        //         })
+        //         .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _e| {
+        //             frame.color *= 2.0;
+        //             frame.color[3] = 1.0;
+        //         })
+        //         .with_listener(GuiEventKind::OnMouseDown, |frame, _, _| {
+        //             frame.color = Vec4::rgb_u32(!0);
+        //         })
+        //         .with_listener(GuiEventKind::OnMouseRelease, move |frame, _, _| {
+        //             frame.color = color * 0.5;
+        //             frame.color[3] = 1.0;
+        //         })
+        //         .with_drag(true)
+        //         .build();
+        // }
 
-        let textbox_key = manager
-            .builder_textbox()
-            .with_parent(pink_frame)
-            .with_bounds([1000.0, 64.0])
-            .with_position([4.0, 200.0 - 64.0])
-            .with_color(Vec4::rgb_u32(0))
-            .with_roundness([0.0, 0.0, 32.0, 32.0])
-            .with_font_size(32.0)
-            .with_alignment([TextAlignment::Left, TextAlignment::Center])
-            .with_listener(GuiEventKind::OnFocusIn, |comp, _, _| {
-                comp.frame.edge_color = Vec4::rgb_u32(0xff0000);
-            })
-            .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
-                comp.frame.edge_color = Vec4::rgb_u32(0x89CFFD);
-            })
+        // let textbox_key = manager
+        //     .builder_textbox()
+        //     .with_parent(pink_frame)
+        //     .with_bounds([1000.0, 64.0])
+        //     .with_position([4.0, 200.0 - 64.0])
+        //     .with_color(Vec4::rgb_u32(0))
+        //     .with_roundness([0.0, 0.0, 32.0, 32.0])
+        //     .with_font_size(32.0)
+        //     .with_alignment([TextAlignment::Left, TextAlignment::Center])
+        //     .with_listener(GuiEventKind::OnFocusIn, |comp, _, _| {
+        //         comp.frame.edge_color = Vec4::rgb_u32(0xff0000);
+        //     })
+        //     .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
+        //         comp.frame.edge_color = Vec4::rgb_u32(0x89CFFD);
+        //     })
+        //     .build();
+
+        let _title_label = manager
+            .builder_label()
+            .with_parent(red_frame)
+            .with_bounds([400.0, 45.0])
+            .with_position([0.0, 0.0])
+            .with_caption("hello world")
             .build();
 
         // println!("origin={}", origin);
@@ -620,7 +661,9 @@ impl<ProgramState> GuiManager<ProgramState> {
                         }
 
                         Self::object_is_clicked_so_send_drag_signal_to_focused_component(
+                            &gui_component_tree,
                             component_signal_bus,
+                            &key_to_handler_block_table,
                             clicked_key,
                             event,
                         );
@@ -671,15 +714,20 @@ impl<ProgramState> GuiManager<ProgramState> {
     }
 
     fn object_is_clicked_so_send_drag_signal_to_focused_component(
+        gui_component_tree: &LinearTree<Box<dyn GuiComponent>>,
         component_signal_bus: &mut VecDeque<ComponentEventSignal>,
+        key_to_handler_block_table: &HashMap<GuiComponentKey, ComponentHandlerBlock<ProgramState>>,
         clicked_component: GuiComponentKey,
         event: EventKind,
     ) {
-        component_signal_bus.push_back(ComponentEventSignal::new(
-            GuiEventKind::OnDrag,
+        Self::push_signal_to_bus_and_bubble(
+            component_signal_bus,
+            gui_component_tree,
+            key_to_handler_block_table,
             clicked_component,
+            GuiEventKind::OnDrag,
             event,
-        ));
+        );
     }
 
     fn check_for_hover_signal_and_send_if_found<'a>(

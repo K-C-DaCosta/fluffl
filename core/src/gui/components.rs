@@ -10,8 +10,39 @@ mod origin;
 mod slider;
 mod textbox;
 
-use self::component_flags::ComponentFlags;
-pub use self::{frame::*, origin::*, slider::*, textbox::*};
+use self::{component_flags::ComponentFlags, label::LabelState};
+pub use self::{frame::*, label::*, origin::*, slider::*, textbox::*};
+
+pub struct TextAligner2D {
+    alignment_mode_per_axis: [TextAlignment; 2],
+}
+impl TextAligner2D {
+    pub fn new() -> Self {
+        Self {
+            alignment_mode_per_axis: [TextAlignment::Center; 2],
+        }
+    }
+    pub fn compute_position(
+        &self,
+        global_position: Vec2<f32>,
+        text_bounds: Vec2<f32>,
+        component_bounds: Vec2<f32>,
+    ) -> Vec2<f32> {
+        let mut res = Vec2::zero();
+        for pos_idx in 0..res.len() {
+            let comp_gpos = global_position[pos_idx];
+            let comp_dim = component_bounds[pos_idx];
+            let text_dim = text_bounds[pos_idx];
+            let alignment_mode = self.alignment_mode_per_axis[pos_idx];
+            res[pos_idx] = match alignment_mode {
+                TextAlignment::Left | TextAlignment::Stretch => comp_gpos,
+                TextAlignment::Right => comp_gpos + comp_dim - text_dim,
+                TextAlignment::Center => comp_gpos + (comp_dim - text_dim) * 0.5,
+            };
+        }
+        res
+    }
+}
 
 #[derive(Copy, Clone)]
 #[rustfmt::skip]
@@ -69,7 +100,7 @@ impl ComponentEventSignal {
 pub struct RenderState<'a> {
     pub global_position: Vec4<f32>,
     pub renderer: &'a GuiRenderer,
-    pub level: usize,
+    pub level: i32,
     pub key: GuiComponentKey,
     pub gui_component_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
@@ -89,7 +120,7 @@ impl<'a> RenderState<'a> {
         key: GuiComponentKey,
         global_position: Vec4<f32>,
         renderer: &'a GuiRenderer,
-        level: usize,
+        level: i32,
         gui_component_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, math::AABB<2, f32>>,
         window_width: f32,
@@ -244,23 +275,39 @@ pub trait GuiComponent {
     );
 }
 
+const LAYER_BIAS: i32 = 128;
 /// used
-pub fn layer_lock(gl: &GlowGL, layer_id: usize, flags: ComponentFlags) {
+pub fn layer_lock(gl: &GlowGL, layer_id: i32, flags: ComponentFlags) {
     if flags.is_set(component_flags::OVERFLOWABLE) == false {
         layer_lock_always(gl, layer_id);
     } else {
         unsafe {
-            gl.disable(glow::STENCIL_TEST);
+            gl.enable(glow::STENCIL_TEST);
+            gl.stencil_mask(0xff);
+            gl.stencil_func(glow::ALWAYS, (layer_id + 1) + LAYER_BIAS, 0xff);
+            gl.stencil_op(glow::REPLACE, glow::REPLACE, glow::REPLACE);
         }
     }
 }
 
-pub fn layer_lock_always(gl: &GlowGL, layer_id: usize) {
-    unsafe {
-        gl.enable(glow::STENCIL_TEST);
-        gl.stencil_mask(0xff);
-        gl.stencil_func(glow::LEQUAL, (layer_id as i32) - 1, 0xff);
-        gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+pub fn layer_lock_always(gl: &GlowGL, layer_id: i32) {
+    if layer_id == 1 {
+        //initalize the stencil buffer for the first layer
+        unsafe {
+            gl.enable(glow::STENCIL_TEST);
+            gl.stencil_mask(0xff);
+            gl.stencil_func(glow::ALWAYS, (layer_id +1) + LAYER_BIAS, 0xff);
+            gl.stencil_op(glow::REPLACE, glow::REPLACE, glow::REPLACE);
+        }
+    } else {
+        // layer_id -1 is the parent of the current layer.
+        // the goal i  to clip away pixels OUTSIDE of the parents domain
+        unsafe {
+            gl.enable(glow::STENCIL_TEST);
+            gl.stencil_mask(0xff);
+            gl.stencil_func(glow::LEQUAL, (layer_id - 1) + LAYER_BIAS, 0xff);
+            gl.stencil_op(glow::KEEP, glow::INCR, glow::INCR);
+        }
     }
 }
 
