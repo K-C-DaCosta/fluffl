@@ -37,9 +37,13 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
 
         if self.covered_root == false {
             self.covered_root = true;
-            return Some((StackSignal::Nop, tree.node_id[0], unsafe {
-                tree.data[0].assume_init_ref()
-            }));
+
+            return Some(StackSignal::Nop)
+                .zip(tree.node_id.get(0).zip(tree.data.get(0)))
+                .map(|(ss, (&nid, data))| (ss, nid, unsafe { data.assume_init_ref() }));
+            // return Some((StackSignal::Nop, tree.node_id[0], unsafe {
+            //     tree.data[0].assume_init_ref()
+            // }));
         }
 
         let level = &tree.level;
@@ -95,18 +99,21 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         //allows me to split-borrow the tree
         let tree = unsafe { mem::force_borrow_mut(self.tree) };
-
+        
         if self.covered_root == false {
             self.covered_root = true;
-            return Some((StackSignal::Nop, tree.node_id[0], unsafe {
-                tree.data[0].assume_init_mut()
-            }));
+            return Some(StackSignal::Nop)
+                .zip(tree.node_id.get(0).map(|&id| id).zip(tree.data.get_mut(0)))
+                .map(|(ss, (nid, data))| (ss, nid, unsafe { data.assume_init_mut() }));
+            // return Some((StackSignal::Nop, tree.node_id[0], unsafe {
+            //     tree.data[0].assume_init_mut()
+            // }));
         }
 
         let level = &mut tree.level;
         let data = &mut tree.data;
         let node_id = &mut tree.node_id;
-        
+
         let node_len = self.node_len;
         let cur_node_ref = &mut self.cur_node;
         let cur_node = *cur_node_ref;

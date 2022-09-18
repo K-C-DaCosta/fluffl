@@ -179,7 +179,7 @@ impl<T> LinearTree<T> {
     /// ## Comments
     /// -  O(1) Complexity. This is ,uch faster than `Self::add(..)`
     /// - the node attributes like `parent` of newly added nodes are safe to mutate using this method
-    pub unsafe fn add_deffered_reconstruction(
+    pub unsafe fn add_deferred_reconstruction(
         &mut self,
         data: MaybeUninit<T>,
         parent_id: NodeID,

@@ -147,7 +147,7 @@ pub enum FontKind {
 /// and packed/parsed by my own tool `hiero_pack`
 /// # Comments
 /// - Needs opengl 3.0 or webgl2 for shader to  rcompile.
-/// - Kernings are not implemented, font will render badly for certain inputs.
+/// - Kernings are not implemented, font will probably render badly for certain fonts have it.
 pub struct TextWriter {
     gl: GlowGL,
     text_geometry: OglArray,

@@ -416,6 +416,7 @@ impl GuiComponent for TextBoxState {
                 .set_position(scroll_bar_pos, Vec4::convert(scroll_bar_bounds))
                 .set_background_color(Vec4::rgb_u32(!0))
                 .set_edge_color(Vec4::rgb_u32(0x000000))
+                .set_edge_thickness(0.01)
                 .set_roundness_vec([1., 1., 10.0, 10.0])
                 .set_bounds(scroll_bar_bounds)
                 .render();
@@ -619,10 +620,14 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
         &mut self.textbox_key
     }
 
+    fn state(&mut self) -> &mut Option<Self::ComponentKind> {
+        &mut self.state
+    }
+
     fn build(mut self) -> GuiComponentKey {
         // add default event listeners
         self = self
-            .with_listener(GuiEventKind::OnMouseDown, |tb, ek, _| {
+            .with_listener(GuiEventKind::OnMouseDown, |tb, ek, _mrc| {
                 if let EventKind::MouseDown { x, y, .. } = ek {
                     let mouse_pos = Vec2::from([x as f32, y as f32]);
 
@@ -666,12 +671,12 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
                     None
                 }),
             )
-            .with_listener(GuiEventKind::OnWheelWhileFocused, |tb, e, _state| {
+            .with_listener(GuiEventKind::OnWheelWhileFocused, |tb, e, _mrc| {
                 let wheel_dir = e.wheel();
                 tb.clipper
                     .request_offset_of_scroll_cursor(wheel_dir as isize);
             })
-            .with_listener(GuiEventKind::OnKeyDown, |comp, e, _state| {
+            .with_listener(GuiEventKind::OnKeyDown, |comp, e, _mrq| {
                 if let EventKind::KeyDown { code } = e {
                     match code {
                         KeyCode::BACKSPACE => {

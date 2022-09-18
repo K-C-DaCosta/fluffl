@@ -16,11 +16,7 @@ pub mod window_util;
 pub mod window_util;
 
 use super::parsers::xml::*;
-use crate::{
-    audio::FlufflAudioContext,
-    FlufflError,
-    GlowGL,
-};
+use crate::{audio::FlufflAudioContext, FlufflError, FlufflState, GlowGL};
 
 pub use event_util::FlufflEvent;
 pub use window_util::*;
@@ -29,19 +25,27 @@ pub mod event_util;
 ///Global for touch tracker
 static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker> = None;
 
-#[derive(Clone)]
+#[derive(Clone,Copy)]
 pub struct FlufflRunning {
-    val: Rc<Cell<bool>>,
+    val: *mut bool,
 }
 impl FlufflRunning {
-    pub fn with_rc_cell(cell: Rc<Cell<bool>>) -> Self {
-        Self { val: cell }
+    pub fn new(running: &mut bool) -> Self {
+        Self {
+            val: running as *mut bool,
+        }
     }
-}
-impl Deref for FlufflRunning {
-    type Target = Cell<bool>;
-    fn deref(&self) -> &Self::Target {
-        &self.val
+
+    pub fn get(&self)->bool{
+        unsafe{
+            *self.val
+        }
+    }
+
+    pub fn set(&mut self,val:bool){
+        unsafe{
+            *self.val = val; 
+        }
     }
 }
 

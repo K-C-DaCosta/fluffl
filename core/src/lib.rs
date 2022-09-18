@@ -1,5 +1,4 @@
 // / Module common crates that you'll probably need access to
-pub mod prelude;
 /// Module for playing sounds
 pub mod audio;
 /// Module for writing text to consoles
@@ -8,25 +7,24 @@ pub mod console;
 pub mod io;
 /// Module for opening websocket clients
 pub mod net;
-/// Module for creating a an opengl window
-pub mod window;
+pub mod prelude;
 /// Module for timing functions
 pub mod time;
+/// Module for creating a an opengl window
+pub mod window;
 
 /// private custom datastructures
-mod collections;
+pub mod collections;
 /// private decodes
 pub mod decoders;
 /// private custom parsers
 mod parsers;
-mod slice; 
+mod slice;
 
-/// unsafe memory stuff 
+/// unsafe memory stuff
 mod mem;
 
-
-pub mod gui; 
-
+pub mod gui;
 
 /// private custom iterators
 mod iterators;
@@ -36,17 +34,18 @@ pub mod math;
 
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library
-#[cfg(feature ="extras")]
+#[cfg(feature = "extras")]
 pub mod extras;
 
 use glow::Context;
-use std::{cell::RefCell,rc::Rc, sync::Arc};
+use std::{cell::RefCell, ops::Deref, rc::Rc, sync::Arc};
 
 /// A pointer to GLOW state. All variables with this type should be named: `gl`
 pub type GlowGL = Arc<Box<Context>>;
-// #[derive(Clone)]
+
+
 pub struct FlufflState<T> {
-    pub inner: Rc<RefCell<T>>,
+    inner: Rc<RefCell<T>>,
 }
 impl<T> Clone for FlufflState<T> {
     fn clone(&self) -> Self {
@@ -55,10 +54,18 @@ impl<T> Clone for FlufflState<T> {
         }
     }
 }
-
 impl<T> FlufflState<T> {
-    pub fn new(state: Rc<RefCell<T>>) -> Self {
-        Self { inner: state }
+    pub fn new(state: T) -> Self {
+        Self {
+            inner: Rc::new(RefCell::new(state)),
+        }
+    }
+}
+
+impl<T> Deref for FlufflState<T> {
+    type Target = Rc<RefCell<T>>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
     }
 }
 

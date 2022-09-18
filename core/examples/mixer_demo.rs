@@ -5,13 +5,14 @@ use std::collections::{HashMap, HashSet};
 use fluffl::{
     audio::{
         mixer::{
-            protocol::{MixerRequest, MixerResponse, OffsetKind, TrackID},
+            protocol::{MixerEventKind, MixerRequest, MixerResponse, OffsetKind, TrackID},
             standard::MixerAudioDeviceContext,
             streams::{ExplicitWave, ImplicitWave, ScaleMode},
             HasAudioStream, Mixer, MixerProtocol, MutatedResult, SampleTime,
         },
         Interval,
     },
+    collections::fixed_stack::FixedStack,
     console::*,
     //playing music files requires more than what the base library provides
     //so here is my implementation of certain things like "text rendering" and music playing
@@ -19,8 +20,9 @@ use fluffl::{
         hiero_pack::*,
         text_writer::{HasTextWriterBuilder, TextWriter, PACKED_COURIER_NEW_ENCODED_TO_BASE64},
     },
-    gui::GuiManager,
+    gui::*,
     io::*,
+    math::Vec4,
     math::{WaveKind, FP64},
     prelude::*,
     window::{event_util::*, *},
@@ -34,15 +36,15 @@ pub struct MainState {
     pub is_key_down: HashSet<KeyCode>,
     pub key_extend_list: Vec<(KeyCode, TrackID)>,
     pub key_frequency_table: HashMap<KeyCode, f32>,
-
     pub t: f32,
     pub pos_x: f32,
     pub pos_y: f32,
     pub mixer_time: SampleTime,
     pub writer: TextWriter,
-    pub init_route: bool,
     pub wave_type: WaveKind,
     pub gui_manager: GuiManager<FlufflState<MainState>>,
+    pub mutated_text: String,
+    pub tracks_to_delete_table: HashSet<TrackID>,
 }
 
 #[fluffl(Debug)]
@@ -74,34 +76,33 @@ pub async fn main() {
     let mixer_device = MixerAudioDeviceContext::new(ctx);
     mixer_device.resume();
 
-    FlufflWindow::main_loop(
-        window,
-        MainState {
-            gui_manager: GuiManager::new(gl.clone()),
-            key_frequency_table: vec![
-                (KeyCode::KEY_A, 262.0),
-                (KeyCode::KEY_S, 294.0),
-                (KeyCode::KEY_D, 330.0),
-                (KeyCode::KEY_F, 349.0),
-                (KeyCode::KEY_H, 10_000.0),
-                (KeyCode::KEY_J, 100.0),
-            ]
-            .into_iter()
-            .collect::<HashMap<_, _>>(),
-            mixer_device,
-            t: 0.,
-            pos_x: 0.,
-            pos_y: 0.,
-            stream_queue: vec![],
-            writer: TextWriter::new(&gl).with_atlas(atlas).build(),
-            is_key_down: HashSet::new(),
-            key_extend_list: Vec::new(),
-            mixer_time: SampleTime::new(),
-            init_route: false,
-            wave_type: WaveKind::Square,
-        },
-        main_loop,
-    );
+    let app_state = MainState {
+        gui_manager: setup_test_gui(GuiManager::new(gl.clone())),
+        key_frequency_table: vec![
+            (KeyCode::KEY_A, 262.0),
+            (KeyCode::KEY_S, 294.0),
+            (KeyCode::KEY_D, 330.0),
+            (KeyCode::KEY_F, 349.0),
+            (KeyCode::KEY_H, 10_000.0),
+            (KeyCode::KEY_J, 100.0),
+        ]
+        .into_iter()
+        .collect::<HashMap<_, _>>(),
+        mixer_device,
+        t: 0.,
+        pos_x: 0.,
+        pos_y: 0.,
+        stream_queue: vec![],
+        writer: TextWriter::new(&gl).with_atlas(atlas).build(),
+        is_key_down: HashSet::new(),
+        key_extend_list: Vec::new(),
+        mixer_time: SampleTime::new(),
+        wave_type: WaveKind::Square,
+        mutated_text: String::new(),
+        tracks_to_delete_table: HashSet::new(),
+    };
+
+    FlufflWindow::main_loop(window, app_state, main_loop);
 }
 
 async fn main_loop(
@@ -109,49 +110,43 @@ async fn main_loop(
     running: FlufflRunning,
     main_state: FlufflState<MainState>,
 ) {
-    let ms_clone = main_state.clone();
+    //these are all intended to be executed sequentially so lots of .await below
+    process_events(&win_ptr, running, &main_state).await;
+    draw_scene(&win_ptr, running, &main_state).await;
+    handle_mixer_responses(&win_ptr, running, &main_state).await;
+    execute_gui_mutation_requests(&win_ptr, running, &main_state).await;
+}
 
-    let main_state = &mut *main_state.inner.borrow_mut();
+async fn process_events(
+    win_ptr: &FlufflWindowPtr,
+    mut running: FlufflRunning,
+    main_state: &FlufflState<MainState>,
+) {
+    let main_state = &mut *main_state.borrow_mut();
+    //split-borrow main_state
     let mixer_device = &mut main_state.mixer_device;
     let writer = &mut main_state.writer;
     let is_key_down = &mut main_state.is_key_down;
     let key_extend_list = &mut main_state.key_extend_list;
-    let init_route = &mut main_state.init_route;
     let wave_type = &mut main_state.wave_type;
     let key_frequency_table = &mut main_state.key_frequency_table;
     let gui_manager = &mut main_state.gui_manager;
 
     let gl = win_ptr.window().gl();
 
-    gui_manager.init_state(ms_clone);
-
-    mixer_device.send_request(MixerRequest::FetchMixerTime);
-
     main_state.t += 0.01;
     let t = main_state.t;
     let x = main_state.pos_x;
     let y = main_state.pos_y;
-
-    // if *init_route == false {
-    //     let file_pointer_to_music = std::fs::File::open("./wasm_bins/resources/fuck_jannies.adhoc")
-    //         .expect("file galed to load");
-    //     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
-    //         .expect("failed to read music file");
-    //     let id = mixer_device.gen_id();
-    //     mixer_device.send_request(MixerRequest::AddTrack(
-    //         id,
-    //         OffsetKind::current(),
-    //         Box::new(ExplicitWave::new(parsed_music_file, ScaleMode::Repeat)),
-    //     ));
-    //     *init_route = true;
-    // }
 
     //draw seek time
     let max_seek_time_ms = 300_000.0;
     let seek_time = (x / 500.0) * max_seek_time_ms;
 
     for event in win_ptr.window_mut().get_events().flush_iter_mut() {
+        //forward event to gui_manager
         gui_manager.push_event(event);
+
         match event {
             EventKind::Quit => running.set(false),
             EventKind::Resize { width, height } => {
@@ -300,6 +295,31 @@ async fn main_loop(
             _ => (),
         }
     }
+}
+
+async fn draw_scene(
+    win_ptr: &FlufflWindowPtr,
+    running: FlufflRunning,
+    main_state: &FlufflState<MainState>,
+) {
+    let main_state = &mut *main_state.borrow_mut();
+    let window_bounds = win_ptr.window_mut().get_bounds();
+
+    //split-borrow main_state
+    let mixer_device = &mut main_state.mixer_device;
+    let writer = &mut main_state.writer;
+    let is_key_down = &mut main_state.is_key_down;
+    let key_extend_list = &mut main_state.key_extend_list;
+    let wave_type = &mut main_state.wave_type;
+    let key_frequency_table = &mut main_state.key_frequency_table;
+    let gui_manager = &mut main_state.gui_manager;
+    let temp_text = &mut main_state.mutated_text;
+
+    let gl = win_ptr.window().gl();
+
+    let t = main_state.t;
+    let x = main_state.pos_x;
+    let y = main_state.pos_y;
 
     //extend key  here
     // for &(c, id) in &key_extend_list[..] {
@@ -313,7 +333,7 @@ async fn main_loop(
     //     }
     // }
     unsafe {
-        gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT | STENCIL_BUFFER_BIT );
+        gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT | STENCIL_BUFFER_BIT);
         gl.enable(glow::DEPTH_TEST);
         gl.depth_func(glow::LEQUAL);
     }
@@ -356,15 +376,60 @@ async fn main_loop(
     //     Some(())
     // });
 
+    writer.draw_text_line(&temp_text, 0.0, 200.0, 32.0, Some(window_bounds));
+}
+
+async fn handle_mixer_responses(
+    win_ptr: &FlufflWindowPtr,
+    running: FlufflRunning,
+    main_state: &FlufflState<MainState>,
+) {
+    let ms_clone = main_state.clone();
+    let main_state = &mut *main_state.borrow_mut();
+    let window_bounds = win_ptr.window_mut().get_bounds();
+
+    //split-borrow main_state
+    let mixer_device = &mut main_state.mixer_device;
+    let writer = &mut main_state.writer;
+    let is_key_down = &mut main_state.is_key_down;
+    let key_extend_list = &mut main_state.key_extend_list;
+    let wave_type = &mut main_state.wave_type;
+    let key_frequency_table = &mut main_state.key_frequency_table;
+    let gui_manager = &mut main_state.gui_manager;
+    let tracks_to_delete_table = &mut main_state.tracks_to_delete_table;
+
+    mixer_device.send_request(MixerRequest::FetchMixerTime);
     let responses_iter = mixer_device.recieve_responses();
+
+    let mut tracks_to_delete = FixedStack::<32, TrackID>::new();
+
     for resp in responses_iter {
         match resp {
             MixerResponse::MixerTime(t) => {
                 main_state.mixer_time = t;
             }
+            MixerResponse::MixerEvent(MixerEventKind::TrackStopped(tid)) => {
+                if tracks_to_delete_table.contains(&tid) {
+                    tracks_to_delete.push(tid);
+                    tracks_to_delete_table.remove(&tid);
+                }
+            }
             _ => (),
         }
     }
+    while let Some(tid) = tracks_to_delete.pop() {
+        mixer_device.send_request(MixerRequest::RemoveTrack(tid));
+    }
+}
+
+async fn execute_gui_mutation_requests(
+    win_ptr: &FlufflWindowPtr,
+    running: FlufflRunning,
+    main_state: &FlufflState<MainState>,
+) {
+    GuiManager::execute_mutation_requests(main_state, |state| {
+        state.borrow_mut().gui_manager.poll_mutation_requsts()
+    })
 }
 
 fn time_to_string(elapsed_time_ms: i64) -> String {
@@ -385,23 +450,210 @@ fn time_to_string(elapsed_time_ms: i64) -> String {
     }
 }
 
-#[test]
-pub fn asdasdasd() {
-    use std::alloc::{alloc, dealloc, Layout};
-    unsafe {
-        let lo = Layout::from_size_align(std::mem::size_of::<f32>() * 100, 8).unwrap();
-        let slice_ptr = alloc(lo);
-        let mem = std::slice::from_raw_parts_mut(slice_ptr as *mut f32, 100);
-        
-        mem.iter_mut()
-            .enumerate()
-            .for_each(|(i, e)| *e = i as f32 * 0.5);
+fn setup_test_gui(
+    mut manager: GuiManager<FlufflState<MainState>>,
+) -> GuiManager<FlufflState<MainState>> {
+    let origin = manager.add_component(GuiComponentKey::default(), Box::new(OriginState::new()));
 
-        println!("{:?}", mem);
+    let pink_frame = manager
+        .builder_frame()
+        .with_parent(origin)
+        .with_bounds([400.0 + 0.0, 200.0 + 100.0])
+        .with_roundness([1., 1., 10.0, 10.0])
+        .with_position([64.0, 32.0])
+        .with_edge_thickness(0.05)
+        .with_scrollbars(true)
+        // .with_drag(true)
+        .build();
 
-        let last = *(slice_ptr as *mut f32).offset(1000);
-        println!("last f32 = {last}");
+    let alt_frame = manager
+        .builder_frame()
+        .with_parent(origin)
+        .with_bounds([200.0, 100.0])
+        .with_roundness([0.0, 0.0, 10.0, 10.])
+        .with_position([64.0, 400.0])
+        .with_drag(true)
+        .build();
 
-        dealloc(slice_ptr, lo);
+    let red_frame = manager
+        .builder_frame()
+        .with_parent(pink_frame)
+        .with_bounds([400., 45.])
+        .with_color([0.7, 0.2, 0., 1.0])
+        .with_position([0.0, -45.0])
+        .with_roundness([15.0, 15.0, 0.0, 0.0])
+        .with_flags(component_flags::TITLEBAR | component_flags::OVERFLOWABLE)
+        .with_drag_highest(true)
+        .with_edge_thickness(0.00)
+        .build();
+
+    let red_child = manager
+        .builder_frame()
+        .with_parent(red_frame)
+        .with_bounds([32., 32.])
+        .with_roundness([16.0, 16.0, 0.0, 0.0])
+        .with_color(Vec4::rgb_u32(0x277BC0))
+        .with_position([2.0, 6.0])
+        .with_drag(true)
+        .build();
+
+    let orange_frame = manager
+        .builder_frame()
+        .with_parent(pink_frame)
+        .with_bounds([256., 128.])
+        .with_color(Vec4::rgb_u32(0xFF7F3F))
+        .with_roundness(Vec4::from([1., 1., 30., 30.]))
+        .with_edge_color([0., 0., 0., 1.0])
+        .with_position([128.0, 64.0])
+        .with_drag(true)
+        .with_visibility(false)
+        .build();
+
+    let slider_frame = manager
+        .builder_slider()
+        .with_parent(pink_frame)
+        .with_position([4.0, 64.0])
+        .with_bounds([128.0, 32.0])
+        .with_color(Vec4::rgb_u32(0x554994))
+        .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
+        .with_roundness([8.0; 4])
+        .with_drag(false)
+        .with_listener(GuiEventKind::OnFocusIn, |state, _, _| {
+            state.slider_frame.edge_color = Vec4::rgb_u32(0xff0000);
+        })
+        .with_listener(GuiEventKind::OnFocusOut, |state, _, _| {
+            state.slider_frame.edge_color = Vec4::rgb_u32(0xFFCCB3);
+        })
+        .with_button_bounds([32.0, 120.0])
+        .with_button_color(Vec4::rgb_u32(0x332255))
+        .with_button_edge_color(Vec4::rgb_u32(0xF29393))
+        .with_button_roundness([8.0; 4])
+        .with_button_listener(GuiEventKind::OnHoverIn, |f, _, _| {
+            f.color *= 9. / 10.;
+        })
+        .with_button_listener(GuiEventKind::OnHoverOut, |f, _, _| {
+            f.color *= 10. / 9.;
+        })
+        .with_button_listener(GuiEventKind::OnMouseDown, |f, _, _| {
+            f.color = Vec4::from([1.0; 4]) - f.color;
+        })
+        .with_button_listener(GuiEventKind::OnMouseRelease, |f, _, _| {
+            f.color = Vec4::from([1.0; 4]) - f.color;
+        })
+        .with_button_listener_advanced(GuiEventKind::OnDrag, |info| {
+            let slider_button_key = info.key;
+            let gui_comp_tree = info.gui_comp_tree;
+            let slider_frame_key = gui_comp_tree
+                .get_parent_id(slider_button_key)
+                .expect("slider button should have parent");
+
+            let percentage = gui_comp_tree
+                .get(slider_frame_key)
+                .and_then(|comp| comp.as_any().downcast_ref::<SliderState>())
+                .map(|slider_frame| slider_frame.percentage)
+                .unwrap_or_default();
+            
+            let disp = info.event.disp();
+
+            let can_beep = (percentage * 10000.0).fract() < 0.001 && percentage > 0.05 && percentage < 0.95 && disp.y().abs() < 0.001;   
+            if can_beep {
+                info.mutation_queue.enqueue(Box::new(|state| {
+                    let state = &mut *state.borrow_mut();
+                    let mixer_device = &mut state.mixer_device;
+                    let removal_table = &mut state.tracks_to_delete_table;
+                    let new_track_id = mixer_device.gen_id();
+                    
+                    //mark track for deletion when it stops playing 
+                    removal_table.insert(new_track_id);
+                    mixer_device.send_request(MixerRequest::AddTrack(
+                        new_track_id,
+                        OffsetKind::current(),
+                        Box::new(ImplicitWave::new(
+                            WaveKind::SawTooth.as_fn(),
+                            Interval::from_length(FP64::from(64)),
+                            1200.0,
+                        )),
+                    ))
+                }));
+            }
+        })
+        .build();
+
+    for k in 0..20 {
+        let row = k / 7;
+        let col = k % 7;
+        let color = Vec4::<f32>::rgb_u32(0x277BC0);
+        let _blue_button = manager
+            .builder_frame()
+            .with_name(format!("{}", (k as u8 + b'a') as char))
+            .with_parent(orange_frame)
+            .with_bounds([32., 32.])
+            .with_color(color)
+            .with_roundness(Vec4::from([1., 1., 1., 1.]))
+            .with_edge_color([0., 0., 0., 1.0])
+            .with_position([7.0 + 35.0 * (col as f32), 5.0 + 33.0 * (row as f32)])
+            .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _| {
+                frame.color *= 0.5;
+                frame.color[3] = 1.0;
+            })
+            .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _| {
+                frame.color *= 2.0;
+                frame.color[3] = 1.0;
+            })
+            .with_listener(GuiEventKind::OnMouseDown, |frame, _, mrq| {
+                frame.color = Vec4::rgb_u32(!0);
+                let name = frame.name().to_string();
+                if name == "a" {
+                    mrq.enqueue(Box::new(|state| {
+                        state.borrow_mut().mutated_text.clear();
+                    }));
+                } else {
+                    mrq.enqueue(Box::new(move |state| {
+                        state.borrow_mut().mutated_text.push_str(name.as_str());
+                    }));
+                }
+            })
+            .with_listener(GuiEventKind::OnMouseRelease, move |frame, _, _| {
+                frame.color = color * 0.5;
+                frame.color[3] = 1.0;
+            })
+            .with_drag(false)
+            .build();
     }
+
+    let textbox_key = manager
+        .builder_textbox()
+        .with_parent(pink_frame)
+        .with_bounds([1000.0, 64.0])
+        .with_position([4.0, 200.0 - 64.0])
+        .with_color(Vec4::rgb_u32(0))
+        .with_roundness([0.0, 0.0, 32.0, 32.0])
+        .with_font_size(32.0)
+        .with_alignment([TextAlignment::Left, TextAlignment::Center])
+        .with_listener(GuiEventKind::OnFocusIn, |comp, _, _| {
+            comp.frame.edge_color = Vec4::rgb_u32(0xff0000);
+        })
+        .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
+            comp.frame.edge_color = Vec4::rgb_u32(0x89CFFD);
+        })
+        .build();
+
+    let _title_label = manager
+        .builder_label()
+        .with_parent(red_frame)
+        .with_bounds([400.0, 45.0])
+        .with_position([0.0, 0.0])
+        .with_caption("its fucking over :-(")
+        .build();
+
+    // println!("origin={}", origin);
+    // println!("pink_frame={}", prink_frame);
+    // println!("orange_frame={}", orange_frame);
+    // println!("blue_button={}", blue_button);
+    // println!("slider_frame={}", slider_frame);
+    // println!("slider_button={}", slider_button);
+    // manager.gui_component_tree.print_by_ids();
+    // let parent = manager.gui_component_tree.get_parent_id(NodeID(4)).unwrap();
+    // println!("parent of 4 is = {:?}", parent);
+    manager
 }

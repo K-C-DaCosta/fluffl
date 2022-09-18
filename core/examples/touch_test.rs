@@ -59,7 +59,7 @@ pub async fn main() {
     FlufflWindow::main_loop(
         window,
         app_state,
-        |win_ptr, running, app_state| async move {
+        |win_ptr, mut running, app_state| async move {
             let bounds = win_ptr.window().get_bounds();
             let gl = win_ptr.window().gl();
 
@@ -67,7 +67,7 @@ pub async fn main() {
                 gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
             }
 
-            let state = &mut *app_state.inner.borrow_mut();
+            let state = &mut *app_state.borrow_mut();
             let writer = state.writer.as_mut().unwrap();
             let mut go_fullscreen = false;
 

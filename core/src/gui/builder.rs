@@ -5,7 +5,16 @@ pub trait HasComponentBuilder<ProgramState>: Sized {
     fn manager(&mut self) -> &mut GuiManager<ProgramState>;
     fn parent(&mut self) -> &mut Option<GuiComponentKey>;
     fn key(&mut self) -> &mut Option<GuiComponentKey>;
+    fn state(&mut self) -> &mut Option<Self::ComponentKind>;
     fn build(self) -> GuiComponentKey;
+
+    fn with_name<T: AsRef<str>>(mut self, name: T) -> Self {
+        self.state()
+            .as_mut()
+            .expect("state not initalized")
+            .set_name(name.as_ref());
+        self
+    }
 
     fn with_parent(mut self, parent: GuiComponentKey) -> Self {
         *self.parent() = Some(parent);
@@ -14,20 +23,22 @@ pub trait HasComponentBuilder<ProgramState>: Sized {
 
     fn with_listener<Listener>(self, kind: GuiEventKind, mut listener: Listener) -> Self
     where
-        Listener: FnMut(&mut Self::ComponentKind, EventKind, &ProgramState) + 'static,
+        Listener: FnMut(&mut Self::ComponentKind, EventKind, &mut MutationRequestQueue<ProgramState>)
+            + 'static,
     {
         self.with_listener_advanced(
             kind,
             Box::new(move |event_state| {
-                let state = event_state.state;
                 let event = event_state.event;
                 let key = event_state.key;
+                let mutation_queue = event_state.mutation_queue;
+
                 let comp = event_state
                     .gui_comp_tree
                     .get_mut(key)?
                     .as_any_mut()
                     .downcast_mut::<Self::ComponentKind>()?;
-                listener(comp, event, state);
+                listener(comp, event, mutation_queue);
                 None
             }),
         )
@@ -73,7 +84,6 @@ pub trait HasComponentBuilder<ProgramState>: Sized {
     /// drags the highest ancestor that ISN'T the origin
     fn with_drag_highest(self, enable: bool) -> Self {
         if enable {
-            
             self.with_listener_advanced(
                 GuiEventKind::OnDrag,
                 Box::new(|info| {

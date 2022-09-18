@@ -75,7 +75,7 @@ pub struct ComponentEventListener<ProgramState> {
     pub callback: ListenerCallBack<ProgramState>,
 }
 
-impl<ProgramState> ComponentEventListener<ProgramState> {
+impl <ProgramState> ComponentEventListener <ProgramState>{
     pub const fn new(kind: GuiEventKind, callback: ListenerCallBack<ProgramState>) -> Self {
         Self { kind, callback }
     }
@@ -140,11 +140,11 @@ impl<'a> RenderState<'a> {
 }
 
 pub struct EventListenerInfo<'a, ProgramState> {
-    pub state: &'a ProgramState,
     pub event: EventKind,
     pub key: GuiComponentKey,
     pub gui_comp_tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
     pub key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
+    pub mutation_queue: &'a mut MutationRequestQueue<ProgramState>,
 }
 
 impl<'a, ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>>
@@ -190,10 +190,10 @@ pub trait GuiComponent {
     fn common(&self) -> &GuiCommonState;
     fn common_mut(&mut self) -> &mut GuiCommonState;
 
-    fn get_name(&self) -> &str {
+    fn name(&self) -> &str {
         self.common().name.as_str()
     }
-
+    
     fn set_name(&mut self, name: &str) {
         let common = self.common_mut();
         common.name.clear();
@@ -284,7 +284,7 @@ pub fn layer_lock(gl: &GlowGL, layer_id: i32, flags: ComponentFlags) {
         unsafe {
             gl.enable(glow::STENCIL_TEST);
             gl.stencil_mask(0xff);
-            gl.stencil_func(glow::ALWAYS, (layer_id + 1) + LAYER_BIAS, 0xff);
+            gl.stencil_func(glow::ALWAYS, (layer_id + 0) + LAYER_BIAS, 0xff);
             gl.stencil_op(glow::REPLACE, glow::REPLACE, glow::REPLACE);
         }
     }
@@ -296,7 +296,7 @@ pub fn layer_lock_always(gl: &GlowGL, layer_id: i32) {
         unsafe {
             gl.enable(glow::STENCIL_TEST);
             gl.stencil_mask(0xff);
-            gl.stencil_func(glow::ALWAYS, (layer_id +1) + LAYER_BIAS, 0xff);
+            gl.stencil_func(glow::ALWAYS, (layer_id + 0) + LAYER_BIAS, 0xff);
             gl.stencil_op(glow::REPLACE, glow::REPLACE, glow::REPLACE);
         }
     } else {

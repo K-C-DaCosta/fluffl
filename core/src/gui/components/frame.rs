@@ -22,6 +22,14 @@ impl SliderRail {
     pub fn eval(&self, u: f32, v: f32) -> Vec2<f32> {
         self.min + self.horizontal_disp * u + self.vertical_disp * v
     }
+
+    pub fn can_draw_horizontal(&self) -> bool {
+        self.horizontal_disp.length_squared() > 0.01
+    }
+
+    pub fn can_draw_vertical(&self) -> bool {
+        self.vertical_disp.length_squared() > 0.01
+    }
 }
 impl Default for SliderRail {
     fn default() -> Self {
@@ -40,11 +48,15 @@ enum FocusedScrollBarKind {
     Nothing,
 }
 
+
+
+
 #[derive(Clone)]
 pub struct FrameState {
     pub common: GuiCommonState,
     pub color: Vec4<f32>,
     pub edge_color: Vec4<f32>,
+    pub edge_thickness: f32,
     pub roundness: Vec4<f32>,
 
     is_scrollbars_enabled: bool,
@@ -58,6 +70,7 @@ pub struct FrameState {
     focused_scrollbar: FocusedScrollBarKind,
 }
 
+
 impl FrameState {
     pub fn new() -> Self {
         Self {
@@ -66,6 +79,7 @@ impl FrameState {
                 .with_bounds([128.; 2]),
             color: Vec4::rgb_u32(0xF94892),
             edge_color: Vec4::rgb_u32(0x89CFFD),
+            edge_thickness: 0.02,
             roundness: Vec4::from([1.0, 1.0, 1.0, 1.0]),
             is_scrollbars_enabled: false,
             camera: Vec2::zero(),
@@ -100,6 +114,7 @@ impl FrameState {
             .set_window(win_w, win_h)
             .set_roundness_vec(roundness.into())
             .set_edge_color(Vec4::rgb_u32(!0))
+            .set_edge_thickness(2.0)
             .set_background_color(Vec4::rgb_u32(0))
             .set_bounds(rect.dims())
             .set_position(position, Vec4::convert(rect.dims()))
@@ -116,14 +131,18 @@ impl FrameState {
         }
         // overflow vectors for the "right" and "down" half-spaces of the frame
         // we don't care about overflow on the "left" and "top" half-spaces
-        let horizontal_disp = Vec2::from([
-            (self.bounds().x() - self.components_aabb.max_pos.x() - VERTICAL_SCROLL_WIDTH).min(0.0),
-            0.0,
-        ]);
+        let h_overlap = self.bounds().x() - self.components_aabb.max_pos.x();
+        let v_overlap = self.bounds().y() - self.components_aabb.max_pos.y();
+
+        let h_mask = (v_overlap.min(0.0).abs() > 0.01) as u32 as f32;
+        let v_mask = (h_overlap.min(0.0).abs() > 0.01) as u32 as f32;
+
+        let horizontal_disp =
+            Vec2::from([(h_overlap - VERTICAL_SCROLL_WIDTH * h_mask).min(0.0), 0.0]);
+
         let vertical_disp = Vec2::from([
             0.0,
-            (self.bounds().y() - self.components_aabb.max_pos.y() - HORIZONTAL_SCROLL_HEIGHT)
-                .min(0.0),
+            (v_overlap - HORIZONTAL_SCROLL_HEIGHT * v_mask).min(0.0),
         ]);
 
         self.rails = Some(SliderRail {
@@ -173,7 +192,7 @@ impl GuiComponent for FrameState {
             .set_roundness_vec(self.roundness)
             .set_edge_color(self.edge_color)
             .set_background_color(self.color)
-            .set_null_color([0., 0., 0., 0.0])
+            .set_edge_thickness(self.edge_thickness)
             .set_bounds(self.bounds())
             .set_position(state.global_position, Vec4::to_pos(self.bounds()))
             .render();
@@ -181,6 +200,15 @@ impl GuiComponent for FrameState {
         layer_unlock(gl);
 
         //compute global horizontal bounding box
+        let can_draw_horizontal = self
+            .rails
+            .map(|r| r.can_draw_horizontal())
+            .unwrap_or_default();
+        let can_draw_vertical = self
+            .rails
+            .map(|r| r.can_draw_vertical())
+            .unwrap_or_default();
+
         self.horizontal_scroll_area = AABB2::from_point_and_lengths(
             Vec2::from([
                 pos.x(),
@@ -189,13 +217,21 @@ impl GuiComponent for FrameState {
             Vec2::from([self.bounds().x(), HORIZONTAL_SCROLL_HEIGHT]),
         );
 
-        self.vertical_scroll_area = AABB2::from_point_and_lengths(
-            Vec2::from([pos.x() + self.bounds().x() - VERTICAL_SCROLL_WIDTH, pos.y()]),
-            Vec2::from([
-                VERTICAL_SCROLL_WIDTH,
-                self.bounds().y() - HORIZONTAL_SCROLL_HEIGHT,
-            ]),
-        );
+        if can_draw_vertical && !can_draw_horizontal {
+            //take the full height
+            self.vertical_scroll_area = AABB2::from_point_and_lengths(
+                Vec2::from([pos.x() + self.bounds().x() - VERTICAL_SCROLL_WIDTH, pos.y()]),
+                Vec2::from([VERTICAL_SCROLL_WIDTH, self.bounds().y()]),
+            );
+        } else {
+            self.vertical_scroll_area = AABB2::from_point_and_lengths(
+                Vec2::from([pos.x() + self.bounds().x() - VERTICAL_SCROLL_WIDTH, pos.y()]),
+                Vec2::from([
+                    VERTICAL_SCROLL_WIDTH,
+                    self.bounds().y() - HORIZONTAL_SCROLL_HEIGHT,
+                ]),
+            );
+        }
     }
 
     fn render_exit<'a>(
@@ -203,16 +239,23 @@ impl GuiComponent for FrameState {
         gl: &GlowGL,
         state: RenderState<'a>,
         _text_writer: &mut TextWriter,
-
     ) {
         let r = state.renderer;
         let win_w = state.win_w;
         let win_h = state.win_h;
 
-        let can_draw_horizontal =
-            self.rails.is_some() && self.rails.unwrap().horizontal_disp.length_squared() > 0.01;
-        let can_draw_vertical =
-            self.rails.is_some() && self.rails.unwrap().vertical_disp.length_squared() > 0.01;
+        let can_draw_horizontal = self
+            .rails
+            .map(|r| r.can_draw_horizontal())
+            .unwrap_or_default();
+
+        let can_draw_vertical = self
+            .rails
+            .map(|r| r.can_draw_vertical())
+            .unwrap_or_default();
+
+        let can_draw_hori_mask = can_draw_horizontal as u32 as f32;
+        let can_draw_vert_mask = can_draw_vertical as u32 as f32;
 
         if self.is_scrollbars_enabled {
             const SCROLLBAR_DEPTH: f32 = 0.0;
@@ -269,7 +312,11 @@ impl GuiComponent for FrameState {
             let cursor_bounds_v = Vec2::from([VERTICAL_SCROLL_WIDTH, HORIZONTAL_SCROLL_HEIGHT]);
             let cursor_pos = Vec2::from([
                 s0.x(),
-                (self.bounds().y() - cursor_bounds_v.y() - cursor_bounds_h.y()) * v + s0.y(),
+                (self.bounds().y()
+                    - cursor_bounds_v.y()
+                    - (cursor_bounds_h.y() * can_draw_hori_mask))
+                    * v
+                    + s0.y(),
             ]);
 
             let cursor_aabb = AABB2::from_point_and_lengths(cursor_pos, cursor_bounds_v);
@@ -322,6 +369,11 @@ impl<'a, ProgramState> FrameBuilder<'a, ProgramState> {
         Vec4<f32>: From<T>,
     {
         self.state.as_mut().unwrap().edge_color = Vec4::from(color);
+        self
+    }
+
+    pub fn with_edge_thickness<T: Into<f32>>(mut self, edge_thickness: T) -> Self {
+        self.state.as_mut().unwrap().edge_thickness = edge_thickness.into();
         self
     }
 
@@ -381,6 +433,10 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for FrameBuilder<'a, Pr
 
     fn key(&mut self) -> &mut Option<GuiComponentKey> {
         &mut self.frame_key
+    }
+
+    fn state(&mut self) -> &mut Option<Self::ComponentKind> {
+        &mut self.state
     }
 
     fn build(mut self) -> GuiComponentKey {

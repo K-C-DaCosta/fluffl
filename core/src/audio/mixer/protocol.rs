@@ -126,3 +126,9 @@ impl TrackID {
         }
     }
 }
+
+impl Default for TrackID{
+    fn default() -> Self {
+        Self::null()
+    }
+}

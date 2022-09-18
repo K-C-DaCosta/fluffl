@@ -1,45 +1,71 @@
 use super::*;
 
-pub fn mousedown<ProgramState>() -> ListenerCallBack<ProgramState> {
+pub fn mousedown<State>() -> ListenerCallBack<State> {
     Box::new(|info| {
         let root_key = info.key;
         let gui_component_tree = info.gui_comp_tree;
         let mouse_pos = info.event.mouse_pos();
 
-        let scroll_percentages =
+        let mouse_percentages =
             compute_scrollbar_percentages(gui_component_tree, root_key, mouse_pos);
 
-        let (horizontal_scroll_area, vertical_scroll_area, percentages) = {
-            let frame = get_frame(gui_component_tree, root_key);
+        let (has_clicked_on_horizontal, has_clicked_on_vertical, percentages) = {
+            let frame = get_frame_mut(gui_component_tree, root_key);
             let hsa = frame.horizontal_scroll_area;
             let vsa = frame.vertical_scroll_area;
             let percentages = frame.percentages;
-            (hsa, vsa, percentages)
-        };
 
-        if horizontal_scroll_area.is_point_inside(mouse_pos) {
+            let has_clicked_on_horizontal = hsa.is_point_inside(mouse_pos)
+                && frame
+                    .rails
+                    .map(|r| r.can_draw_horizontal())
+                    .unwrap_or_default();
+            let has_clicked_on_vertical = vsa.is_point_inside(mouse_pos)
+                && frame
+                    .rails
+                    .map(|r| r.can_draw_vertical())
+                    .unwrap_or_default();
+
+            (
+                has_clicked_on_horizontal,
+                has_clicked_on_vertical,
+                percentages,
+            )
+        };
+        // println!(
+        //     "hsa:[{}|{}]",
+        //     horizontal_scroll_area.min_pos,
+        //     horizontal_scroll_area.dims()
+        // );
+        // println!(
+        //     "vsa:[{}|{}]",
+        //     vertical_scroll_area.min_pos,
+        //     vertical_scroll_area.dims()
+        // );
+
+        if has_clicked_on_horizontal {
             {
-                let frame = get_frame(gui_component_tree, root_key);
+                let frame = get_frame_mut(gui_component_tree, root_key);
                 frame.focused_scrollbar = FocusedScrollBarKind::Horizontal;
             }
             scroll_elements(
                 gui_component_tree,
                 root_key,
-                Vec2::from([scroll_percentages.x(), percentages.y()]),
+                Vec2::from([mouse_percentages.x(), percentages.y()]),
             );
-        } else if vertical_scroll_area.is_point_inside(mouse_pos) {
+        } else if has_clicked_on_vertical {
             {
-                let frame = get_frame(gui_component_tree, root_key);
+                let frame = get_frame_mut(gui_component_tree, root_key);
                 frame.focused_scrollbar = FocusedScrollBarKind::Vertical;
             }
             scroll_elements(
                 gui_component_tree,
                 root_key,
-                Vec2::from([percentages.x(), scroll_percentages.y()]),
+                Vec2::from([percentages.x(), mouse_percentages.y()]),
             );
         } else {
             {
-                let frame = get_frame(gui_component_tree, root_key);
+                let frame = get_frame_mut(gui_component_tree, root_key);
                 frame.focused_scrollbar = FocusedScrollBarKind::Nothing;
             }
         }
@@ -47,35 +73,35 @@ pub fn mousedown<ProgramState>() -> ListenerCallBack<ProgramState> {
     })
 }
 
-pub fn mouseup<ProgramState>() -> ListenerCallBack<ProgramState> {
+pub fn mouseup<State>() -> ListenerCallBack<State> {
     Box::new(|info| {
         let root_key = info.key;
         let gui_component_tree = info.gui_comp_tree;
-        let frame = get_frame(gui_component_tree, root_key);
+        let frame = get_frame_mut(gui_component_tree, root_key);
         frame.focused_scrollbar = FocusedScrollBarKind::Nothing;
         None
     })
 }
 
-pub fn mousemove<ProgramState>() -> ListenerCallBack<ProgramState> {
+pub fn mousemove<State>() -> ListenerCallBack<State> {
     Box::new(|info| {
         let root_key = info.key;
         let gui_component_tree = info.gui_comp_tree;
         let mouse_pos = info.event.mouse_pos();
-        let frame = get_frame(gui_component_tree, root_key);
+        let frame = get_frame_mut(gui_component_tree, root_key);
         frame.last_known_mouse_pos = mouse_pos;
         None
     })
 }
 
-pub fn wheel<ProgramState>() -> ListenerCallBack<ProgramState> {
+pub fn wheel<State>() -> ListenerCallBack<State> {
     Box::new(|info| {
         let root_key = info.key;
         let gui_component_tree = info.gui_comp_tree;
 
         resize_component_bounds_if_needed(gui_component_tree, root_key);
 
-        let frame = get_frame(gui_component_tree, root_key);
+        let frame = get_frame_mut(gui_component_tree, root_key);
         let wheel = info.event.wheel() * 0.125;
         let horizontal_scroll_area = frame.horizontal_scroll_area;
         let can_update_horizontal =
@@ -96,7 +122,7 @@ pub fn wheel<ProgramState>() -> ListenerCallBack<ProgramState> {
         None
     })
 }
-pub fn drag<ProgramState>() -> ListenerCallBack<ProgramState> {
+pub fn drag<State>() -> ListenerCallBack<State> {
     Box::new(|info| {
         let root_key = info.key;
         let gui_component_tree = info.gui_comp_tree;
@@ -107,12 +133,12 @@ pub fn drag<ProgramState>() -> ListenerCallBack<ProgramState> {
         let mouse_uv = compute_scrollbar_percentages(gui_component_tree, root_key, mouse_pos);
 
         let uv = {
-            let frame = get_frame(gui_component_tree, root_key);
+            let frame = get_frame_mut(gui_component_tree, root_key);
 
             frame.percentages
         };
 
-        let frame = get_frame(gui_component_tree, root_key);
+        let frame = get_frame_mut(gui_component_tree, root_key);
         let focused_scrollbar = frame.focused_scrollbar;
 
         let can_update_horizontal = focused_scrollbar == FocusedScrollBarKind::Horizontal;
@@ -137,6 +163,17 @@ pub fn drag<ProgramState>() -> ListenerCallBack<ProgramState> {
 }
 
 fn get_frame<'a>(
+    tree: &'a LinearTree<Box<dyn GuiComponent>>,
+    key: GuiComponentKey,
+) -> &'a FrameState {
+    tree.get(key)
+        .expect("root key invalid")
+        .as_any()
+        .downcast_ref::<FrameState>()
+        .expect("node expected to be a frame")
+}
+
+fn get_frame_mut<'a>(
     tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
     key: GuiComponentKey,
 ) -> &'a mut FrameState {
@@ -158,7 +195,7 @@ fn translate_children<'a>(
     {
         val.translate(disp);
     }
-    let frame = get_frame(tree, root_key);
+    let frame = get_frame_mut(tree, root_key);
     frame.camera += disp;
     frame.components_aabb.translate(disp);
 }
@@ -168,7 +205,7 @@ fn scroll_elements(
     root_key: GuiComponentKey,
     uv: Vec2<f32>,
 ) {
-    let frame = get_frame(gui_component_tree, root_key);
+    let frame = get_frame_mut(gui_component_tree, root_key);
     let new_min = frame.rails.unwrap().eval(uv.x(), uv.y());
     let disp = new_min - frame.components_aabb.min_pos;
     frame.percentages = uv;
@@ -200,7 +237,7 @@ fn resize_component_bounds_if_needed(
     gui_component_tree: &mut LinearTree<Box<dyn GuiComponent>>,
     root_key: GuiComponentKey,
 ) {
-    let old_component_bounding_box = get_frame(gui_component_tree, root_key).components_aabb;
+    let old_component_bounding_box = get_frame_mut(gui_component_tree, root_key).components_aabb;
     let new_component_bounding_box = compute_component_bounds(gui_component_tree, root_key);
     const EPSILON: f32 = 0.001;
 
@@ -212,14 +249,14 @@ fn resize_component_bounds_if_needed(
         == false;
 
     if component_bounding_box_changed_dramatically {
-        let old_uv = get_frame(gui_component_tree, root_key).percentages;
+        let old_uv = get_frame_mut(gui_component_tree, root_key).percentages;
         scroll_elements(gui_component_tree, root_key, Vec2::zero());
 
-        get_frame(gui_component_tree, root_key).rails = None;
+        get_frame_mut(gui_component_tree, root_key).rails = None;
         //compute NEW AABB in the coordinate original space
-        get_frame(gui_component_tree, root_key).components_aabb =
+        get_frame_mut(gui_component_tree, root_key).components_aabb =
             compute_component_bounds(gui_component_tree, root_key);
-        get_frame(gui_component_tree, root_key)
+        get_frame_mut(gui_component_tree, root_key)
             .update_component_bounds_assuming_new_bounds_already_set();
 
         scroll_elements(gui_component_tree, root_key, old_uv);

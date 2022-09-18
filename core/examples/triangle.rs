@@ -136,16 +136,16 @@ pub async fn main() {
     FlufflWindow::main_loop(
         window,
         GlobalVariablesOrWhatever { vao, prog, t: 0. },
-        |win_ptr, running, main_state| async move {
+        |win_ptr, mut running, main_state| async move {
             // let audio_ctx = win_ptr.window().audio_context().clone();
             let gl = win_ptr.window().gl();
 
             //increment t
-            main_state.inner.borrow_mut().t += 0.01;
+            main_state.borrow_mut().t += 0.01;
 
             unsafe {
                 {
-                    let main_state = main_state.inner.borrow();
+                    let main_state = main_state.borrow();
                     let t_location = gl.get_uniform_location(main_state.prog, "t");
 
                     let t = main_state.t;

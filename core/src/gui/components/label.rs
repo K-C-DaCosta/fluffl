@@ -156,6 +156,10 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for LabelBuilder<'a, Pr
     fn parent(&mut self) -> &mut Option<GuiComponentKey> {
         &mut self.parent
     }
+    
+    fn state(&mut self) -> &mut Option<Self::ComponentKind> {
+        &mut self.state
+    }
 
     fn build(mut self) -> GuiComponentKey {
         let label_key = self.label_key.expect("label key should always exist");

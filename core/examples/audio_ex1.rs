@@ -92,11 +92,11 @@ pub async fn main() {
             pos_y: 0.,
             writer: TextWriter::new(&gl).with_atlas(atlas).build(),
         },
-        |win_ptr, running, main_state| async move {
+        |win_ptr, mut running, main_state| async move {
             let gl = win_ptr.window().gl();
 
             for event in win_ptr.window_mut().get_events().flush_iter_mut() {
-                let ms = &mut *main_state.inner.borrow_mut();
+                let ms = &mut *main_state.borrow_mut();
                 let device = &ms.dev_ptr;
                 match event {
                     EventKind::Quit => running.set(false),
@@ -173,21 +173,24 @@ pub async fn main() {
                 gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
             }
 
-            main_state.inner.borrow_mut().t += 0.01;
-            let t = main_state.inner.borrow().t;
-            let x = main_state.inner.borrow().pos_x;
-            let y = main_state.inner.borrow().pos_y;
+            main_state.borrow_mut().t += 0.01;
+            let t = main_state.borrow().t;
+            let x = main_state.borrow().pos_x;
+            let y = main_state.borrow().pos_y;
 
             //draw text here
             let caption_list = ["fluffl"];
             caption_list.iter().enumerate().for_each(|(k, caption)| {
-                main_state.inner.borrow_mut().writer.draw_text_line_preserved(
-                    caption,
-                    x,
-                    y + 64. * k as f32,
-                    (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.,
-                    Some(win_ptr.window().get_bounds()),
-                );
+                main_state
+                    .borrow_mut()
+                    .writer
+                    .draw_text_line_preserved(
+                        caption,
+                        x,
+                        y + 64. * k as f32,
+                        (256. - 100.) * (t.sin() + 1.0) * 0.5 + 100.,
+                        Some(win_ptr.window().get_bounds()),
+                    );
             });
         },
     );

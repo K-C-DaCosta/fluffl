@@ -30,8 +30,7 @@ impl<ProgramState> ComponentHandlerBlock<ProgramState> {
         state: EventListenerInfo<'a, ProgramState>,
     ) {
         for handle in self.handlers[kind as usize].iter_mut() {
-            let state: EventListenerInfo<ProgramState> =
-                unsafe { std::mem::transmute_copy(&state) };
+            let state: EventListenerInfo<ProgramState> = unsafe { std::mem::transmute_copy(&state) };
             handle(state);
         }
     }

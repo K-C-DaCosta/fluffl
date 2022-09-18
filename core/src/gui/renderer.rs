@@ -17,8 +17,8 @@ struct ShaderUniforms {
     position_loc: Option<glow::UniformLocation>,
     bounds_loc: Option<glow::UniformLocation>,
     background_color_loc: Option<glow::UniformLocation>,
-    null_color_loc: Option<glow::UniformLocation>,
     roundness_loc: Option<glow::UniformLocation>,
+    edge_thickness_loc: Option<glow::UniformLocation>,
     edge_color_loc: Option<glow::UniformLocation>,
 }
 
@@ -30,8 +30,8 @@ impl ShaderUniforms {
             position_loc: None,
             bounds_loc: None,
             background_color_loc: None,
-            null_color_loc: None,
             roundness_loc: None,
+            edge_thickness_loc: None,
             edge_color_loc: None,
         }
     }
@@ -43,9 +43,9 @@ impl ShaderUniforms {
             self.position_loc = gl.get_uniform_location(prog, "position");
             self.bounds_loc = gl.get_uniform_location(prog, "bounds");
             self.background_color_loc = gl.get_uniform_location(prog, "background_color");
-            self.null_color_loc = gl.get_uniform_location(prog, "null_color");
             self.roundness_loc = gl.get_uniform_location(prog, "roundness");
             self.edge_color_loc = gl.get_uniform_location(prog, "edge_color");
+            self.edge_thickness_loc = gl.get_uniform_location(prog, "edge_thickness");
         }
         self
     }
@@ -73,11 +73,10 @@ impl ShaderUniforms {
         }
     }
 
-    fn set_null_color(&self, gl: &GlowGL, prog: &OglProg, null_color: Vec4<f32>) {
+    fn set_edge_thickness(&self, gl: &GlowGL, prog: &OglProg, thickness:f32) {
         prog.bind(true);
-        let null_color = null_color;
         unsafe {
-            gl.uniform_4_f32_slice(self.null_color_loc.as_ref(), null_color.as_slice());
+            gl.uniform_1_f32(self.edge_thickness_loc.as_ref(), thickness);
         }
     }
 
@@ -142,13 +141,10 @@ impl<'a> RenderBuilder<'a> {
         let r = Vec4::from(roundness);
         self.set_roundness(r[0], r[1], r[2], r[3])
     }
-
-    pub fn set_null_color<T>(self, null_color: T) -> Self
-    where
-        Vec4<f32>: From<T>,
+    
+    pub fn set_edge_thickness<T:Into<f32>>(self, thickness: T) -> Self
     {
-        let null_color = Vec4::from(null_color);
-        self.uniforms.set_null_color(self.gl, self.prog, null_color);
+        self.uniforms.set_edge_thickness(self.gl, self.prog, thickness.into());
         self
     }
 

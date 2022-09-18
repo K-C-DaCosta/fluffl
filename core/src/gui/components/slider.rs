@@ -56,7 +56,7 @@ impl GuiComponent for SliderState {
     ) {
         let win_w = state.win_w;
         let win_h = state.win_h;
-        
+
         //makes sure whatever gets render is bound within the parent
         layer_lock(gl, state.level, *self.flags());
 
@@ -82,7 +82,6 @@ impl GuiComponent for SliderState {
         _gl: &GlowGL,
         _state: RenderState<'a>,
         _text_writer: &mut TextWriter,
-
     ) {
         /* not implemented on purpose  */
     }
@@ -190,7 +189,7 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
 
     pub fn with_button_listener<CB>(self, kind: GuiEventKind, mut cb: CB) -> Self
     where
-        CB: FnMut(&mut FrameState, EventKind, &ProgramState) + 'static,
+        CB: FnMut(&mut FrameState, EventKind, &mut MutationRequestQueue<ProgramState>) + 'static,
     {
         let slider_button_key = self.slider_button_key.expect("slider key not found");
         self.manager.push_listener(
@@ -198,8 +197,8 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
             ComponentEventListener::new(
                 kind,
                 Box::new(move |info| {
-                    let state = info.state;
                     let slider_button_key = info.key;
+                    let mutation_queue = info.mutation_queue;
                     let event = info.event;
 
                     let slider_button_state = info
@@ -208,8 +207,25 @@ impl<'a, ProgramState> SliderBuilder<'a, ProgramState> {
                         .as_any_mut()
                         .downcast_mut::<FrameState>()?;
 
-                    cb(slider_button_state, event, state);
+                    cb(slider_button_state, event, mutation_queue);
 
+                    None
+                }),
+            ),
+        );
+        self
+    }
+    pub fn with_button_listener_advanced<CB>(self, kind: GuiEventKind, mut cb: CB) -> Self
+    where
+        CB: FnMut(EventListenerInfo<'_, ProgramState>) + 'static,
+    {
+        let slider_button_key = self.slider_button_key.expect("slider key not found");
+        self.manager.push_listener(
+            slider_button_key,
+            ComponentEventListener::new(
+                kind,
+                Box::new(move |info| {
+                    cb(info);
                     None
                 }),
             ),
@@ -231,6 +247,10 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for SliderBuilder<'a, P
 
     fn parent(&mut self) -> &mut Option<GuiComponentKey> {
         &mut self.parent
+    }
+
+    fn state(&mut self) -> &mut Option<Self::ComponentKind> {
+        &mut self.slider_frame_state
     }
 
     fn build(mut self) -> GuiComponentKey {

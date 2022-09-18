@@ -83,22 +83,20 @@ impl FlufflWindow {
         let window_ptr = FlufflWindowPtr {
             ptr: Arc::new(RefCell::new(fluffl_window)),
         };
-        let aux_data_ptr = Rc::new(RefCell::new(app_state));
+
+        let state_ptr = FlufflState::new(app_state);
 
         render_loop.run(move |running| {
             window_ptr.window_mut().collect_events();
-            let local_run = Rc::new(Cell::new(*running));
+
             let unexecuted_iteration = core_loop(
                 window_ptr.clone(),
-                FlufflRunning::with_rc_cell(local_run.clone()),
-                FlufflState::new(aux_data_ptr.clone()),
+                FlufflRunning::new(running),
+                state_ptr.clone(),
             );
 
             //execute future
             futures::executor::block_on(unexecuted_iteration);
-
-            //update termination condition
-            *running = local_run.deref().get();
         });
     }
 }
@@ -138,8 +136,6 @@ impl WindowManager for FlufflWindow {
         gl_attr.set_context_version(settings.context_major, settings.context_minor);
         //set stencil buffer
         video.gl_attr().set_stencil_size(8);
-
-
 
         let win_builder = video.window(settings.title.as_str(), settings.width, settings.height);
 

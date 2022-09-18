@@ -1,11 +1,12 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt,
+    marker::PhantomData,
     mem::MaybeUninit,
     vec,
 };
 
-use glow::HasContext;
+use glow::{HasContext, Program};
 
 use crate::{
     collections::{
@@ -16,10 +17,10 @@ use crate::{
         ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
         text_writer::TextWriter,
     },
-    math::{self, stack::MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2},
+    math::{self, MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
     window::event_util::{EventKind, KeyCode},
-    GlowGL,
+    FlufflState, GlowGL,
 };
 
 mod builder;
@@ -28,8 +29,7 @@ mod gui_key;
 mod handler_block;
 mod renderer;
 
-use self::{builder::*, components::*, gui_key::*, handler_block::*, renderer::*};
-
+pub use self::{builder::*, components::*, gui_key::*, handler_block::*, renderer::*};
 pub type ListenerCallBack<ProgramState> =
     Box<dyn FnMut(EventListenerInfo<'_, ProgramState>) -> Option<()>>;
 
@@ -37,10 +37,30 @@ type VisibilityStack = FixedStack<128, bool>;
 type LevelStack = FixedStack<128, i32>;
 type NodeStack = FixedStack<256, NodeID>;
 
+pub type GuiMutation<T> = Box<dyn FnMut(&T)>;
+
+pub struct MutationRequestQueue<ProgramState> {
+    queue: VecDeque<GuiMutation<ProgramState>>,
+}
+impl<ProgramState> MutationRequestQueue<ProgramState> {
+    pub fn new() -> Self {
+        Self {
+            queue: VecDeque::new(),
+        }
+    }
+    pub fn enqueue(&mut self, req: GuiMutation<ProgramState>) {
+        self.queue.push_back(req);
+    }
+    pub fn dequeue(&mut self) -> Option<GuiMutation<ProgramState>> {
+        self.queue.pop_front()
+    }
+    pub fn clear(&mut self) {
+        self.queue.clear()
+    }
+}
+
 pub struct GuiManager<ProgramState> {
     gl: GlowGL,
-
-    state: Option<ProgramState>,
 
     /// lets us actually draw stuff
     renderer: GuiRenderer,
@@ -80,6 +100,8 @@ pub struct GuiManager<ProgramState> {
     key_down_table: HashSet<KeyCode>,
 
     window_events: VecDeque<EventKind>,
+
+    mutation_queue: MutationRequestQueue<ProgramState>,
 }
 
 impl<ProgramState> GuiManager<ProgramState> {
@@ -100,13 +122,8 @@ impl<ProgramState> GuiManager<ProgramState> {
             visibility_intersection_stack: FixedStack::new(),
             clipboard: String::new(),
             gl,
-            state: None,
+            mutation_queue: MutationRequestQueue::new(),
         }
-        .setup_test_gui()
-    }
-
-    pub fn init_state(&mut self, state: ProgramState) {
-        self.state = Some(state);
     }
 
     pub fn clear_listeners(&mut self, key: GuiComponentKey, event: GuiEventKind) {
@@ -155,7 +172,6 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let compute_current_level = |stack: &LevelStack, comp: &Box<dyn GuiComponent>| {
             let parent_level = stack.peek();
-
             if comp.flags().is_set(component_flags::OVERFLOWABLE) {
                 (-127, -126)
             } else {
@@ -273,162 +289,6 @@ impl<ProgramState> GuiManager<ProgramState> {
 }
 
 impl<ProgramState> GuiManager<ProgramState> {
-    fn setup_test_gui(self) -> Self {
-        let mut manager = self;
-        let origin =
-            manager.add_component(GuiComponentKey::default(), Box::new(OriginState::new()));
-
-        let pink_frame = manager
-            .builder_frame()
-            .with_parent(origin)
-            .with_bounds([400.0 + 0.0, 200.0 + 100.0])
-            .with_roundness([1., 1., 10.0, 10.0])
-            .with_position([64.0, 32.0])
-            .with_scrollbars(true)
-            // .with_drag(true)
-            .build();
-
-        let alt_frame = manager
-            .builder_frame()
-            .with_parent(origin)
-            .with_bounds([200.0, 100.0])
-            .with_roundness([0.0, 0.0, 10.0, 10.])
-            .with_position([64.0, 400.0])
-            .with_drag(true)
-            .build();
-
-        let red_frame = manager
-            .builder_frame()
-            .with_parent(pink_frame)
-            .with_bounds([400., 45.])
-            .with_color([0.7, 0.2, 0., 1.0])
-            .with_position([0.0, -41.0])
-            .with_flags(component_flags::TITLEBAR | component_flags::OVERFLOWABLE)
-            .with_drag_highest(true)
-            .build();
-
-        let red_child = manager
-            .builder_frame()
-            .with_parent(red_frame)
-            .with_bounds([32., 32.])
-            .with_color(Vec4::rgb_u32(0x277BC0))
-            .with_position([-16.0, -16.0])
-            .with_drag(true)
-            .build();
-
-        let orange_frame = manager
-            .builder_frame()
-            .with_parent(pink_frame)
-            .with_bounds([256., 128.])
-            .with_color(Vec4::rgb_u32(0xFF7F3F))
-            .with_roundness(Vec4::from([1., 1., 30., 30.]))
-            .with_edge_color([0., 0., 0., 1.0])
-            .with_position([128.0, 64.0])
-            .with_drag(true)
-            .with_visibility(false)
-            .build();
-
-        let slider_frame = manager
-            .builder_slider()
-            .with_parent(pink_frame)
-            .with_position([4.0, 64.0])
-            .with_bounds([128.0, 32.0])
-            .with_color(Vec4::rgb_u32(0x554994))
-            .with_edge_color(Vec4::rgb_u32(0xFFCCB3))
-            .with_roundness([8.0; 4])
-            .with_drag(false)
-            .with_listener(GuiEventKind::OnFocusIn, |state, _, _| {
-                state.slider_frame.edge_color = Vec4::rgb_u32(0xff0000);
-            })
-            .with_listener(GuiEventKind::OnFocusOut, |state, _, _| {
-                state.slider_frame.edge_color = Vec4::rgb_u32(0xFFCCB3);
-            })
-            .with_button_bounds([32.0, 120.0])
-            .with_button_color(Vec4::rgb_u32(0x332255))
-            .with_button_edge_color(Vec4::rgb_u32(0xF29393))
-            .with_button_roundness([8.0; 4])
-            .with_button_listener(GuiEventKind::OnHoverIn, |f, _, _| {
-                f.color *= 9. / 10.;
-            })
-            .with_button_listener(GuiEventKind::OnHoverOut, |f, _, _| {
-                f.color *= 10. / 9.;
-            })
-            .with_button_listener(GuiEventKind::OnMouseDown, |f, _, _| {
-                f.color = Vec4::from([1.0; 4]) - f.color;
-            })
-            .with_button_listener(GuiEventKind::OnMouseRelease, |f, _, _| {
-                f.color = Vec4::from([1.0; 4]) - f.color;
-            })
-            .build();
-
-        // for k in 0..20 {
-        //     let row = k / 7;
-        //     let col = k % 7;
-        //     let color = Vec4::<f32>::rgb_u32(0x277BC0);
-        //     let _blue_button = manager
-        //         .builder_frame()
-        //         .with_parent(orange_frame)
-        //         .with_bounds([32., 32.])
-        //         .with_color(color)
-        //         .with_roundness(Vec4::from([1., 1., 1., 1.]))
-        //         .with_edge_color([0., 0., 0., 1.0])
-        //         .with_position([7.0 + 35.0 * (col as f32), 5.0 + 33.0 * (row as f32)])
-        //         .with_listener(GuiEventKind::OnHoverIn, |frame, _state, _e| {
-        //             frame.color *= 0.5;
-        //             frame.color[3] = 1.0;
-        //         })
-        //         .with_listener(GuiEventKind::OnHoverOut, |frame, _state, _e| {
-        //             frame.color *= 2.0;
-        //             frame.color[3] = 1.0;
-        //         })
-        //         .with_listener(GuiEventKind::OnMouseDown, |frame, _, _| {
-        //             frame.color = Vec4::rgb_u32(!0);
-        //         })
-        //         .with_listener(GuiEventKind::OnMouseRelease, move |frame, _, _| {
-        //             frame.color = color * 0.5;
-        //             frame.color[3] = 1.0;
-        //         })
-        //         .with_drag(true)
-        //         .build();
-        // }
-
-        // let textbox_key = manager
-        //     .builder_textbox()
-        //     .with_parent(pink_frame)
-        //     .with_bounds([1000.0, 64.0])
-        //     .with_position([4.0, 200.0 - 64.0])
-        //     .with_color(Vec4::rgb_u32(0))
-        //     .with_roundness([0.0, 0.0, 32.0, 32.0])
-        //     .with_font_size(32.0)
-        //     .with_alignment([TextAlignment::Left, TextAlignment::Center])
-        //     .with_listener(GuiEventKind::OnFocusIn, |comp, _, _| {
-        //         comp.frame.edge_color = Vec4::rgb_u32(0xff0000);
-        //     })
-        //     .with_listener(GuiEventKind::OnFocusOut, |comp, _, _| {
-        //         comp.frame.edge_color = Vec4::rgb_u32(0x89CFFD);
-        //     })
-        //     .build();
-
-        let _title_label = manager
-            .builder_label()
-            .with_parent(red_frame)
-            .with_bounds([400.0, 45.0])
-            .with_position([0.0, 0.0])
-            .with_caption("hello world")
-            .build();
-
-        // println!("origin={}", origin);
-        // println!("pink_frame={}", prink_frame);
-        // println!("orange_frame={}", orange_frame);
-        // println!("blue_button={}", blue_button);
-        // println!("slider_frame={}", slider_frame);
-        // println!("slider_button={}", slider_button);
-        manager.gui_component_tree.print_by_ids();
-        // let parent = manager.gui_component_tree.get_parent_id(NodeID(4)).unwrap();
-        // println!("parent of 4 is = {:?}", parent);
-        manager
-    }
-
     /// ## Description
     /// allows you to generate a valid Key without providing a GuiComponent up-front
     /// ## Comments
@@ -445,7 +305,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
         let id = self
             .gui_component_tree
-            .add_deffered_reconstruction(comp, parent.into());
+            .add_deferred_reconstruction(comp, parent.into());
         let key = GuiComponentKey::from(id);
         self.key_to_handler_block_table
             .insert(key, ComponentHandlerBlock::new());
@@ -458,7 +318,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         key
     }
 
-    fn add_component(
+    pub fn add_component(
         &mut self,
         parent: GuiComponentKey,
         comp: Box<dyn GuiComponent>,
@@ -477,6 +337,7 @@ impl<ProgramState> GuiManager<ProgramState> {
     }
 
     fn handle_incoming_events(&mut self) {
+        self.mutation_queue.clear();
         self.recompute_visibility();
         self.recompute_aabb_table();
         self.queue_signals_to_bus();
@@ -488,16 +349,14 @@ impl<ProgramState> GuiManager<ProgramState> {
         let component_signal_queue = &mut self.component_signal_bus;
         let key_to_aabb_table = &mut self.key_to_aabb_table;
         let key_to_handler_block_table = &mut self.key_to_handler_block_table;
-        let program_state = self
-            .state
-            .as_ref()
-            .expect("GuiManager state not initalized!");
+        let mutation_queue = &mut self.mutation_queue;
 
         while let Some(signal) = component_signal_queue.pop_front() {
             let key = signal.component_key;
             let block = key_to_handler_block_table.get_mut(&key).unwrap();
             let event = signal.window_event_kind;
             let kind = signal.listener_kind;
+
             block.fire_handler(
                 kind,
                 EventListenerInfo {
@@ -505,7 +364,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     key,
                     gui_comp_tree: gui_component_tree,
                     key_to_aabb_table,
-                    state: program_state,
+                    mutation_queue,
                 },
             );
         }
@@ -703,14 +562,21 @@ impl<ProgramState> GuiManager<ProgramState> {
                 _ => (),
             }
 
-            // // prints the queued events that waiting to be sent to their handlers
-            // if component_signal_queue.len() > _old_signal_len {
-            //     println!("signal added:");
-            //     for sig in &component_signal_queue.make_contiguous()[_old_signal_len..] {
-            //         println!("{:?}", sig)
-            //     }
-            // }
+            Self::print_signals_queued_to_bus(component_signal_bus, _old_signal_len);
         }
+    }
+
+    fn print_signals_queued_to_bus(
+        _component_signal_bus: &mut VecDeque<ComponentEventSignal>,
+        _old_signal_len: usize,
+    ) {
+        // prints the queued events that waiting to be sent to their handlers
+        // if _component_signal_bus.len() > _old_signal_len {
+        //     println!("signal added:");
+        //     for sig in &_component_signal_bus.make_contiguous()[_old_signal_len..] {
+        //         println!("{:?}", sig)
+        //     }
+        // }
     }
 
     fn object_is_clicked_so_send_drag_signal_to_focused_component(
@@ -964,7 +830,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 .get(&parent.into())
                 .expect("listener block not found")
                 .get(target_event_kind as usize)
-                .expect("handler block not initalized")
+                .expect("block not initalized")
                 .len();
 
             if number_of_listeners_for_target_event > 0 {
@@ -974,5 +840,27 @@ impl<ProgramState> GuiManager<ProgramState> {
         }
 
         None
+    }
+
+    pub fn poll_mutation_requsts(&mut self) -> Option<GuiMutation<ProgramState>> {
+        self.mutation_queue.dequeue()
+    }
+}
+
+impl<State> GuiManager<FlufflState<State>> {
+    /// ## Description
+    /// Certain event handlers may make requests to mutate `ProgramState` and this function
+    /// is responsible for executing those requests.
+    /// ## Comments
+    /// - Works be dequeing the `mutation_queue`
+    /// - `FluffleState<State>` is smartpointer with a read/write lock, so we need to access the mutation request
+    /// queue carefully. This pointer is expected to point to a memory location that owns a GuiManager `Self`.
+    pub fn execute_mutation_requests<CB>(state: &FlufflState<State>, mut get_request: CB)
+    where
+        CB: FnMut(&FlufflState<State>) -> Option<GuiMutation<FlufflState<State>>>,
+    {
+        while let Some(mut req) = get_request(state) {
+            req(state);
+        }
     }
 }

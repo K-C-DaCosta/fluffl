@@ -180,9 +180,6 @@ impl BrickAppState {
 
 #[fluffl(Debug)]
 pub async fn main() {
-    
-
-
     let window = FlufflWindow::init(FLUFFL_CONFIG).expect("init failed");
     let gl = window.gl();
 
@@ -256,13 +253,13 @@ pub async fn main() {
             handle_events(window_ptr.clone(), app_state.clone(), running.clone());
             let screen_bounds = window_ptr.window().get_bounds();
             let gl = window_ptr.window().gl();
-            let time = app_state.inner.borrow().time;
+            let time = app_state.borrow().time;
             unsafe {
                 gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-                let gui_state = app_state.inner.borrow().gui_state;
+                let gui_state = app_state.borrow().gui_state;
                 match gui_state {
                     GuiState::Menu => {
-                        app_state.inner.borrow_mut().writer.as_mut().map(|writer| {
+                        app_state.borrow_mut().writer.as_mut().map(|writer| {
                             writer.draw_text_line_preserved(
                                 "Rust Bricks",
                                 screen_bounds.0 as f32 * 0.5 - 155.,
@@ -299,7 +296,7 @@ pub async fn main() {
                     }
                 }
             }
-            app_state.inner.borrow_mut().time += 0.01;
+            app_state.borrow_mut().time += 0.01;
         },
     );
 }
@@ -309,7 +306,7 @@ pub fn draw_game_stage(
     app_state: FlufflState<BrickAppState>,
     window_ptr: FlufflWindowPtr,
 ) {
-    let brick_state = &mut *app_state.inner.borrow_mut();
+    let brick_state = &mut *app_state.borrow_mut();
     let mouse_pos = brick_state.mouse_pos;
     let t = brick_state.time;
 
@@ -449,21 +446,20 @@ pub fn draw_game_stage(
 pub fn handle_events(
     window_ptr: FlufflWindowPtr,
     app_state: FlufflState<BrickAppState>,
-    running: FlufflRunning,
+    mut running: FlufflRunning,
 ) {
     for event in window_ptr.window_mut().get_events().flush_iter_mut() {
         match event {
             EventKind::Quit => running.set(false),
             EventKind::KeyDown { code } => {
                 if let KeyCode::SPACE = code {
-                    let state = app_state.inner.borrow().gui_state;
+                    let state = app_state.borrow().gui_state;
                     if let GuiState::Menu = state {
                         //spacebar was pressed so change state to "Game"
-                        app_state.inner.borrow_mut().gui_state = GuiState::Game;
+                        app_state.borrow_mut().gui_state = GuiState::Game;
 
                         // start playing the into music track here
                         app_state
-                            .inner
                             .borrow_mut()
                             .boss_intro_track
                             .as_mut()
@@ -480,19 +476,19 @@ pub fn handle_events(
                 }
             }
             EventKind::MouseDown { button_code, .. } => {
-                let gui_state = app_state.inner.borrow().gui_state;
-                let fired_status = app_state.inner.borrow().ball_fired;
+                let gui_state = app_state.borrow().gui_state;
+                let fired_status = app_state.borrow().ball_fired;
 
                 if let (GuiState::Game, false, MouseCode::LEFT_BUTTON) =
                     (gui_state, fired_status, button_code)
                 {
-                    app_state.inner.borrow_mut().ball_fired = true;
-                    app_state.inner.borrow_mut().ball_list[0].vel = [0., -100.0];
+                    app_state.borrow_mut().ball_fired = true;
+                    app_state.borrow_mut().ball_list[0].vel = [0., -100.0];
                 }
             }
 
             EventKind::MouseMove { x, y, .. } => {
-                let state_ref = &mut *app_state.inner.borrow_mut();
+                let state_ref = &mut *app_state.borrow_mut();
                 state_ref.mouse_pos = [x as f32, y as f32];
             }
             _ => (),
