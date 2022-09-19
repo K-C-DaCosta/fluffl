@@ -13,3 +13,15 @@ Wasm version of the examples are here: https://k-c-dacosta.github.io/wasm_bins/e
 
 ## A breakout clone (more complicated)
 https://k-c-dacosta.github.io/wasm_bins/examples/brick_demo/
+
+## How to run examples
+In the terminal do
+
+```
+cargo run --exmaple=brick_demo
+``` 
+or 
+
+```
+cargo run --exmaple=mixer_demo
+```

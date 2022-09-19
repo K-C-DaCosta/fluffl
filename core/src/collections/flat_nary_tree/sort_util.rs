@@ -79,12 +79,33 @@ fn partition_complex() {
 
 #[test]
 fn quick_sort_sanity() {
-    // let mut test = vec![9, -3, 100, 2, 1, -10, 15];
-    // quick_sort(&mut test, |_| ());
-
-    let mut test = vec![9, 3, 100, 2, 1, 10, 15];
-    let mut co_test = vec![-9, -3, -100, -2, -1, -10, -15];
+    let mut test = vec![9i32, 3, 100, 2, 1, 10, 15];
+    let mut co_test = vec![-9i32, -3, -100, -2, -1, -10, -15];
     quick_co_sort(&mut test, [&mut Swappable::new(&mut co_test)]);
-    println!("ord_test:{:?}", test);
-    println!("co__test:{:?}", co_test);
+    
+    assert_eq!(
+        test.len(),
+        co_test.len(),
+        "both arrays should be equal in length"
+    );
+
+    assert_eq!(
+        true,
+        test.iter()
+            .zip(co_test.iter())
+            .all(|(&a, &b)| a.abs() == b.abs()),
+        "test and co_test should have the same magnitude"
+    );
+
+    assert_eq!(
+        true,
+        test.windows(2).all(|window| window[0] < window[1]),
+        "test should be sorted"
+    );
+
+    assert_eq!(
+        true,
+        co_test.windows(2).all(|window| window[0] < window[1]),
+        "co_test should be sorted"
+    );
 }

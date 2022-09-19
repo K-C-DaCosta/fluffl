@@ -10,7 +10,7 @@ mod origin;
 mod slider;
 mod textbox;
 
-use self::{component_flags::ComponentFlags, label::LabelState};
+use self::{component_flags::ComponentFlags};
 pub use self::{frame::*, label::*, origin::*, slider::*, textbox::*};
 
 pub struct TextAligner2D {
