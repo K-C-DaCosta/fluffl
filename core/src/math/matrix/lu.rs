@@ -34,7 +34,7 @@ where
         self.back_sub(self.forward_sub(b))
     }
 
-    ///computes determinant
+    ///computes determinant 
     pub fn det(&self) -> T {
         let mut product = self[0][0];
         for k in 1..N {
