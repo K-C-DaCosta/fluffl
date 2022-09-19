@@ -273,7 +273,7 @@ impl Into<i128> for KeyCode {
     }
 }
 #[allow(non_camel_case_types)]
-#[derive(Copy, Clone, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum MouseCode {
     LEFT_BUTTON,
     RIGHT_BUTTON,

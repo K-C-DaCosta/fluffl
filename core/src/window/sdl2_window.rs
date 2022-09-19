@@ -7,7 +7,7 @@ use event_util::constants::*;
 use glow::*;
 
 use std::{
-    cell::{Cell, RefCell},
+    cell::{RefCell},
     mem,
     rc::Rc,
     sync::Arc,
@@ -136,6 +136,7 @@ impl WindowManager for FlufflWindow {
         gl_attr.set_context_version(settings.context_major, settings.context_minor);
         //set stencil buffer
         video.gl_attr().set_stencil_size(8);
+        
 
         let win_builder = video.window(settings.title.as_str(), settings.width, settings.height);
 

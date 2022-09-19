@@ -1,3 +1,5 @@
+use std::ops::Deref;
+
 use fluffl::{
     audio::*,
     extras::{
@@ -103,7 +105,7 @@ impl Brick {
         );
     }
 }
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 enum GuiState {
     Menu,
     Game,
@@ -125,6 +127,7 @@ pub struct BrickAppState {
     //other
     mouse_pos: [f32; 2],
     time: f32,
+    autoplay: bool,
 }
 impl BrickAppState {
     fn new(gl: &GlowGL) -> Self {
@@ -143,6 +146,7 @@ impl BrickAppState {
             ball_fired: false,
             boss_intro_track: None,
             boss_main_track: None,
+            autoplay: false,
         }
     }
     pub fn init_bricks(&mut self) {
@@ -245,60 +249,61 @@ pub async fn main() {
     let font_data = load_file!("./wasm_bins/resources/plasmatic.bcode").unwrap();
     let atlas = HieroAtlas::deserialize(font_data).ok().unwrap();
     app_state.writer = Some(TextWriter::new(&gl).with_atlas(atlas).build());
+    FlufflWindow::main_loop(window, app_state, main_loop);
+}
 
-    FlufflWindow::main_loop(
-        window,
-        app_state,
-        |window_ptr: FlufflWindowPtr, running: FlufflRunning, app_state: FlufflState<_>| async move {
-            handle_events(window_ptr.clone(), app_state.clone(), running.clone());
-            let screen_bounds = window_ptr.window().get_bounds();
-            let gl = window_ptr.window().gl();
-            let time = app_state.borrow().time;
-            unsafe {
-                gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
-                let gui_state = app_state.borrow().gui_state;
-                match gui_state {
-                    GuiState::Menu => {
-                        app_state.borrow_mut().writer.as_mut().map(|writer| {
-                            writer.draw_text_line_preserved(
-                                "Rust Bricks",
-                                screen_bounds.0 as f32 * 0.5 - 155.,
-                                70.,
-                                64.,
-                                Some(screen_bounds),
-                            );
-                            writer.draw_text_line_preserved(
-                                "Music by: \"SketchyLogic\" on OpenGameArt",
-                                screen_bounds.0 as f32 * 0.5 - 242.4,
-                                screen_bounds.1 as f32 * 0.5 - 32.0,
-                                32.0,
-                                Some(screen_bounds),
-                            );
-                            writer.draw_text_line_preserved(
-                                "Source At: https://github.com/K-C-DaCosta/fluffl",
-                                screen_bounds.0 as f32 * 0.5 - 300.4,
-                                screen_bounds.1 as f32 * 0.5 + 1.0,
-                                32.0,
-                                Some(screen_bounds),
-                            );
-                            let height = 24. + (((time * 2.0).sin() + 1.0) * 0.5) * 8.0;
-                            writer.draw_text_line_preserved(
-                                "Press [spacebar] to start",
-                                screen_bounds.0 as f32 * 0.5 - 100. - height * 1.4,
-                                screen_bounds.1 as f32 * 0.7,
-                                height,
-                                Some(screen_bounds),
-                            );
-                        });
-                    }
-                    GuiState::Game => {
-                        draw_game_stage(&gl, app_state.clone(), window_ptr.clone());
-                    }
-                }
+pub async fn main_loop(
+    window_ptr: FlufflWindowPtr,
+    running: FlufflRunning,
+    app_state: FlufflState<BrickAppState>,
+) {
+    handle_events(window_ptr.clone(), app_state.clone(), running.clone());
+    let screen_bounds = window_ptr.window().get_bounds();
+    let gl = window_ptr.window().gl();
+    let time = app_state.borrow().time;
+    unsafe {
+        gl.clear(glow::COLOR_BUFFER_BIT | glow::DEPTH_BUFFER_BIT);
+        let gui_state = app_state.borrow().gui_state;
+        match gui_state {
+            GuiState::Menu => {
+                app_state.borrow_mut().writer.as_mut().map(|writer| {
+                    writer.draw_text_line_preserved(
+                        "Rust Bricks",
+                        screen_bounds.0 as f32 * 0.5 - 155.,
+                        70.,
+                        64.,
+                        Some(screen_bounds),
+                    );
+                    writer.draw_text_line_preserved(
+                        "Music by: \"SketchyLogic\" on OpenGameArt",
+                        screen_bounds.0 as f32 * 0.5 - 242.4,
+                        screen_bounds.1 as f32 * 0.5 - 32.0,
+                        32.0,
+                        Some(screen_bounds),
+                    );
+                    writer.draw_text_line_preserved(
+                        "Source At: https://github.com/K-C-DaCosta/fluffl",
+                        screen_bounds.0 as f32 * 0.5 - 300.4,
+                        screen_bounds.1 as f32 * 0.5 + 1.0,
+                        32.0,
+                        Some(screen_bounds),
+                    );
+                    let height = 24. + (((time * 2.0).sin() + 1.0) * 0.5) * 8.0;
+                    writer.draw_text_line_preserved(
+                        "Press [spacebar] to start",
+                        screen_bounds.0 as f32 * 0.5 - 100. - height * 1.4,
+                        screen_bounds.1 as f32 * 0.7,
+                        height,
+                        Some(screen_bounds),
+                    );
+                });
             }
-            app_state.borrow_mut().time += 0.01;
-        },
-    );
+            GuiState::Game => {
+                draw_game_stage(&gl, app_state.clone(), window_ptr.clone());
+            }
+        }
+    }
+    app_state.borrow_mut().time += 0.01;
 }
 
 pub fn draw_game_stage(
@@ -307,6 +312,7 @@ pub fn draw_game_stage(
     window_ptr: FlufflWindowPtr,
 ) {
     let brick_state = &mut *app_state.borrow_mut();
+    let autoplay = brick_state.autoplay;
     let mouse_pos = brick_state.mouse_pos;
     let t = brick_state.time;
 
@@ -422,7 +428,13 @@ pub fn draw_game_stage(
     }
 
     //draw player paddle
-    brick_state.player_paddle.pos[0] = mouse_pos[0] - brick_state.player_paddle.dims[0] / 2.;
+    if autoplay == false {
+        brick_state.player_paddle.pos[0] = mouse_pos[0] - brick_state.player_paddle.dims[0] / 2.;
+    } else {
+        brick_state.player_paddle.pos[0] =
+            brick_state.ball_list[0].pos[0] - brick_state.player_paddle.dims[0] / 2.;
+    }
+
     brick_state
         .player_paddle
         .render(&mut brick_state.painter, t);
@@ -448,22 +460,24 @@ pub fn handle_events(
     app_state: FlufflState<BrickAppState>,
     mut running: FlufflRunning,
 ) {
-    for event in window_ptr.window_mut().get_events().flush_iter_mut() {
+    let window = &mut *window_ptr.window_mut();
+    let app_state = &mut *app_state.borrow_mut();
+
+    let gui_state = &mut app_state.gui_state;
+    let boss_intro_track = &mut app_state.boss_intro_track;
+    
+    for event in window.get_events().flush_iter_mut() {
         match event {
             EventKind::Quit => running.set(false),
             EventKind::KeyDown { code } => {
-                if let KeyCode::SPACE = code {
-                    let state = app_state.borrow().gui_state;
-                    if let GuiState::Menu = state {
-                        //spacebar was pressed so change state to "Game"
-                        app_state.borrow_mut().gui_state = GuiState::Game;
+                match code {
+                    KeyCode::SPACE => {
+                        if let GuiState::Menu = gui_state {
+                            //spacebar was pressed so change state to "Game"
+                            *gui_state = GuiState::Game;
 
-                        // start playing the into music track here
-                        app_state
-                            .borrow_mut()
-                            .boss_intro_track
-                            .as_mut()
-                            .map(|track| {
+                            // start playing the into music track here
+                            boss_intro_track.as_mut().map(|track| {
                                 track.modify_state(|state_opt| {
                                     let music_player = state_opt?;
                                     music_player.ticks = 0;
@@ -472,24 +486,27 @@ pub fn handle_events(
                                 });
                                 track.resume();
                             });
+                        }
                     }
+                    KeyCode::KEY_A => {
+                        app_state.autoplay = !app_state.autoplay;
+                    }
+                    _ => (),
                 }
             }
             EventKind::MouseDown { button_code, .. } => {
-                let gui_state = app_state.borrow().gui_state;
-                let fired_status = app_state.borrow().ball_fired;
-
-                if let (GuiState::Game, false, MouseCode::LEFT_BUTTON) =
-                    (gui_state, fired_status, button_code)
+                let fired_status = app_state.ball_fired;
+                if gui_state.clone() == GuiState::Game
+                    && fired_status == false
+                    && button_code == MouseCode::LEFT_BUTTON
                 {
-                    app_state.borrow_mut().ball_fired = true;
-                    app_state.borrow_mut().ball_list[0].vel = [0., -100.0];
+                    app_state.ball_fired = true;
+                    app_state.ball_list[0].vel = [0., -100.0];
                 }
             }
 
             EventKind::MouseMove { x, y, .. } => {
-                let state_ref = &mut *app_state.borrow_mut();
-                state_ref.mouse_pos = [x as f32, y as f32];
+                app_state.mouse_pos = [x as f32, y as f32];
             }
             _ => (),
         }

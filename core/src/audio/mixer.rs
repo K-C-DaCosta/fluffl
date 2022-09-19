@@ -855,33 +855,4 @@ pub fn mix_resample_audio_test(src: &[f32], dst: &mut [f32]) {
         src_full += step;
     });
 }
-pub fn integrate(cur_lst: &mut [Vec4<f32>], pre_lst: &mut [Vec4<f32>]) {
-    for k in 0..cur_lst.len() {
-        let pre = pre_lst[k];
-        let cur = cur_lst[k];
-        let new = (cur - pre) + cur;
-        pre_lst[k] = cur;
-        cur_lst[k] = new;
-    }
-}
-
-pub fn integrate2(cur_lst: &mut [Vec4<f32>], pre_lst: &mut [Vec4<f32>]) {
-    cur_lst
-        .iter_mut()
-        .zip(pre_lst.iter_mut())
-        .for_each(|(cur, pre)| {
-            let new = (*cur - *pre) + *cur;
-            *pre = *cur;
-            *cur = new;
-        });
-}
-
-
-pub fn roots(a: &[f32], b: &[f32], c: &[f32], root: &mut [f32]) {
-    root.iter_mut()
-        .zip(a.iter().zip(b.iter().zip(c.iter())))
-        .for_each(|(root, (&a, (&b, &c)))| {
-            *root = -(b + (b * b - 4.0 * a * c).sqrt()) / (2.0 * a);
-        })
-}
 
