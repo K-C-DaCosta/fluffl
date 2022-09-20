@@ -12,7 +12,7 @@ pub struct MatrixStack<const N: usize, T> {
 
 impl<const N: usize, T> MatrixStack<N, T>
 where
-    T: Copy + Default + HasScalar + Mul<Output = T> + Add<Output = T> + AddAssign,
+    T: Copy + Default + HasConstants + Mul<Output = T> + Add<Output = T> + AddAssign,
 {
     pub fn new() -> Self {
         Self {

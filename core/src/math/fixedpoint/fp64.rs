@@ -24,6 +24,10 @@ impl FP64 {
         Self { data: 0 }
     }
 
+    pub fn bits(&self)->u64{
+        self.data as u64   
+    }
+    
     /// does no conversion at all,use From trait for that
     pub fn from_bits<T: Into<i64>>(bits: T) -> Self {
         let data = bits.into();

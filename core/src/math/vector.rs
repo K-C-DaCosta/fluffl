@@ -5,7 +5,7 @@ use std::{
 
 mod tests; 
 mod component_writer; 
-use super::HasScalar;
+use super::HasConstants;
 
 pub use self::{component_writer::ComponentWriter}; 
 
@@ -33,7 +33,7 @@ where
 
 impl<const N: usize, T> Vector<N, T>
 where
-    T: Default + Copy + HasScalar,
+    T: Default + Copy + HasConstants,
 {
     pub fn zero() -> Self {
         Self {
@@ -152,7 +152,7 @@ impl<const N: usize> Vector<N, f32> {
 
 impl<T> Vector<4, T>
 where
-    T: HasScalar + Copy + Default + Div<Output = T> + Mul<Output = T>,
+    T: HasConstants + Copy + Default + Div<Output = T> + Mul<Output = T>,
 {
     pub fn rgba_u32(color: u32) -> Self {
         let mut result = Self::zero();

@@ -9,12 +9,12 @@ pub use self::{lu::*, stack::*};
 
 use std::{
     fmt::Display,
-    ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub,SubAssign},
+    ops::{Add, AddAssign, Deref, DerefMut, Div, Mul, Neg, Sub, SubAssign},
 };
 
-pub type Mat4<T> = Matrix<4, 4, T>;
-pub type Mat3<T> = Matrix<3, 3, T>;
-pub type SquareMat<const N:usize,T> = Matrix<N,N,T>;
+pub type SquareMat<const N: usize, T> = Matrix<N, N, T>;
+pub type Mat4<T> = SquareMat<4,T>;
+pub type Mat3<T> = SquareMat<3,T>;
 
 #[derive(Copy, Clone)]
 pub struct Matrix<const N: usize, const M: usize, T> {
@@ -23,7 +23,7 @@ pub struct Matrix<const N: usize, const M: usize, T> {
 
 impl<const N: usize, const M: usize, T> Matrix<N, M, T>
 where
-    T: Default + Copy + HasScalar,
+    T: Default + Copy + HasConstants,
 {
     pub fn new() -> Self {
         Self {
@@ -31,8 +31,21 @@ where
         }
     }
 
-    pub fn with_data(mut self, data: [[T; M]; N]) -> Self {
-        self.data = data;
+    pub fn with_data<E>(mut self, input: [[E; M]; N]) -> Self
+    where
+        E: Into<T> + Copy,
+    {
+        let mut converted_data = [[T::default(); M]; N];
+        let unconverted_iterator = input.iter().flat_map(|row| row.iter());
+        let converted_iterator = converted_data.iter_mut().flat_map(|row| row.iter_mut());
+
+        unconverted_iterator.zip(converted_iterator).for_each(
+            |(&unconverted_input, converted_output)| {
+                *converted_output = unconverted_input.into();
+            },
+        );
+
+        self.data = converted_data;
         self
     }
 
@@ -79,7 +92,7 @@ where
 
 impl<const N: usize, T> Matrix<N, N, T>
 where
-    T: Default + Copy + HasScalar,
+    T: Default + Copy + HasConstants,
 {
     pub fn identity() -> Self {
         let mut data = Self::zero();
@@ -101,11 +114,7 @@ where
 }
 impl<const N: usize, const M: usize, T> Matrix<N, M, T>
 where
-    T: Default
-        + HasScalar
-        + Copy
-        + Add<Output = T>
-        + Mul<Output = T>
+    T: Default + HasConstants + Copy + Add<Output = T> + Mul<Output = T>,
 {
     /// computes A*v for some column vector `v`
     pub fn transform(&self, rhs: Vector<N, T>) -> Vector<N, T> {
@@ -125,12 +134,7 @@ where
 
 impl<const N: usize, const M: usize, T> Matrix<N, M, T>
 where
-    T: Default
-        + HasScalar
-        + Copy
-        + PartialOrd
-        + Mul<Output = T>
-        + Sub<Output = T>,
+    T: Default + HasConstants + Copy + PartialOrd + Mul<Output = T> + Sub<Output = T>,
 {
     /// does an element-wise comparison of matracies of similar dimension
     /// and retruns true if all elements relatively similar to each other
@@ -147,7 +151,7 @@ where
 
 impl<const N: usize, T> Matrix<N, N, T>
 where
-    T: HasScalar + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
+    T: HasConstants + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
 {
     fn multiply_both_square(self, rhs: Self) -> Self {
         let mut result = Self::zero();
@@ -185,7 +189,7 @@ where
 
 impl<const N: usize, T> Mul for Matrix<N, N, T>
 where
-    T: HasScalar + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
+    T: HasConstants + Default + Copy + AddAssign + Mul<Output = T> + Add<Output = T>,
 {
     type Output = Self;
     fn mul(self, rhs: Self) -> Self::Output {
@@ -195,7 +199,7 @@ where
 
 impl<const N: usize, const M: usize, T> Mul<Vector<N, T>> for Matrix<N, M, T>
 where
-    T: HasScalar + Default + Copy + Mul<Output = T> + Add<Output = T>,
+    T: HasConstants + Default + Copy + Mul<Output = T> + Add<Output = T>,
 {
     type Output = Vector<N, T>;
     fn mul(self, rhs: Vector<N, T>) -> Self::Output {
@@ -204,7 +208,13 @@ where
 }
 impl<const N: usize, T> Matrix<N, N, T>
 where
-    T: HasScalar + Default + Copy + Mul<Output = T> + Div<Output = T> + Sub<Output = T> + SubAssign,
+    T: HasConstants
+        + Default
+        + Copy
+        + Mul<Output = T>
+        + Div<Output = T>
+        + Sub<Output = T>
+        + SubAssign,
 {
     pub fn back_sub<V>(&self, b: V) -> Vector<N, T>
     where
@@ -276,7 +286,7 @@ impl<const N: usize, const M: usize, T> DerefMut for Matrix<N, M, T> {
 
 #[rustfmt::skip]
 pub fn translate4<T>(translate:Vec4<T>)->Mat4<T>
-where T:HasScalar+Default+Copy,
+where T:HasConstants+Default+Copy,
 {
     Mat4::new().with_data([
         [T::one() , T::zero(),T::zero(),translate[0]],
@@ -288,7 +298,7 @@ where T:HasScalar+Default+Copy,
 
 #[rustfmt::skip]
 pub fn scale4<T>(scale:Vec4<T>)->Mat4<T>
-where T:HasScalar+Default+Copy,
+where T:HasConstants+Default+Copy,
 {
     
     Mat4::new().with_data([
@@ -301,7 +311,7 @@ where T:HasScalar+Default+Copy,
 
 #[rustfmt::skip]
 pub fn rotate_z<T>(rad:T)->Mat4<T>
-where T:HasScalar+Default+Copy + HasTrig + Neg<Output=T>,
+where T:HasConstants+Default+Copy + HasTrig + Neg<Output=T>,
 {
     let cos = rad.cos(); 
     let sin = rad.sin();
@@ -315,7 +325,7 @@ where T:HasScalar+Default+Copy + HasTrig + Neg<Output=T>,
 
 #[rustfmt::skip]
 pub fn rotate_x<T>(rad:T)->Mat4<T>
-where T:HasScalar+Default+Copy + HasTrig + Neg<Output=T>,
+where T:HasConstants+Default+Copy + HasTrig + Neg<Output=T>,
 {
     let cos = rad.cos(); 
     let sin = rad.sin();

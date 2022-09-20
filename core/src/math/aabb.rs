@@ -25,7 +25,7 @@ where
         + Mul<Output = T>
         + AddAssign
         + PartialOrd
-        + HasScalar,
+        + HasConstants,
 {
     pub fn zero() -> Self {
         Self::from_segment(Vector::zero(), Vector::zero())

@@ -8,8 +8,18 @@ pub struct DecompLUInplace<'a, const N: usize, T> {
 
 impl<'a, const N: usize, T> DecompLUInplace<'a, N, T>
 where
-    T: HasScalar + Default + Copy + Mul<Output = T> + Div<Output = T> + Sub<Output = T> + SubAssign,
+    T: HasConstants
+        + Default
+        + Copy
+        + Mul<Output = T>
+        + Div<Output = T>
+        + Sub<Output = T>
+        + SubAssign,
 {
+    pub fn data(&self) -> SquareMat<N, T> {
+        *self.lu
+    }
+
     pub fn invert(&self) -> SquareMat<N, T> {
         let mut inv = SquareMat::zero();
         let mut b = Vector::<N, T>::zero();
@@ -34,7 +44,7 @@ where
         self.back_sub(self.forward_sub(b))
     }
 
-    ///computes determinant 
+    ///computes determinant
     pub fn det(&self) -> T {
         let mut product = self[0][0];
         for k in 1..N {
@@ -65,7 +75,7 @@ pub struct DecompPLU<const N: usize, T> {
 
 impl<const N: usize, T> DecompPLU<N, T>
 where
-    T: HasScalar
+    T: HasConstants
         + Default
         + Copy
         + AddAssign
@@ -125,7 +135,7 @@ where
 
 impl<const N: usize, T> DecompPLU<N, T>
 where
-    T: HasScalar + Default + Copy + Display,
+    T: HasConstants + Default + Copy + Display,
 {
     pub fn print(&self) {
         println!("permu:\n{}", self.permutation);
@@ -136,7 +146,7 @@ where
 
 impl<const N: usize, T> Matrix<N, N, T>
 where
-    T: HasScalar
+    T: HasConstants
         + Default
         + Copy
         + AddAssign
@@ -145,7 +155,6 @@ where
         + Div<Output = T>
         + Sub<Output = T>
         + SubAssign
-        + Display
         + PartialOrd,
 {
     /// PLU decomp by partial pivioting
@@ -219,7 +228,7 @@ where
         })
     }
 
-    /// does LU decomposition with NO pivoting, **IN PLACE**
+    /// does LU decomposition with NO pivoting,gaussian elimination style, **IN PLACE**
     /// ## Comments
     /// - much, **MUCH** faster than PLU decomp since compiler can actually unroll this to make it branchless
     /// - im currently exploring ways of trying to see if i can write this a certain way to get it to autovectorize
@@ -228,7 +237,7 @@ where
     ///     - diagonally dominant matracies
     ///     - rigid transform matracies
     ///     - orthoganal matracies
-    pub fn decomp_lu_inplace<'a>(&'a mut self) -> DecompLUInplace<'a, N, T> {
+    pub fn decomp_lu_inplace_gaussian<'a>(&'a mut self) -> DecompLUInplace<'a, N, T> {
         for j in 0..N {
             let inv_pivot = T::from_i32(-1) / self[j][j];
             for i in j + 1..N {
@@ -244,6 +253,47 @@ where
     }
 }
 
+impl<const N: usize, T> Matrix<N, N, T>
+where
+    T: HasConstants
+        + Default
+        + Copy
+        + AddAssign
+        + Mul<Output = T>
+        + Add<Output = T>
+        + Div<Output = T>
+        + Sub<Output = T>
+        + SubAssign
+        + HasBits,
+{
+    /// does LU decomposition with do_little 
+    /// ## Comments
+    /// - tried to make this as branchless as possible
+    /// - source: https://www.javatpoint.com/doolittle-algorithm-lu-decomposition
+    pub fn decomp_lu_inplace_doolittle<'a>(&'a mut self) -> DecompLUInplace<'a, N, T> {
+        for i in 1..N {
+            for j in 0..N {
+                let a = self[i][j];
+                let is_upper = (i <= j) as usize;
+                let is_upper_mask = (is_upper as u64) * (!0);
+                let mut sum = T::zero();
+                let loop_bound = is_upper * i + (1 - is_upper) * j;
+                
+                for k in 0..loop_bound {
+                    sum += self[i][k] * self[k][j];
+                }
+
+                let numerator = a - sum;
+                
+                let when_upper = numerator.to_bits() & is_upper_mask;
+                let when_lower = (numerator / self[j][j]).to_bits() & !is_upper_mask;
+                
+                self[i][j] = T::from_bits(when_lower | when_upper);
+            }
+        }
+        DecompLUInplace { lu: self }
+    }
+}
 #[test]
 fn lu_decomp_sanity() {
     const THRESHOLD: f32 = 0.0125;
@@ -308,11 +358,15 @@ fn lu_decomp_sanity() {
     // decomp.print();
     assert_eq!(true, mat.is_similar(&decomp.recompose(), THRESHOLD));
 
-    let mat = rigid_rotation_4x4();
-    let mat_inv = rigid_rotation_4x4().decomp_lu_inplace().invert();
-    assert_eq!(
-        true,
-        (mat * mat_inv).is_similar(&SquareMat::identity(), THRESHOLD),
-        "rigid transforms should be okay for no-pivot lu decomposition"
-    );
+    let mat = non_degen_3x3();
+
+    let mat_inv = non_degen_3x3().decomp_lu_inplace_doolittle().invert();
+
+    println!("lu:\n{}", mat * mat_inv);
+
+    // assert_eq!(
+    //     true,
+    //     (mat * mat_inv).is_similar(&SquareMat::identity(), THRESHOLD),
+    //     "rigid transforms should be okay for no-pivot lu decomposition"
+    // );
 }
