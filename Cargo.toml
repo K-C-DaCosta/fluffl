@@ -1,8 +1,6 @@
 [workspace]
-members =  [
-	"core",
-	"macros"
-]
+members = ["fluffl", "fluffl-macros"]
+default-members = ["./fluffl"]
 
-[profile.release]
-debug = true
+# [profile.release]
+# debug = true

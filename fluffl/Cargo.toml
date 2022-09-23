@@ -1,0 +1,100 @@
+[package]
+name = "fluffl"
+version = "0.0.2"
+authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
+edition = "2018"
+description = "A cross-platform multimedia layer that exposes opengl,sockets,and audio utilities for desktop and browser"
+readme = "README.md"
+repository = "https://github.com/K-C-DaCosta/fluffl"
+keywords = ["multimedia", "graphics", "audio", "wasm"]
+categories = ["graphics", "gui", "game-development", "multimedia", "wasm"]
+license = "MIT OR Apache-2.0"
+
+[features]
+default = ["extras"]
+extras = ["arrayvec", "lewton", "puremp3", "hiero_pack"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[dependencies]
+bincode = "1.3.1"
+serde = { version = "1.0", default-features = false, features = ["derive"] }
+cfg-if = "1.0.0"
+fluffl-macros = { path = "../fluffl-macros" }
+arrayvec = { version = "0.5.2", optional = true }
+lewton = { version = "0.10.1", optional = true }
+puremp3 = { version = "0.1.0", optional = true }
+hiero_pack = { version = "0.1.1", default-features = false, optional = true }
+rustc-hash = "1.1.0"
+adhoc_audio = { git = "https://github.com/K-C-DaCosta/adhoc_audio", default-features = false }
+
+#........................ 
+#......browser deps...... 
+#........................
+[target.'cfg(all(target_family = "wasm", not(target_os = "wasi")))'.dependencies]
+wasm-bindgen = { version = "0.2.67" }
+wasm-bindgen-futures = { version = "0.4.17" }
+js-sys = { version = "0.3.44" }
+futures = { version = "0.3.5", default-features = false }
+console_error_panic_hook = { version = "0.1.6" }
+wee_alloc = { version = "0.4.2" }
+glow = { version = "0.6.1", default-features = false, features = ["web-sys"] }
+web-sys = { version = "0.3.44", features = [
+    'console',
+    'Document',
+    'Element',
+    'Node',
+    'HtmlElement',
+    'HtmlCanvasElement',
+    'HtmlButtonElement',
+    'HtmlBodyElement',
+    'HtmlCollection',
+    'AddEventListenerOptions',
+    'EventTarget',
+    'MouseEvent',
+    'WheelEvent',
+    'KeyboardEvent',
+    'CssStyleDeclaration',
+    'Headers',
+    'Request',
+    'RequestInit',
+    'RequestMode',
+    'Response',
+    'Blob',
+    'AudioContext',
+    'AudioDestinationNode',
+    'AudioNode',
+    'AudioParam',
+    'AudioBuffer',
+    'AudioBufferSourceNode',
+    'WebSocket',
+    'BinaryType',
+    'MessageEvent',
+    'CloseEvent',
+    'TouchEvent',
+    'TouchList',
+    'Touch',
+    'UiEvent',
+    'DomRect',
+    'Navigator',
+    'Permissions',
+    'Screen',
+    'MediaQueryList',
+    'Performance',
+    'PerformanceTiming',
+] }
+
+# ....................... 
+# .....desktop deps...... 
+#........................
+[target.'cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))'.dependencies]
+tokio = { version = "1", features = ['full'] }
+http = { version = "0.2.1" }
+sdl2 = { version = "0.33.0", default-features = false }
+tungstenite = { version = "0.11.1" }
+native-tls = { version = "0.2.4" }
+glow = { version = "0.6.1", default-features = false, features = ["sdl2"] }
+futures = { version = "0.3.5", default-features = false, features = [
+    "executor",
+] }
+
+

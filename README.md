@@ -15,7 +15,7 @@ Wasm version of the examples are here: https://k-c-dacosta.github.io/wasm_bins/e
 https://k-c-dacosta.github.io/wasm_bins/examples/brick_demo/
 
 ## How to run examples
-- look in `./core/examples` 
+- look in `./fluffl/examples` 
 - pick a file you want to run (lets say we want to run brick_demo)
 - In the terminal do:
 ```

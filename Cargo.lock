@@ -188,13 +188,13 @@ dependencies = [
  "bincode",
  "cfg-if 1.0.0",
  "console_error_panic_hook",
+ "fluffl-macros",
  "futures",
  "glow",
  "hiero_pack",
  "http",
  "js-sys",
  "lewton",
- "macros",
  "native-tls",
  "puremp3",
  "rustc-hash",
@@ -206,6 +206,14 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "wee_alloc",
+]
+
+[[package]]
+name = "fluffl-macros"
+version = "0.0.1"
+dependencies = [
+ "quote",
+ "syn",
 ]
 
 [[package]]
@@ -471,18 +479,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "abb12e687cfb44aa40f41fc3978ef76448f9b6038cad6aef4259d3c095a2382e"
 dependencies = [
  "cfg-if 1.0.0",
-]
-
-[[package]]
-name = "macros"
-version = "0.1.0"
-dependencies = [
- "console_error_panic_hook",
- "quote",
- "syn",
- "tokio",
- "wasm-bindgen",
- "wasm-bindgen-futures",
 ]
 
 [[package]]
