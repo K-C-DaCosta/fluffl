@@ -6,7 +6,7 @@ use std::{
 };
 
 #[cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))]
-#[path = "./window/sdl2_window.rs"]
+#[path = "./window/desktop_window.rs"]
 pub mod window_util;
 
 #[cfg(all(target_family = "wasm", not(target_os = "wasi")))]

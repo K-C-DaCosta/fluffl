@@ -11,8 +11,12 @@ categories = ["graphics", "gui", "game-development", "multimedia", "wasm"]
 license = "MIT OR Apache-2.0"
 
 [features]
-default = ["extras"]
+# currently by default sdl2 is enabled, but I want to switch to the glutin backend
+default = ["extras","sdl2"]
+
 extras = ["arrayvec", "lewton", "puremp3", "hiero_pack"]
+sdl2 = ["glow/sdl2"]
+glutin = ["glow/glutin"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
@@ -92,7 +96,7 @@ http = { version = "0.2.1" }
 sdl2 = { version = "0.33.0", default-features = false }
 tungstenite = { version = "0.11.1" }
 native-tls = { version = "0.2.4" }
-glow = { version = "0.6.1", default-features = false, features = ["sdl2"] }
+glow = { version = "0.6.1", default-features = false, optional = false}
 futures = { version = "0.3.5", default-features = false, features = [
     "executor",
 ] }

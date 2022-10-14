@@ -34,6 +34,17 @@ impl FP32 {
         Self { data }
     }
 
+    /// not using the from trait for this because it needs to be const
+    pub const fn from_i32(data: i32) -> Self {
+        Self { data: data << 16 }
+    }
+
+    /// computes 1/x
+    pub fn invert(self)-> Self{
+        let one = Self::from(1);
+        let res = ( (one.data <<14)  /self.data ) << 2;
+        Self::from_bits(res)
+    }
     /// slower,because calculations take up an entire register on 64-bit
     /// machines but useful if we need precision
     pub fn div_exact(self, rhs: Self) -> Self {
@@ -311,19 +322,81 @@ impl FP32 {
         accurate_spline(t)
     }
 
-    pub fn sqrt(self) -> Self {
+    /// Computes square root with a spline
+    /// ## Comments
+    /// - I wrote full explaination here: https://www.desmos.com/calculator/vcdtrsbxj1
+    /// - Involves 2, 64-bit divides (one for normalizing  x and another for the newton iteration)
+    /// - Evalutating the spline costs 3 multiplies and 3 adds
+    /// - I also have to search a small lookup table which costs 6 comparisions
+    /// - overall there are 14 major arithmetic operations (not counting shifts)
+    pub fn qsqrt(self) -> Self {
+        if self.data == 0 {
+            return self;
+        }
+
+        const LAST: (i32, FP32) = (32_768, FP32::from_i32(32_768).sqrt_linear_search());
+        const M_TABLE: [(i32, FP32); 6] = [
+            (1, FP32::from_i32(1).sqrt_linear_search()),
+            (16, FP32::from_i32(16).sqrt_linear_search()),
+            (128, FP32::from_i32(128).sqrt_linear_search()),
+            (1024, FP32::from_i32(1024).sqrt_linear_search()),
+            (16384, FP32::from_i32(16384).sqrt_linear_search()),
+            LAST,
+        ];
+
+        let (m, m_root) = M_TABLE
+            .iter()
+            .map(|&a| a)
+            .find(|&m_k| self.data <= (m_k.0 << 16))
+            .unwrap_or(LAST);
+
+        let t_exact = self.div_exact(Self::from(m));
+        let t = t_exact.data << 11; //shift takes it from Q15.16 to Q3.27 to keep spline evaluation accurate
+
+        const FACTOR_Q3_27: f32 = (1 << 27) as f32;
+        let eval_spline_3_deg = |t0: i32| {
+            const A: i32 = (1.27152 * FACTOR_Q3_27) as i32;
+            const B: i32 = (2.80283 * FACTOR_Q3_27) as i32;
+            const C: i32 = (2.53972 * FACTOR_Q3_27) as i32;
+            let mut res = ((A >> 15) * (t0 >> 12)) - B;
+            res = ((res >> 12) * (t0 >> 15)) + C;
+            (t0 >> 15) * (res >> 12)
+        };
+        let s_eval = Self::from_bits(eval_spline_3_deg(t) >> 11); // shift from Q3.27 back to Q15.16
+        let good_initial_guess = s_eval * m_root;
+        //do one newton iteration for accuracy
+        Self::from_bits(1 << 15) * (good_initial_guess + (self.div_exact(good_initial_guess)))
+    }
+
+    ///slow,but accurate
+    pub const fn sqrt_linear_search(self) -> Self {
+        // (x+1)^2 = x^2 + 2x + 1
+        // A(1) = 1;
+        // A(n+1) = A(n) + 2*n + 1
+        let mut seq = 1;
+        let mut n = 1;
+        while seq < self.data {
+            n += 1;
+            seq = seq + 2 * n + 1;
+        }
+        Self { data: n << 8 }
+    }
+
+    pub const fn sqrt_binary_search(self) -> Self {
         let y = self.data.abs();
         let mut l = 0;
         let mut u = y + 1;
+        let mut k = 0;
+        const MAX_ITERS: usize = 16;
 
-        while u - l > 1 {
+        while k < MAX_ITERS {
             let m = l + ((u - l) >> 1);
             let where_lt = (m - (y / m)) >> 31;
             l = (where_lt & m) | (!where_lt & l);
             u = (!where_lt & m) | (where_lt & u);
+            k += 1;
         }
-
-        Self::from_bits(l << 8)
+        Self { data: l << 8 }
     }
 }
 
@@ -387,3 +460,20 @@ fn trig_tests() {
 
     println!("max_error = {max_error}");
 }
+
+#[test]
+pub fn qsqrt_test() {
+    for k in 0..1000 {
+        let x = FP32::from(k);
+        let sqrt = x.qsqrt();
+        println!("sqrt({k}) = {sqrt}, real = {}", (k as f32).sqrt());
+    }
+}
+
+
+#[test]
+pub fn inv_test() {
+    let x = FP32::from_bits(1<<1);
+    println!("{}",x.invert());
+}
+

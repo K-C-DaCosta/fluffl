@@ -1,8 +1,8 @@
-use super::event_util::FlufflEvent;
-use super::*;
+use super::{
+    event_util::{constants::*, FlufflEvent},
+    *,
+};
 use crate::FlufflState;
-
-use event_util::constants::*;
 
 use glow::*;
 
@@ -73,7 +73,7 @@ impl FlufflWindow {
     {
         let mut fluffl_window = self;
         let render_loop = fluffl_window.get_render_loop();
-        
+
         let window_ptr = FlufflWindowPtr {
             ptr: Arc::new(RefCell::new(fluffl_window)),
         };

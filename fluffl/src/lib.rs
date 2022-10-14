@@ -43,7 +43,6 @@ use std::{cell::RefCell, ops::Deref, rc::Rc, sync::Arc};
 /// A pointer to GLOW state. All variables with this type should be named: `gl`
 pub type GlowGL = Arc<Box<Context>>;
 
-
 pub struct FlufflState<T> {
     inner: Rc<RefCell<T>>,
 }
@@ -87,5 +86,28 @@ impl From<std::io::Error> for FlufflError {
 impl From<std::string::FromUtf8Error> for FlufflError {
     fn from(err: std::string::FromUtf8Error) -> Self {
         Self::FromUtf8ParseError(err.to_string())
+    }
+}
+
+#[test]
+fn fbtest() {
+    use std::fmt::Write;
+
+    let mut buffer = String::new();
+
+    for k in 1..=100 {
+        let k_mod_3 = k - (k / 3) * 3;
+        let k_mod_5 = k - (k / 5) * 5;
+        buffer.clear();
+        let _ = if k_mod_3 == 0 && k_mod_5 == 0 {
+            write!(&mut buffer, "fizzbuzz")
+        } else if k_mod_3 == 0 {
+            write!(&mut buffer, "fizz")
+        } else if k_mod_5 == 0 {
+            write!(&mut buffer, "buzz")
+        } else {
+            write!(&mut buffer, "{k}")
+        };
+        println!("{k} => {buffer}");
     }
 }
