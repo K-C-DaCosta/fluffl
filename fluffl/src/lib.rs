@@ -88,26 +88,3 @@ impl From<std::string::FromUtf8Error> for FlufflError {
         Self::FromUtf8ParseError(err.to_string())
     }
 }
-
-#[test]
-fn fbtest() {
-    use std::fmt::Write;
-
-    let mut buffer = String::new();
-
-    for k in 1..=100 {
-        let k_mod_3 = k - (k / 3) * 3;
-        let k_mod_5 = k - (k / 5) * 5;
-        buffer.clear();
-        let _ = if k_mod_3 == 0 && k_mod_5 == 0 {
-            write!(&mut buffer, "fizzbuzz")
-        } else if k_mod_3 == 0 {
-            write!(&mut buffer, "fizz")
-        } else if k_mod_5 == 0 {
-            write!(&mut buffer, "buzz")
-        } else {
-            write!(&mut buffer, "{k}")
-        };
-        println!("{k} => {buffer}");
-    }
-}

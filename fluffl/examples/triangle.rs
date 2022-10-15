@@ -118,11 +118,7 @@ pub fn fixed_string_test() {
     println!("str = {fs}");
 }
 
-fn alsa_hardware_name(card_number: u32, device_number: u32) -> FixedString<32> {
-    let fs = FixedString::new()
-        .with_str_cb(|mut bytes| write!(bytes, "hw:{card_number},{device_number}"));
-    fs
-}
+
 /// A simple triangle demo, nothing but opengl and some basic event handling
 #[fluffl(Debug)]
 pub async fn main() {
@@ -226,10 +222,6 @@ pub async fn ml(
     let gl = win_ptr.window().gl();
     //increment t
     main_state.borrow_mut().t += 0.01;
-
-
-
-
 
     unsafe {
         {

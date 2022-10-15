@@ -4,7 +4,7 @@ Its built on top of the <a href="https://github.com/grovesNL/glow">glow</a> Open
 
 ## why fluffl? 
 If you need a *simple* layer/interface that provides audio,graphics, and maybe networking then this is the crate for you. 
-Interface-wise its like SDL(you can use literally use* SDL if you select it) but it *doesn't* depend on the `wasm32-unknown-emscripten` target. The emscripten target is considered to be **deprecated** and is intended on being phased out last I checked. Instead, this crate uses the preferred `wasm32-unkown-unknown` crate for targeting the browser. 
+Interface-wise its like SDL(you can use literally use* SDL if you select it) but it *doesn't* depend on the `wasm32-unknown-emscripten` target. The emscripten target is considered to be **deprecated** and is intended on being phased out last I checked. Instead, this crate uses the preferred `wasm32-unkown-unknown` target when building for the browser. 
 
 ## Supported Backends
 - For the web it uses `WEBGL` and `WEBAUDIO`
@@ -17,22 +17,22 @@ Interface-wise its like SDL(you can use literally use* SDL if you select it) but
             - `ALSA` - on linux 
             - `WASAPI` - on windows 
 
-For desktop targets `GLUTIN` (for windowing) and native audio APIS are chosen by default since it doesn't require the program to link to `SDL2` dynamic libraries since `SDL2` may not be installed on a lot of machines we can avoid a link error on compile. `GLUTIN` also appears to use either use native libraries or directly interacts with operating-system specific windowing protocols (major protocols are X windowing protocol and Wayland on linux)  
+For desktop targets `GLUTIN` (for windowing) and native audio APIS **are chosen by default** since it doesn't require the program to link to `SDL2` dynamic libraries since `SDL2` may not be installed on a lot of machines we can avoid a link error on compile. `GLUTIN` also appears to use either use native libraries or directly interacts with operating-system specific windowing protocols (major protocols are X windowing protocol and Wayland on linux)  
 
 ## Using SDL2
-If you want to use SDL2 make sure its actually Installed
+If you *STILL* want to use SDL2 make sure its actually Installed
 
-### On ubuntu
+### Installing SDL2 On ubuntu
 Just use apt to install:
 ```
 sudo apt install libsdl2-dev
 ```
 
-### On windows
+### Installing SDL2 On windows
 
 Its slightly more complicated. IIRC, you have to either drag the sdl2.dll (you either download it off the offical website or compile it yourself) file to a special directory where the compiler sits or place it in the directory where the binary is. My directions are currently vague because my main OS is linux and I'd have to reconfig my KVM instance of windows to figure out exactly what to do again. Luckily you can just cross-compile. 
 
-## Cross Compiling to windows on Linux 
+## Cross Compiling to windows on Linux (doesn't matter if you select SDL2 or not)
 
 Using MinGW you can actually build for windows on linux.
 

@@ -22,6 +22,24 @@
             "cwd": "${workspaceFolder}"
         },
 
+        {
+            "type": "lldb",
+            "request": "launch",
+            "name": "Debug executable 'audio_ex1'",
+            "cargo": {
+                "args": [
+                    "build",
+                    "--example=audio_ex1"
+                ],
+                "filter": {
+                    "name": "audio_ex1",
+                    "kind": "example"
+                }
+            },
+            "args": [],
+            "cwd": "${workspaceFolder}"
+        },
+
         
         {
             "type": "lldb",
