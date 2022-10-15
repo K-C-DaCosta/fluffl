@@ -12,11 +12,11 @@ license = "MIT OR Apache-2.0"
 
 [features]
 # currently by default sdl2 is enabled, but I want to switch to the glutin backend
-default = ["extras","sdl2"]
+default = ["extras", "glutin"]
 
 extras = ["arrayvec", "lewton", "puremp3", "hiero_pack"]
-sdl2 = ["glow/sdl2"]
-glutin = ["glow/glutin"]
+sdl2 = ["be_sdl2", "glow/sdl2"]
+glutin = ["be_glutin", "glow/glutin"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
@@ -30,6 +30,7 @@ puremp3 = { version = "0.1.0", optional = true }
 hiero_pack = { version = "0.1.1", default-features = false, optional = true }
 rustc-hash = "1.1.0"
 adhoc_audio = { git = "https://github.com/K-C-DaCosta/adhoc_audio", default-features = false }
+
 
 #........................ 
 #......browser deps...... 
@@ -91,14 +92,13 @@ web-sys = { version = "0.3.44", features = [
 # .....desktop deps...... 
 #........................
 [target.'cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))'.dependencies]
+be_sdl2 = { version = "0.33.0", package = "sdl2", default-features = false, optional = true }
+be_glutin = { version = "0.28", package = "glutin", optional = true }
 tokio = { version = "1", features = ['full'] }
 http = { version = "0.2.1" }
-sdl2 = { version = "0.33.0", default-features = false }
 tungstenite = { version = "0.11.1" }
 native-tls = { version = "0.2.4" }
-glow = { version = "0.6.1", default-features = false, optional = false}
+glow = { version = "0.6.1", default-features = false, optional = false }
 futures = { version = "0.3.5", default-features = false, features = [
     "executor",
 ] }
-
-

@@ -1,18 +1,12 @@
 use crate::math::FP64;
 
-//the dektop implementation of sound is in the sdl2_audio module
-#[cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))]
-#[path = "./audio/sdl2_audio.rs"]
-pub mod audio_util;
 
-//the wasm(javascript) implementation for sound playback is in the web_audio module
-#[cfg(all(target_family = "wasm", not(target_os = "wasi")))]
-#[path = "./audio/web_audio.rs"]
-pub mod audio_util;
 
 pub mod interval;
 pub mod mixer;
 pub mod pcm_util;
+pub mod audio_backends;
+
 
 //expose these from audio itself
 pub use interval::Interval;
@@ -22,7 +16,8 @@ pub use pcm_util::PCMSlice;
 pub type DeviceCB<State> = fn(&mut State, &mut [f32]);
 
 /// Platform specific code awaits
-pub use audio_util::*;
+
+pub use audio_backends::*;
 
 use self::mixer::SampleTime;
 /// A trait used to define properties of the sound before playing

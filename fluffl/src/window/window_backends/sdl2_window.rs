@@ -8,22 +8,42 @@ use glow::*;
 
 use std::{cell::RefCell, mem, rc::Rc, sync::Arc};
 
-use sdl2::{event::Event, keyboard::Scancode, mouse::MouseButton, video::FullscreenType};
+use be_sdl2::{event::Event, keyboard::Scancode, mouse::MouseButton, video::FullscreenType};
+
+///Global for touch tracker
+static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker<i32>> = None;
+
+impl TouchTracker<i32> {
+    /// # Description
+    /// Initalizes tracker. Tracker routines will panic if this function isn't called.
+    pub fn init() {
+        unsafe {
+            GLOBAL_TOUCH_TRACKER = Some(TouchTracker::new());
+        }
+    }
+    pub fn get_mut() -> &'static mut Self {
+        unsafe {
+            GLOBAL_TOUCH_TRACKER
+                .as_mut()
+                .expect("tracker not initalized")
+        }
+    }
+}
 
 /// # Description
 /// A Custom SDL2 Window pointer type. This is needed because `RenderLoop<T>` takes the window provided by the
 /// sdl2 wrapper and never gives it back.
 struct CustomSDL2Window {
     #[allow(dead_code)]
-    context: Rc<sdl2::video::WindowContext>,
+    context: Rc<be_sdl2::video::WindowContext>,
 }
 
 impl CustomSDL2Window {
-    fn new(context: Rc<sdl2::video::WindowContext>) -> Self {
+    fn new(context: Rc<be_sdl2::video::WindowContext>) -> Self {
         Self { context }
     }
 
-    fn to_window(&mut self) -> &mut sdl2::video::Window {
+    fn to_window(&mut self) -> &mut be_sdl2::video::Window {
         let mut_ref: &mut Self = self;
         unsafe { mem::transmute(mut_ref) }
     }
@@ -41,13 +61,13 @@ macro_rules! push_event {
 /// agnostic fashion
 pub struct FlufflWindow {
     glue_event: Option<FlufflEvent>,
-    sdl_state: sdl2::Sdl,
-    sdl_gl_context: sdl2::video::GLContext,
-    sdl_event_pump: sdl2::EventPump,
+    sdl_state: be_sdl2::Sdl,
+    sdl_gl_context: be_sdl2::video::GLContext,
+    sdl_event_pump: be_sdl2::EventPump,
     gl: Arc<Box<Context>>,
-    render_loop: Option<RenderLoop<sdl2::video::Window>>,
+    render_loop: Option<RenderLoop<be_sdl2::video::Window>>,
     audio_context: FlufflAudioContext,
-    video_ss: sdl2::VideoSubsystem,
+    video_ss: be_sdl2::VideoSubsystem,
     window_width: u32,
     window_height: u32,
     window_pointer: CustomSDL2Window,
@@ -120,20 +140,20 @@ impl HasFlufflWindow for FlufflWindow {
         let settings = FlufflWindowConfigs::new().parser_config_file(config);
 
         // Create a context from a sdl2 window
-        let sdl = sdl2::init()?;
+        let sdl = be_sdl2::init()?;
         let audio = sdl.audio()?;
         let video = sdl.video()?;
 
         let gl_attr = video.gl_attr();
 
-        gl_attr.set_context_profile(sdl2::video::GLProfile::Core);
+        gl_attr.set_context_profile(be_sdl2::video::GLProfile::Core);
         gl_attr.set_context_version(settings.context_major, settings.context_minor);
         //set stencil buffer
         video.gl_attr().set_stencil_size(8);
 
         let win_builder = video.window(settings.title.as_str(), settings.width, settings.height);
 
-        let build_window_according_to_settings = |mut builder: sdl2::video::WindowBuilder| {
+        let build_window_according_to_settings = |mut builder: be_sdl2::video::WindowBuilder| {
             let mut builder_ref = builder.opengl();
             if settings.resizable {
                 builder_ref = builder.resizable();
@@ -147,9 +167,9 @@ impl HasFlufflWindow for FlufflWindow {
 
         let window = build_window_according_to_settings(win_builder)?;
 
-        // because sdl2::video::Window is a glorified smart pointer I can do this:
+        // because be_sdl2::video::Window is a glorified smart pointer I can do this:
         let window_context_ref =
-            unsafe { mem::transmute::<_, &Rc<sdl2::video::WindowContext>>(&window) };
+            unsafe { mem::transmute::<_, &Rc<be_sdl2::video::WindowContext>>(&window) };
 
         let gl_context = window.gl_create_context()?;
 
@@ -157,7 +177,7 @@ impl HasFlufflWindow for FlufflWindow {
             glow::Context::from_loader_function(|s| video.gl_get_proc_address(s) as *const _)
         };
 
-        let render_loop = Some(glow::RenderLoop::<sdl2::video::Window>::from_sdl_window(
+        let render_loop = Some(glow::RenderLoop::<be_sdl2::video::Window>::from_sdl_window(
             window,
         ));
         let event_loop = sdl.event_pump()?;
@@ -206,8 +226,8 @@ impl From<String> for FlufflError {
     }
 }
 
-impl From<sdl2::video::WindowBuildError> for FlufflError {
-    fn from(build_err: sdl2::video::WindowBuildError) -> Self {
+impl From<be_sdl2::video::WindowBuildError> for FlufflError {
+    fn from(build_err: be_sdl2::video::WindowBuildError) -> Self {
         FlufflError::WindowInitError(build_err.to_string())
     }
 }
@@ -233,7 +253,7 @@ impl HasEventCollection for FlufflWindow {
                 } => {
                     let id = finger_id as i32;
                     let mouse_pos = [cur_width * x, cur_height * y];
-                    let _ = TouchTracker::get_touch_displacement(id, mouse_pos);
+                    let _ = TouchTracker::get_mut().get_touch_displacement(id, mouse_pos);
                     push_event!(
                         gevent,
                         EventKind::TouchDown {
@@ -251,7 +271,7 @@ impl HasEventCollection for FlufflWindow {
                 } => {
                     let id = finger_id as i32;
                     let mouse_pos = [cur_width * x, cur_height * y];
-                    let [dx, dy] = TouchTracker::get_touch_displacement(id, mouse_pos);
+                    let [dx, dy] = TouchTracker::get_mut().get_touch_displacement(id, mouse_pos);
                     push_event!(
                         gevent,
                         EventKind::TouchMove {
@@ -269,7 +289,7 @@ impl HasEventCollection for FlufflWindow {
                 } => {
                     let id = finger_id as i32;
                     let mouse_pos = [cur_width * x, cur_height * y];
-                    let _ = TouchTracker::get_touch_displacement(id, mouse_pos);
+                    let _ = TouchTracker::get_mut().get_touch_displacement(id, mouse_pos);
                     push_event!(
                         gevent,
                         EventKind::TouchUp {
@@ -281,13 +301,13 @@ impl HasEventCollection for FlufflWindow {
                         }
                     );
                     // Its important to remove info associated with id when finger is released
-                    // because SDL2 will assign a new id for ever FingerDown
+                    // because SDL2 will assign a new id for every FingerDown
                     // and we only want to track unique fingers detected by the touchscreen
-                    TouchTracker::get_tracker_mut().table.remove(&id);
+                    TouchTracker::get_mut().remove(&id);
                 }
 
                 Event::Window { win_event, .. } => match win_event {
-                    sdl2::event::WindowEvent::Resized(width, height) => {
+                    be_sdl2::event::WindowEvent::Resized(width, height) => {
                         push_event!(gevent, EventKind::Resize { width, height });
                         width_update = Some(width as u32);
                         height_update = Some(height as u32);
@@ -396,7 +416,7 @@ impl HasEventCollection for FlufflWindow {
     }
 }
 
-fn map_scancode(scancode: sdl2::keyboard::Scancode) -> KeyCode {
+fn map_scancode(scancode: be_sdl2::keyboard::Scancode) -> KeyCode {
     match scancode {
         Scancode::A => KeyCode::KEY_A,
         Scancode::B => KeyCode::KEY_B,

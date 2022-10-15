@@ -24,6 +24,26 @@ use web_sys;
 
 use super::{FlufflWindowConfigs, FlufflWindowPtr};
 
+///Global for touch tracker
+static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker<i32>> = None;
+
+impl TouchTracker<i32> {
+    /// # Description
+    /// Initalizes tracker. Tracker routines will panic if this function isn't called.
+    pub fn init() {
+        unsafe {
+            GLOBAL_TOUCH_TRACKER = Some(TouchTracker::new());
+        }
+    }
+    pub fn get_mut() -> &'static mut Self {
+        unsafe {
+            GLOBAL_TOUCH_TRACKER
+                .as_mut()
+                .expect("tracker not initalized")
+        }
+    }
+}
+
 // Global variables that are only visible inside of this module.
 // The use of global variables should be fine if there is no multithreading going on.
 static mut GLOBAL_EVENT_QUEUE: Option<FlufflEvent> = None;
@@ -290,7 +310,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
                     let (x, y, _, _) = convert_from_viewport_to_window(x, y, 0., 0.);
                     let (x, y) = (x as f32, y as f32);
 
-                    let [dx, dy] = TouchTracker::get_touch_displacement(id, [x, y]);
+                    let [dx, dy] = TouchTracker::get_mut().get_touch_displacement(id, [x, y]);
                     event_queue.push_event(EventKind::TouchDown {
                         finger_id: id,
                         x,
@@ -323,7 +343,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
                     let (x, y, _, _) = convert_from_viewport_to_window(x, y, 0., 0.);
                     let (x, y) = (x as f32, y as f32);
 
-                    TouchTracker::get_touch_displacement(id, [x, y]);
+                    TouchTracker::get_mut().get_touch_displacement(id, [x, y]);
 
                     event_queue.push_event(EventKind::TouchUp {
                         finger_id: id,
@@ -335,7 +355,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
 
                     // Its important to remove info associated with id when finger is released.
                     // We only want to track unique fingers detected by the touchscreen
-                    TouchTracker::get_tracker_mut().table.remove(&id);
+                    TouchTracker::get_mut().remove(&id);
                 });
             }
         }) as Box<dyn FnMut(_)>);
@@ -361,7 +381,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
                     let (x, y, _, _) = convert_from_viewport_to_window(x, y, 0., 0.);
                     let (x, y) = (x as f32, y as f32);
 
-                    TouchTracker::get_touch_displacement(id, [x, y]);
+                    TouchTracker::get_mut().get_touch_displacement(id, [x, y]);
 
                     event_queue.push_event(EventKind::TouchDown {
                         finger_id: id,

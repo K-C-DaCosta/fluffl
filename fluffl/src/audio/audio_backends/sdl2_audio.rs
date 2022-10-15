@@ -6,7 +6,7 @@ use std::sync::{Arc, Mutex};
 /// Here I use sdl2 as the backend
 #[derive(Clone)]
 pub struct FlufflAudioContext {
-    pub audio_ss: Arc<RefCell<sdl2::AudioSubsystem>>,
+    pub audio_ss: Arc<RefCell<be_sdl2::AudioSubsystem>>,
 }
 
 /// # Description 
@@ -33,7 +33,7 @@ where
     State: Send + 'static,
 {
     fluffl_audio_device: Arc<Mutex<FlufflAudioDevice<Callback, State>>>,
-    sdl2_device: Arc<sdl2::audio::AudioDevice<FlufflCallback<Callback, State>>>,
+    sdl2_device: Arc<be_sdl2::audio::AudioDevice<FlufflCallback<Callback, State>>>,
 }
 
 impl<Callback, State> Clone for FlufflAudioDeviceContext<Callback, State>
@@ -60,7 +60,7 @@ where
         audio_context: FlufflAudioContext,
     ) -> FlufflAudioDeviceContext<Callback, State> {
         // println!("new music context");
-        let desired_spec = sdl2::audio::AudioSpecDesired {
+        let desired_spec = be_sdl2::audio::AudioSpecDesired {
             freq: core.desired_specs.sample_rate.clone().map(|a| {
                 // println!("freq = {}", a);
                 a as i32
@@ -151,7 +151,7 @@ where
     audio_device: Arc<Mutex<FlufflAudioDevice<Callback, State>>>,
 }
 
-impl<Callback, State> sdl2::audio::AudioCallback for FlufflCallback<Callback, State>
+impl<Callback, State> be_sdl2::audio::AudioCallback for FlufflCallback<Callback, State>
 where
     Callback: FnMut(&mut State, &mut [f32]) + Send + Copy,
     State: Send + 'static,
@@ -167,14 +167,3 @@ where
         });
     }
 }
-
-// impl<F, S> IntoWithArg<FlufflAudioDeviceContext<F, S>, Arc<RefCell<FlufflAudioContext>>>
-//     for AudioDeviceCore<F, S>
-// where
-//     F: FnMut(&mut S, &mut [f32]) + Send + std::marker::Copy,
-//     S: Send,
-// {
-//     fn into_with(self, arg: Arc<RefCell<FlufflAudioContext>>) -> FlufflAudioDeviceContext<F, S> {
-//         FlufflAudioDeviceContext::new(self, arg)
-//     }
-// }

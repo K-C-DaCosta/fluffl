@@ -169,7 +169,7 @@ pub async fn main() {
                         gl.viewport(0, 0, width, height);
                     },
                     EventKind::MouseMove { x, y, dx, dy } => {
-                        console_log!("mouse move: [x:{},y:{},dx:{},dy:{}\n", x, y, dx, dy);
+                        console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
                     }
                     EventKind::MouseUp { button_code, x, y } => {
                         console_log!("mouse up at: [x:{},y:{}]\n", x, y);
