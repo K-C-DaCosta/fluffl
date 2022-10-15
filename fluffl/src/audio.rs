@@ -1,12 +1,9 @@
 use crate::math::FP64;
 
-
-
+pub mod audio_backends;
 pub mod interval;
 pub mod mixer;
 pub mod pcm_util;
-pub mod audio_backends;
-
 
 //expose these from audio itself
 pub use interval::Interval;
@@ -16,7 +13,6 @@ pub use pcm_util::PCMSlice;
 pub type DeviceCB<State> = fn(&mut State, &mut [f32]);
 
 /// Platform specific code awaits
-
 pub use audio_backends::*;
 
 use self::mixer::SampleTime;
@@ -29,19 +25,27 @@ pub trait GenericAudioSpecs {
 
 /// A POD-ish struct for defining properties of the sound we with to play \
 /// If one of the fields isn't defined it will fallback to a somewhat sane default value
+#[derive(Copy, Clone, Default)]
 pub struct DesiredSpecs {
     pub sample_rate: Option<u32>,
     pub channels: Option<u32>,
     pub buffer_size: Option<u32>,
 }
+
+pub struct ConcreteSpecs {
+    pub sample_rate: u32,
+    pub channels: usize,
+    pub buffer_size: usize,
+}
+
 impl DesiredSpecs {
-    #[allow(dead_code)]
-    fn get_specs(&self) -> (u32, usize, usize) {
-        (
-            self.sample_rate.unwrap_or(48000),
-            self.channels.unwrap_or(2) as usize,
-            self.buffer_size.unwrap_or(1024) as usize,
-        )
+    /// Anything you haven't specified in the `DesiredSpecs` pod will be chosen for you
+    pub fn make_concrete(&self) -> ConcreteSpecs {
+        ConcreteSpecs {
+            sample_rate: self.sample_rate.unwrap_or(48000),
+            channels: self.channels.unwrap_or(2) as usize,
+            buffer_size: self.buffer_size.unwrap_or(1024) as usize,
+        }
     }
 }
 

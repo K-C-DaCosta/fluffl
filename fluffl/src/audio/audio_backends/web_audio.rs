@@ -1,4 +1,4 @@
-use super::AudioDeviceCore;
+use super::{AudioDeviceCore,ConcreteSpecs};
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -163,12 +163,17 @@ where
         const BUFFER_TIME: f64 = 0.3;
 
         let state = core.state.take().unwrap_or_else(|| {
-            panic!("Error: Failed to create GlueAudioDevice!\n .with_state(..) not initalized!\n")
+            panic!("Error: Failed to create FlufflAudioDevice!\n .with_state(..) not initalized!\n")
         });
 
         let mut glue_callback = core.callback();
         let state = Rc::new(RefCell::new(state));
-        let (sample_rate, channels, buffer_size) = core.desired_specs.get_specs();
+
+        let ConcreteSpecs {
+            sample_rate,
+            channels,
+            buffer_size,
+        } = core.desired_specs.make_concrete();
 
         let audio_context_dup = audio_context.clone();
 

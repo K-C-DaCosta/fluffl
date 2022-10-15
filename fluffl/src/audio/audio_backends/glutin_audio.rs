@@ -1,9 +1,20 @@
 use super::AudioDeviceCore;
-use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 
+use std::{ffi::CString, io::Write, thread};
+
+use alsa::{
+    pcm::{Access, Format, HwParams, State, PCM},
+    Output, ValueOr,
+};
+
+#[derive(Clone, Default)]
 pub struct FlufflAudioContext {
-    //has platform specifitc pointers and stuff in here 
+    /*
+    not really needed for ALSA 
+    but for SDL2 and WEBAUDIO a struct like this 
+    is needed
+    */
 }
 
 pub struct FlufflAudioDeviceContext<Callback, State>
@@ -34,13 +45,50 @@ where
     /// creates a platform-agnostic FlufflAudioDevice
     pub fn new(
         core: AudioDeviceCore<Callback, State>,
-        audio_context: FlufflAudioContext,
+        actx: FlufflAudioContext,
     ) -> FlufflAudioDeviceContext<Callback, State> {
+        
+        unimplemented!("An FlufflAudioDeviceContext is currently in development");
+
+
         let audio_device = Arc::new(Mutex::new(FlufflAudioDevice { core }));
 
-        let glue_callback = FlufflCallback {
+        let callback = FlufflCallback {
             audio_device: audio_device.clone(),
         };
+
+        //select the default audio device
+        let pcm = alsa::pcm::PCM::new("default", alsa::Direction::Playback, true)
+            .expect("alsa: default device failed");
+
+        //configure device with core's specifications
+        let specs = audio_device.lock().unwrap().core.desired_specs;
+
+
+        let hwp = alsa::pcm::HwParams::any(&pcm).expect("hw params failed");
+        hwp.set_channels(1).expect("set_channels(..) failed");
+        hwp.set_rate(44100, ValueOr::Nearest)
+            .expect("set_format(..) failed");
+        hwp.set_format(Format::float())
+            .expect("set_format(..) failed");
+        hwp.set_access(Access::RWInterleaved)
+            .expect("set_access(..) failed");
+        pcm.hw_params(&hwp).unwrap();
+
+        let hwp = pcm.hw_params_current().unwrap();
+        let swp = pcm.sw_params_current().unwrap();
+        swp.set_start_threshold(hwp.get_buffer_size().unwrap())
+            .unwrap();
+        pcm.sw_params(&swp).unwrap();
+
+        println!(
+            "PCM status: {:?}, {:?}",
+            pcm.state(),
+            pcm.hw_params_current().unwrap()
+        );
+        let mut outp = Output::buffer_open().unwrap();
+        pcm.dump(&mut outp).unwrap();
+        println!("== PCM dump ==\n{}", outp);
 
         Self {
             fluffl_audio_device: audio_device,

@@ -94,6 +94,7 @@ impl FlufflWindow {
     }
 
     fn convert_glutin_event_to_fluffl_event(&mut self, glutin_event: be_glutin::event::Event<()>) {
+        
         match glutin_event {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
@@ -103,7 +104,8 @@ impl FlufflWindow {
                     input,
                     is_synthetic,
                     ..
-                } => match (input.state, input.virtual_keycode) {
+                } => {
+                    match (input.state, input.virtual_keycode) {
                     (ElementState::Pressed, Some(code)) => {
                         let code = map_virtual_keycode_to_fluffl(code).expect("couldnt map key");
                         self.events.push_event(EventKind::KeyDown { code })
@@ -113,7 +115,7 @@ impl FlufflWindow {
                         self.events.push_event(EventKind::KeyUp { code })
                     }
                     _ => (),
-                },
+                }},
                 WindowEvent::MouseInput {
                     device_id,
                     state,

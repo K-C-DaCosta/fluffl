@@ -11,9 +11,8 @@ categories = ["graphics", "gui", "game-development", "multimedia", "wasm"]
 license = "MIT OR Apache-2.0"
 
 [features]
-# currently by default sdl2 is enabled, but I want to switch to the glutin backend
+# glutin chosen by default, however, you CAN switch to SDL2 if you want
 default = ["extras", "glutin"]
-
 extras = ["arrayvec", "lewton", "puremp3", "hiero_pack"]
 sdl2 = ["be_sdl2", "glow/sdl2"]
 glutin = ["be_glutin", "glow/glutin"]
@@ -88,9 +87,10 @@ web-sys = { version = "0.3.44", features = [
     'PerformanceTiming',
 ] }
 
-# ....................... 
-# .....desktop deps...... 
-#........................
+
+# ............................... 
+# .....desktop general deps...... 
+# ...............................
 [target.'cfg(not(all(target_family = "wasm", not(target_os = "wasi"))))'.dependencies]
 be_sdl2 = { version = "0.33.0", package = "sdl2", default-features = false, optional = true }
 be_glutin = { version = "0.28", package = "glutin", optional = true }
@@ -102,3 +102,15 @@ glow = { version = "0.6.1", default-features = false, optional = false }
 futures = { version = "0.3.5", default-features = false, features = [
     "executor",
 ] }
+
+# ............................... 
+# ..... desktop linux deps ...... 
+# ...............................
+[target.'cfg(target_os ="linux")'.dependencies]
+alsa = "0.6.0"
+
+# ............................... 
+# .....desktop windows deps...... 
+# ...............................
+[target.'cfg(target_os ="windows")'.dependencies]
+windows = "0.42.0"
