@@ -318,6 +318,13 @@ pub fn draw_game_stage(
 
     let win_dims = window_ptr.window().get_bounds_f32();
 
+    brick_state
+        .painter
+        .update_bounds(window_ptr.window().get_bounds());
+    unsafe {
+        gl.viewport(0, 0, win_dims.0 as i32, win_dims.1 as i32);
+    }
+
     unsafe {
         gl.enable(glow::BLEND);
         gl.blend_func(glow::ONE, glow::ONE);
@@ -363,9 +370,10 @@ pub fn draw_game_stage(
 
     if fired_status == false {
         //if the player hasn't fired 'tie' ball to paddle
+        brick_state.player_paddle.pos[1] = win_dims.1 - brick_state.player_paddle.dims[1]*1.5;
         brick_state.ball_list[0].pos = [
             mouse_pos[0],
-            window_ptr.window().height() as f32
+            window_ptr.window().height() as f32 
                 - brick_state.player_paddle.dims[1] * 0.5
                 - ball_rad * 2.2,
         ];
@@ -462,10 +470,9 @@ pub fn handle_events(
 ) {
     let window = &mut *window_ptr.window_mut();
     let app_state = &mut *app_state.borrow_mut();
-
     let gui_state = &mut app_state.gui_state;
     let boss_intro_track = &mut app_state.boss_intro_track;
-    
+
     for event in window.get_events().flush_iter_mut() {
         match event {
             EventKind::Quit => running.set(false),

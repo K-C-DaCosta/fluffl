@@ -113,4 +113,18 @@ alsa = "0.6.0"
 # .....desktop windows deps...... 
 # ...............................
 [target.'cfg(target_os ="windows")'.dependencies]
-windows = "0.42.0"
+windows = { version = "0.42.0", features = [
+    "Media_Audio",
+    "Foundation",
+    "Devices_Enumeration",
+    "Foundation_Collections",
+    "Media_MediaProperties",
+    "Win32_System_Com",
+    "Win32_Foundation",
+    "Win32_System_Com_StructuredStorage",
+    "Win32_Media_KernelStreaming",
+    "Win32_Media_Audio",
+    "Win32_Media_Multimedia",
+    "Win32_Devices_FunctionDiscovery",
+    "Win32_UI_Shell_PropertiesSystem"
+] }
