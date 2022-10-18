@@ -413,10 +413,16 @@ pub fn draw_game_stage(
                 let brick = brick_state.brick_list[brick_index];
 
                 if let Some(normal) = ball_v_brick_collision(ball, brick) {
-                    let new_vel = reflect(brick_state.ball_list[ball_index].vel, normal);
+                    let mut new_vel = reflect(brick_state.ball_list[ball_index].vel, normal);
                     brick_state.ball_list[ball_index].pos[0] += normal[0];
                     brick_state.ball_list[ball_index].pos[1] += normal[1];
-                    brick_state.ball_list[ball_index].vel = new_vel;
+
+                    //if the ball collides with a brick speed up the ball by 8%
+                    if dot(new_vel,new_vel) <  16900.0 {
+                        new_vel = scale(new_vel, 1.1);
+                    }
+                    
+                    brick_state.ball_list[ball_index].vel =  new_vel;
 
                     brick_state.brick_list[brick_index].brick_health -= 1;
                     brick_state.brick_list[brick_index].glow_weight += 0.5;

@@ -29,12 +29,15 @@ pub trait GenericAudioSpecs {
 pub struct DesiredSpecs {
     pub sample_rate: Option<u32>,
     pub channels: Option<u32>,
+    /// number of samples PER channel (frames)
     pub buffer_size: Option<u32>,
 }
 
+#[derive(Copy, Clone)]
 pub struct ConcreteSpecs {
     pub sample_rate: u32,
     pub channels: usize,
+    /// number of samples PER channel (frames)
     pub buffer_size: usize,
 }
 
