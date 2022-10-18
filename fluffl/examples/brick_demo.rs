@@ -370,10 +370,10 @@ pub fn draw_game_stage(
 
     if fired_status == false {
         //if the player hasn't fired 'tie' ball to paddle
-        brick_state.player_paddle.pos[1] = win_dims.1 - brick_state.player_paddle.dims[1]*1.5;
+        brick_state.player_paddle.pos[1] = win_dims.1 - brick_state.player_paddle.dims[1] * 1.5;
         brick_state.ball_list[0].pos = [
             mouse_pos[0],
-            window_ptr.window().height() as f32 
+            window_ptr.window().height() as f32
                 - brick_state.player_paddle.dims[1] * 0.5
                 - ball_rad * 2.2,
         ];
@@ -418,11 +418,11 @@ pub fn draw_game_stage(
                     brick_state.ball_list[ball_index].pos[1] += normal[1];
 
                     //if the ball collides with a brick speed up the ball by 8%
-                    if dot(new_vel,new_vel) <  16900.0 {
+                    if dot(new_vel, new_vel) < 16900.0 {
                         new_vel = scale(new_vel, 1.1);
                     }
-                    
-                    brick_state.ball_list[ball_index].vel =  new_vel;
+
+                    brick_state.ball_list[ball_index].vel = new_vel;
 
                     brick_state.brick_list[brick_index].brick_health -= 1;
                     brick_state.brick_list[brick_index].glow_weight += 0.5;
@@ -433,7 +433,7 @@ pub fn draw_game_stage(
         }
 
         //delete dead bricks
-        if removable_bricks.is_empty() == false {
+        if !removable_bricks.is_empty() {
             let index = removable_bricks[0];
             if brick_state.brick_list[index].brick_health <= 0 {
                 brick_state.brick_list.remove(index);
@@ -442,7 +442,7 @@ pub fn draw_game_stage(
     }
 
     //draw player paddle
-    if autoplay == false {
+    if !autoplay {
         brick_state.player_paddle.pos[0] = mouse_pos[0] - brick_state.player_paddle.dims[0] / 2.;
     } else {
         brick_state.player_paddle.pos[0] =
@@ -490,7 +490,7 @@ pub fn handle_events(
                             *gui_state = GuiState::Game;
 
                             // start playing the into music track here
-                            boss_intro_track.as_mut().map(|track| {
+                            if let Some(track) = boss_intro_track.as_mut() {
                                 track.modify_state(|state_opt| {
                                     let music_player = state_opt?;
                                     music_player.ticks = 0;
@@ -498,7 +498,7 @@ pub fn handle_events(
                                     Some(())
                                 });
                                 track.resume();
-                            });
+                            }
                         }
                     }
                     KeyCode::KEY_A => {
