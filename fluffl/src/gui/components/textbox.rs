@@ -14,6 +14,12 @@ pub struct CaptionClipper {
     scroll_cursor_percentage: f32,
 }
 
+impl Default for CaptionClipper {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CaptionClipper {
     pub fn new() -> Self {
         Self {
@@ -44,7 +50,7 @@ impl CaptionClipper {
         text_writer: &TextWriter,
         margin_right: f32,
     ) -> &'a str {
-        if text.is_empty() == true {
+        if text.is_empty() {
             self.scroll_cursor = 0;
             self.visible_slice_first_overflow = None;
             return "";
@@ -278,6 +284,12 @@ pub struct TextBoxState {
     t0: Instant,
 }
 
+impl Default for TextBoxState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TextBoxState {
     pub fn new() -> Self {
         Self {
@@ -371,7 +383,7 @@ impl GuiComponent for TextBoxState {
         );
         let position = state.global_position;
 
-        if clipped_text.is_empty() == false {
+        if !clipped_text.is_empty() {
             let text_aabb = text_writer.calc_text_aabb(clipped_text, 0.0, 0.0, text_size);
 
             let aligned_global_position = self.aligner.compute_position(

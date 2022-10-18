@@ -91,7 +91,7 @@ impl<'a, V> Iterator for IntervalSearchIter<'a, V> {
                 .map(|bucket_idx| self.tree.bucket_pool[bucket_idx].is_empty())
                 .unwrap_or_default();
 
-            let yield_res = (sf.visited == false && root_has_no_entries == false).then(|| root);
+            let yield_res = (!sf.visited && !root_has_no_entries).then_some(root);
             sf.visited = true;
             sf.child_cursor += 1;
 

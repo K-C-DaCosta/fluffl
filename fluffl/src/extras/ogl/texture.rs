@@ -18,13 +18,13 @@ impl std::ops::DerefMut for OglTexture {
     }
 }
 
-impl<T> Into<OglTexture> for TextureObj<T>
+impl<T> From<TextureObj<T>> for OglTexture
 where
     T: Copy + Default + 'static,
 {
-    fn into(self) -> OglTexture {
-        OglTexture {
-            inner: Box::new(self),
+    fn from(tex_obj: TextureObj<T>) -> Self {
+        Self {
+            inner: Box::new(tex_obj),
         }
     }
 }
@@ -163,14 +163,16 @@ pub struct TextureObj<T> {
 
 impl<T> Drop for TextureObj<T> {
     fn drop(&mut self) {
-        self.obj_id.map(|id| unsafe {
-            self.gl.delete_texture(id);
-        });
+        if let Some(id) = self.obj_id {
+            unsafe {
+                self.gl.delete_texture(id);
+            }
+        }
     }
 }
 
 impl<'a, T> TextureObj<T> {
-    pub fn new(gl: &GlowGL) -> OglIncomplete<TextureBuilder<'a, T>> {
+    pub fn builder(gl: &GlowGL) -> OglIncomplete<TextureBuilder<'a, T>> {
         let tex_obj = Self {
             gl: gl.clone(),
             obj_id: None,
@@ -242,64 +244,53 @@ where
 
             let pixels = &tex.pixel_vec;
 
-            match tex.info.target {
-                glow::TEXTURE_2D => {
-                    if tex.pixel_vec.len() > 0 {
-                        //if vector (Vec<T>) was set i'll use that
-                        gl.tex_image_2d(
-                            tex.info.target,
-                            tex.info.level as i32,
-                            tex.info.internal_format as i32,
-                            tex.info.width as i32,
-                            tex.info.height as i32,
-                            0,
-                            tex.info.format,
-                            tex.info.comp_type,
-                            Some(pixels.raw_bytes()),
-                        );
-                    } else if tex.pixel_slice.is_some() {
-                        //if slice was provided instead i'll use that
-                        gl.tex_image_2d(
-                            tex.info.target,
-                            tex.info.level as i32,
-                            tex.info.internal_format as i32,
-                            tex.info.width as i32,
-                            tex.info.height as i32,
-                            0,
-                            tex.info.format,
-                            tex.info.comp_type,
-                            tex.pixel_slice,
-                        );
-                    } else {
-                        //if vector is empty and slice was not provided i'll create an empty texture of some size
-                        gl.tex_image_2d(
-                            tex.info.target,
-                            tex.info.level as i32,
-                            tex.info.internal_format as i32,
-                            tex.info.width as i32,
-                            tex.info.height as i32,
-                            0,
-                            tex.info.format,
-                            tex.info.comp_type,
-                            None,
-                        );
-                    }
-
-                    //default texture parameters are here (can be changed later on obv)
-                    gl.tex_parameter_i32(
-                        TEXTURE_2D,
-                        glow::TEXTURE_WRAP_S,
-                        glow::CLAMP_TO_EDGE as i32,
+            if let glow::TEXTURE_2D = tex.info.target {
+                if !tex.pixel_vec.is_empty() {
+                    //if vector (Vec<T>) was set i'll use that
+                    gl.tex_image_2d(
+                        tex.info.target,
+                        tex.info.level as i32,
+                        tex.info.internal_format as i32,
+                        tex.info.width as i32,
+                        tex.info.height as i32,
+                        0,
+                        tex.info.format,
+                        tex.info.comp_type,
+                        Some(pixels.raw_bytes()),
                     );
-                    gl.tex_parameter_i32(
-                        TEXTURE_2D,
-                        glow::TEXTURE_WRAP_T,
-                        glow::CLAMP_TO_EDGE as i32,
+                } else if tex.pixel_slice.is_some() {
+                    //if slice was provided instead i'll use that
+                    gl.tex_image_2d(
+                        tex.info.target,
+                        tex.info.level as i32,
+                        tex.info.internal_format as i32,
+                        tex.info.width as i32,
+                        tex.info.height as i32,
+                        0,
+                        tex.info.format,
+                        tex.info.comp_type,
+                        tex.pixel_slice,
                     );
-                    gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
-                    gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
+                } else {
+                    //if vector is empty and slice was not provided i'll create an empty texture of some size
+                    gl.tex_image_2d(
+                        tex.info.target,
+                        tex.info.level as i32,
+                        tex.info.internal_format as i32,
+                        tex.info.width as i32,
+                        tex.info.height as i32,
+                        0,
+                        tex.info.format,
+                        tex.info.comp_type,
+                        None,
+                    );
                 }
-                _ => (),
+
+                //default texture parameters are here (can be changed later on obv)
+                gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32);
+                gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32);
+                gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_MIN_FILTER, glow::LINEAR as i32);
+                gl.tex_parameter_i32(TEXTURE_2D, glow::TEXTURE_MAG_FILTER, glow::LINEAR as i32);
             }
 
             tex.tex_obj

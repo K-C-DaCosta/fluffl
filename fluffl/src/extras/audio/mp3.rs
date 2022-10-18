@@ -1,13 +1,13 @@
-use crate::audio::{GenericAudioSpecs};
-use super::{AudioSample, AudioBuffer};
-use super::super::{Result,ErrorKind}; 
+use super::super::{ErrorKind, Result};
+use super::{AudioBuffer, AudioSample};
+use crate::audio::GenericAudioSpecs;
 
-//mp3 decoding relies on puremp3 crate, its appears to have performance problems 
+//mp3 decoding relies on puremp3 crate, its appears to have performance problems
 //but its the only crate I've found that targets wasm
 pub use puremp3;
 use puremp3::Mp3Decoder;
 
-
+#[derive(Default)]
 pub struct Mp3File {
     data: Option<Vec<u8>>,
     header: Option<puremp3::FrameHeader>,
@@ -53,27 +53,27 @@ impl From<puremp3::Error> for ErrorKind {
     }
 }
 
-impl Into<Mp3Buffer> for Mp3File {
-    fn into(self) -> Mp3Buffer {
-        let mut buffer = Mp3Buffer {
-            mp3_data: self.data.unwrap(),
-            decoder: None,
-            current_frame: None,
-            frame_index: 0,
-            current_samples: 0,
-            header: None,
-        };
-        buffer.header = Some(self.header.unwrap().clone());
-        buffer.init_decoder();
-        buffer
-    }
-}
+// impl Into<Mp3Buffer> for Mp3File {
+//     fn into(self) -> Mp3Buffer {
+//         let mut buffer = Mp3Buffer {
+//             mp3_data: self.data.unwrap(),
+//             decoder: None,
+//             current_frame: None,
+//             frame_index: 0,
+//             current_samples: 0,
+//             header: None,
+//         };
+//         buffer.header = Some(self.header.unwrap().clone());
+//         buffer.init_decoder();
+//         buffer
+//     }
+// }
 
 pub struct Mp3Buffer {
     // literally just the mp3 file loaded entirely into memory
     mp3_data: Vec<u8>,
 
-    // sound specs 
+    // sound specs
     header: Option<puremp3::FrameHeader>,
 
     // i'm basically lying about the lifetimes to the borrow checker. Its not really desireable,
@@ -83,7 +83,7 @@ pub struct Mp3Buffer {
     // look at the puremp3 docs and code for a better solution.
     decoder: Option<Mp3Decoder<&'static [u8]>>,
 
-    // I guess mp3 format has things called frames that contain segments of PCM 
+    // I guess mp3 format has things called frames that contain segments of PCM
     current_frame: Option<puremp3::Frame>,
 
     // internal state of the buffer needed to resume playback
@@ -91,6 +91,7 @@ pub struct Mp3Buffer {
     current_samples: usize,
 }
 impl Mp3Buffer {
+    #[allow(dead_code)]
     fn init_decoder(&mut self) {
         //In this line im saying to the BC:"just trust me bro this slice is static." (its obviously not static)
         let slice = unsafe { std::mem::transmute(&self.mp3_data[..]) };
@@ -106,21 +107,19 @@ impl Drop for Mp3Buffer {
     }
 }
 
-impl GenericAudioSpecs for Mp3Buffer{
+impl GenericAudioSpecs for Mp3Buffer {
     fn sample_rate(&self) -> Option<u32> {
-        self.header.as_ref().map(|hdr| {
-            hdr.sample_rate.hz()
-        })
+        self.header.as_ref().map(|hdr| hdr.sample_rate.hz())
     }
     // the mp3 lib Im using makes this irrelevant
-    fn bits_per_sample(&self) -> Option<u32> {        
+    fn bits_per_sample(&self) -> Option<u32> {
         None
     }
-    
-    fn channels(&self)->Option<u32>{
-        self.header.as_ref().map(|hdr| {
-            hdr.channels.num_channels() as u32
-        })
+
+    fn channels(&self) -> Option<u32> {
+        self.header
+            .as_ref()
+            .map(|hdr| hdr.channels.num_channels() as u32)
     }
 }
 
@@ -161,7 +160,7 @@ impl AudioBuffer<f32> for Mp3Buffer {
                     self.current_frame = match decoder.next_frame() {
                         Ok(frame) => Some(frame),
                         Err(_err) => {
-                            println!("decoder error: {}", _err.to_string());
+                            println!("decoder error: {}", _err);
                             None
                         }
                     };

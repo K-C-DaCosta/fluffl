@@ -6,6 +6,8 @@ use super::{AudioSample, AudioBuffer};
 use lewton::inside_ogg::OggStreamReader;
 use std::io::{BufReader, Cursor};
 
+
+#[derive(Default)]
 pub struct OggFile {
     data: Option<Vec<u8>>,
     header: Option<lewton::header::IdentHeader>,
@@ -63,11 +65,12 @@ impl Drop for OggBuffer {
     }
 }
 
-impl Into<OggBuffer> for OggFile {
-    fn into(self) -> OggBuffer {
-        let mut buffer = OggBuffer {
-            header: self.header.unwrap(),
-            ogg_data: self.data.unwrap_or_default(),
+
+impl From<OggFile> for OggBuffer{
+    fn from(of: OggFile) -> Self {
+        let mut buffer = Self{
+            header: of.header.unwrap(),
+            ogg_data: of.data.unwrap_or_default(),
             ogg_reader: None,
             cur_samples: Vec::new(),
             cur_index: 0,
@@ -75,7 +78,9 @@ impl Into<OggBuffer> for OggFile {
         buffer.init_buffer().expect("ogg parse failed");
         buffer
     }
+
 }
+
 
 impl GenericAudioSpecs for OggFile {
     fn sample_rate(&self) -> Option<u32> {

@@ -11,7 +11,7 @@ use crate::{
 };
 
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{hash_map::Entry, HashMap, VecDeque},
     fmt::Debug,
 };
 
@@ -53,19 +53,19 @@ struct MixerCursor {
 impl MixerCursor {
     pub fn new(t0: SampleTime, delta: SampleTime) -> Self {
         Self {
-            t0: t0,
-            delta: delta,
+            t0,
+            delta,
         }
     }
 
-    pub fn to_interval_ms(&self) -> Interval {
+    pub fn to_interval_ms(self) -> Interval {
         let lo = self.t0.elapsed_in_ms_fp();
         let hi = self.t0.sum(&self.delta).elapsed_in_ms_fp();
         Interval { lo, hi }
     }
 
     #[allow(dead_code)]
-    pub fn to_interval_tuple_ms_f32(&self) -> (f32, f32) {
+    pub fn to_interval_tuple_ms_f32(self) -> (f32, f32) {
         let lo = self.t0.elapsed_in_ms_f32();
         let hi = self.t0.sum(&self.delta).elapsed_in_ms_f32();
         (lo, hi)
@@ -268,8 +268,6 @@ impl Mixer {
         self.global_t.increment(cursor.delta.samps());
     }
 
-
-
     fn mix_active_tracks(&mut self, cursor: MixerCursor, output_buffer: PCMSlice<f32>) {
         // its easier to pull audio from tracks KNOWING that the cursor for the output buffer starts at ZERO
         self.handle_intersecting_tracks_not_first_time(cursor, output_buffer);
@@ -278,7 +276,6 @@ impl Mixer {
         self.handle_intersecting_tracks(cursor, output_buffer);
     }
 
-    
     fn handle_intersecting_tracks(
         &mut self,
         cursor: MixerCursor,
@@ -393,12 +390,13 @@ impl Mixer {
         track_chart
             .search_interval(&mut TreeIterState::new(), cursor.to_interval_ms())
             .for_each(|(gi, _)| {
-                if !running_streams_table.contains_key(&gi) {
+                if let Entry::Vacant(vacant_entry) = running_streams_table.entry(gi) {
                     running_streams_on_intersection.push(gi);
                     // At this stage it is good enough to know that the stream is being mixed
                     // Inserting (GlobalIndex, Ptr::NULL) into the table tells us the stream is being mixed but
                     // hasn't been added to the running_streams linkedlist yet (its still intersecting)
-                    running_streams_table.insert(gi, Ptr::null());
+                    vacant_entry.insert(Ptr::null());
+
 
                     let track_id = track_id_table
                         .iter()
@@ -411,7 +409,28 @@ impl Mixer {
                     ));
 
                     // println!("[{:?}] added",gi);
+
                 }
+
+                // if !running_streams_table.contains_key(&gi) {
+                //     running_streams_on_intersection.push(gi);
+                //     // At this stage it is good enough to know that the stream is being mixed
+                //     // Inserting (GlobalIndex, Ptr::NULL) into the table tells us the stream is being mixed but
+                //     // hasn't been added to the running_streams linkedlist yet (its still intersecting)
+                //     running_streams_table.insert(gi, Ptr::null());
+
+                //     let track_id = track_id_table
+                //         .iter()
+                //         .find(|&(_, &v)| v == gi)
+                //         .map(|(&k, _)| k)
+                //         .expect("track_id should exist");
+
+                //     local_response_queue.push_back(MixerResponse::MixerEvent(
+                //         MixerEventKind::TrackStarted(track_id),
+                //     ));
+
+                //     // println!("[{:?}] added",gi);
+                // }
             });
     }
 
@@ -804,7 +823,7 @@ fn mix_resample_audio_both_2_channels_slow_reference(src: &[f32], dst: &mut [f32
     }
 }
 
-#[allow(dead_code)]
+#[allow(dead_code,clippy::identity_op)]
 fn mix_resample_audio_both_2_channels_iterator_version_vectorized(src: &[f32], dst: &mut [f32]) {
     const NUM_CHANNELS: usize = 2;
 

@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use fluffl::{
     audio::*,
     extras::{
@@ -20,7 +18,7 @@ type ShortDeviceContext = FlufflAudioDeviceContext<ShortCallback, ShortState>;
 
 static mut RAND_STATE: u64 = 0;
 
-static FLUFFL_CONFIG: &'static str = "
+static FLUFFL_CONFIG: &str = "
     <window>
         <width>800</width>
         <height>600</height>
@@ -140,7 +138,7 @@ impl BrickAppState {
             brick_list: vec![],
             mouse_pos: [0.; 2],
             painter: ShapePainter2D::new(gl),
-            player_paddle: player_paddle,
+            player_paddle,
             time: 0.0,
             writer: None,
             ball_fired: false,
@@ -199,7 +197,7 @@ pub async fn main() {
     let intro_device: ShortDeviceContext = FlufflAudioDeviceContext::new(
         AudioDeviceCore::new()
             .with_specs(DesiredSpecs {
-                sample_rate: boss_intro.sample_rate().map(|rate| rate),
+                sample_rate: boss_intro.sample_rate(),
                 channels: Some(1),
                 buffer_size: Some(4028),
             })
@@ -218,7 +216,7 @@ pub async fn main() {
     let main_device: ShortDeviceContext = FlufflAudioDeviceContext::new(
         AudioDeviceCore::new()
             .with_specs(DesiredSpecs {
-                sample_rate: boss_main.sample_rate().map(|rate| rate),
+                sample_rate: boss_main.sample_rate(),
                 channels: Some(1),
                 buffer_size: Some(512),
             })
@@ -257,7 +255,7 @@ pub async fn main_loop(
     running: FlufflRunning,
     app_state: FlufflState<BrickAppState>,
 ) {
-    handle_events(window_ptr.clone(), app_state.clone(), running.clone());
+    handle_events(window_ptr.clone(), app_state.clone(), running);
     let screen_bounds = window_ptr.window().get_bounds();
     let gl = window_ptr.window().gl();
     let time = app_state.borrow().time;
@@ -266,7 +264,7 @@ pub async fn main_loop(
         let gui_state = app_state.borrow().gui_state;
         match gui_state {
             GuiState::Menu => {
-                app_state.borrow_mut().writer.as_mut().map(|writer| {
+                if let Some(writer) = app_state.borrow_mut().writer.as_mut() {
                     writer.draw_text_line_preserved(
                         "Rust Bricks",
                         screen_bounds.0 as f32 * 0.5 - 155.,
@@ -296,10 +294,10 @@ pub async fn main_loop(
                         height,
                         Some(screen_bounds),
                     );
-                });
+                }
             }
             GuiState::Game => {
-                draw_game_stage(&gl, app_state.clone(), window_ptr.clone());
+                draw_game_stage(&gl, app_state.clone(), window_ptr);
             }
         }
     }
@@ -368,7 +366,7 @@ pub fn draw_game_stage(
         main_track.resume();
     }
 
-    if fired_status == false {
+    if !fired_status {
         //if the player hasn't fired 'tie' ball to paddle
         brick_state.player_paddle.pos[1] = win_dims.1 - brick_state.player_paddle.dims[1] * 1.5;
         brick_state.ball_list[0].pos = [
@@ -509,8 +507,8 @@ pub fn handle_events(
             }
             EventKind::MouseDown { button_code, .. } => {
                 let fired_status = app_state.ball_fired;
-                if gui_state.clone() == GuiState::Game
-                    && fired_status == false
+                if !fired_status
+                    && *gui_state == GuiState::Game
                     && button_code == MouseCode::LEFT_BUTTON
                 {
                     app_state.ball_fired = true;

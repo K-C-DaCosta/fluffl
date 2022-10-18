@@ -1,3 +1,5 @@
+use std::cmp::Ordering;
+
 use super::*;
 use crate::mem;
 
@@ -35,7 +37,7 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         let tree = self.tree;
 
-        if self.covered_root == false {
+        if !self.covered_root {
             self.covered_root = true;
 
             return Some(StackSignal::Nop)
@@ -58,15 +60,23 @@ impl<'a, T> Iterator for StackSignalIterator<'a, T> {
             let cur_level = level[cur_node];
             let diff = cur_level as isize - level[cur_node - 1] as isize;
 
-            let signal = if diff == 0 {
-                StackSignal::Nop
-            } else if diff > 0 {
-                StackSignal::Push
-            } else {
-                StackSignal::Pop {
-                    n_times: diff.abs() as usize,
-                }
+            let signal = match diff.cmp(&0) {
+                Ordering::Equal => StackSignal::Nop,
+                Ordering::Greater => StackSignal::Push,
+                Ordering::Less => StackSignal::Pop {
+                    n_times: diff.unsigned_abs(),
+                },
             };
+
+            // let signal = if diff == 0 {
+            //     StackSignal::Nop
+            // } else if diff > 0 {
+            //     StackSignal::Push
+            // } else {
+            //     StackSignal::Pop {
+            //         n_times: diff.abs() as usize,
+            //     }
+            // };
 
             (signal, tree.node_id[cur_node], unsafe {
                 data[cur_node].assume_init_ref()
@@ -99,7 +109,7 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
     fn next(&mut self) -> Option<Self::Item> {
         //allows me to split-borrow the tree
         let tree = unsafe { mem::force_borrow_mut(self.tree) };
-        
+
         if !self.covered_root {
             self.covered_root = true;
             return Some(StackSignal::Nop)
@@ -123,14 +133,12 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
             let cur_level = level[cur_node];
             let diff = cur_level as isize - level[cur_node - 1] as isize;
 
-            let signal = if diff == 0 {
-                StackSignal::Nop
-            } else if diff > 0 {
-                StackSignal::Push
-            } else {
-                StackSignal::Pop {
-                    n_times: diff.abs() as usize,
-                }
+            let signal = match diff.cmp(&0) {
+                Ordering::Equal => StackSignal::Nop,
+                Ordering::Greater => StackSignal::Push,
+                Ordering::Less => StackSignal::Pop {
+                    n_times: diff.unsigned_abs(),
+                },
             };
 
             (signal, node_id[cur_node], unsafe {

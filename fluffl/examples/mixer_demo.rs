@@ -256,7 +256,7 @@ async fn process_events(
                 }
 
                 //handle keyboard notes
-                if is_key_down.contains(&code) == false {
+                if !is_key_down.contains(&code) {
                     if let Some(&wave_frequency) = key_frequency_table.get(&code) {
                         let wave_frequency = wave_frequency as f64;
                         let id = mixer_device.gen_id();
@@ -295,7 +295,7 @@ async fn process_events(
                 }
 
                 //insert towards the end
-                if is_key_down.contains(&code) == false {
+                if !is_key_down.contains(&code) {
                     console_log!("char = {}\n", code.key_val().unwrap());
                     is_key_down.insert(code);
                 }
@@ -457,7 +457,7 @@ async fn draw_scene(
     //     Some(())
     // });
 
-    writer.draw_text_line(&temp_text, 0.0, 200.0, 32.0, Some(window_bounds));
+    writer.draw_text_line(temp_text, 0.0, 200.0, 32.0, Some(window_bounds));
 }
 
 async fn handle_mixer_responses(

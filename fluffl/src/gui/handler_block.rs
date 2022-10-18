@@ -3,6 +3,7 @@ use super::*;
 const MAX_EVENT_LISTENERS: usize = 16;
 
 /// User defined handlers for all events
+#[derive(Default)]
 pub struct ComponentHandlerBlock<ProgramState> {
     handlers: Vec<Vec<ListenerCallBack<ProgramState>>>,
 }
@@ -24,13 +25,10 @@ impl<ProgramState> ComponentHandlerBlock<ProgramState> {
         self.handlers[listener.kind as usize].push(listener.callback);
     }
 
-    pub fn fire_handler<'a>(
-        &mut self,
-        kind: GuiEventKind,
-        state: EventListenerInfo<'a, ProgramState>,
-    ) {
+    pub fn fire_handler(&mut self, kind: GuiEventKind, state: EventListenerInfo<'_, ProgramState>) {
         for handle in self.handlers[kind as usize].iter_mut() {
-            let state: EventListenerInfo<ProgramState> = unsafe { std::mem::transmute_copy(&state) };
+            let state: EventListenerInfo<ProgramState> =
+                unsafe { std::mem::transmute_copy(&state) };
             handle(state);
         }
     }

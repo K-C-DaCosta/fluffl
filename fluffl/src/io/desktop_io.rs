@@ -39,15 +39,11 @@ fn load_file_helper(file_path: &str) -> Result<Vec<u8>, FlufflError> {
     };
 
     let mut byte_buffer = Vec::new();
-    match file.read_to_end(&mut byte_buffer) {
-        Err(_) => {
-            return Err(FlufflError::IOError(format!(
-                "failed to read {}",
-                file_path
-            )))
-        }
-        _ => (),
+    if file.read_to_end(&mut byte_buffer).is_err() {
+        return Err(FlufflError::IOError(format!(
+            "failed to read {}",
+            file_path
+        )));
     }
-
     Ok(byte_buffer)
 }

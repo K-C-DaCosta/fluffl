@@ -10,12 +10,19 @@ mod origin;
 mod slider;
 mod textbox;
 
-use self::{component_flags::ComponentFlags};
+use self::component_flags::ComponentFlags;
 pub use self::{frame::*, label::*, origin::*, slider::*, textbox::*};
 
 pub struct TextAligner2D {
     alignment_mode_per_axis: [TextAlignment; 2],
 }
+
+impl Default for TextAligner2D{
+    fn default()->Self{
+        Self::new()
+    }
+}
+
 impl TextAligner2D {
     pub fn new() -> Self {
         Self {
@@ -75,7 +82,7 @@ pub struct ComponentEventListener<ProgramState> {
     pub callback: ListenerCallBack<ProgramState>,
 }
 
-impl <ProgramState> ComponentEventListener <ProgramState>{
+impl<ProgramState> ComponentEventListener<ProgramState> {
     pub const fn new(kind: GuiEventKind, callback: ListenerCallBack<ProgramState>) -> Self {
         Self { kind, callback }
     }
@@ -116,6 +123,7 @@ impl<'a> Clone for RenderState<'a> {
 }
 
 impl<'a> RenderState<'a> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         key: GuiComponentKey,
         global_position: Vec4<f32>,
@@ -147,14 +155,6 @@ pub struct EventListenerInfo<'a, ProgramState> {
     pub mutation_queue: &'a mut MutationRequestQueue<ProgramState>,
 }
 
-impl<'a, ProgramState> Into<&'a mut LinearTree<Box<dyn GuiComponent>>>
-    for EventListenerInfo<'a, ProgramState>
-{
-    fn into(self) -> &'a mut LinearTree<Box<dyn GuiComponent>> {
-        self.gui_comp_tree
-    }
-}
-
 #[derive(Clone)]
 pub struct GuiCommonState {
     rel_pos: Vec2<f32>,
@@ -162,7 +162,11 @@ pub struct GuiCommonState {
     flags: ComponentFlags,
     name: String,
 }
-
+impl Default for GuiCommonState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl GuiCommonState {
     pub fn new() -> Self {
         Self {
@@ -193,7 +197,7 @@ pub trait GuiComponent {
     fn name(&self) -> &str {
         self.common().name.as_str()
     }
-    
+
     fn set_name(&mut self, name: &str) {
         let common = self.common_mut();
         common.name.clear();
@@ -276,9 +280,10 @@ pub trait GuiComponent {
 }
 
 const LAYER_BIAS: i32 = 128;
-/// used
+
+#[allow(clippy::identity_op)]
 pub fn layer_lock(gl: &GlowGL, layer_id: i32, flags: ComponentFlags) {
-    if flags.is_set(component_flags::OVERFLOWABLE) == false {
+    if !flags.is_set(component_flags::OVERFLOWABLE)  {
         layer_lock_always(gl, layer_id);
     } else {
         unsafe {
@@ -290,6 +295,8 @@ pub fn layer_lock(gl: &GlowGL, layer_id: i32, flags: ComponentFlags) {
     }
 }
 
+
+#[allow(clippy::identity_op)]
 pub fn layer_lock_always(gl: &GlowGL, layer_id: i32) {
     if layer_id == 1 {
         //initalize the stencil buffer for the first layer

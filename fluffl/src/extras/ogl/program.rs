@@ -7,6 +7,7 @@ pub struct OglProg {
 }
 
 impl OglProg {
+    #[allow(clippy::clone_on_copy)]
     pub fn prog(&self) -> glow::Program {
         self.prog.clone()
     }
@@ -68,7 +69,7 @@ impl OglProg {
                 let shader: glow::Shader = gl.create_shader(*shader_type).unwrap();
                 gl.shader_source(shader, source.as_str());
                 gl.compile_shader(shader);
-                if gl.get_shader_compile_status(shader) == false {
+                if !gl.get_shader_compile_status(shader) {
                     let compile_error = gl.get_shader_info_log(shader);
                     Err(CompilationError::ShaderError {
                         ogl_error: compile_error,
@@ -80,6 +81,7 @@ impl OglProg {
             },
         );
 
+        #[allow(clippy::clone_on_copy)]
         let program = unsafe {
             let mut shaders = Vec::new();
             let program = gl.create_program().unwrap();
@@ -89,18 +91,21 @@ impl OglProg {
                 let cur_shader: glow::Shader = shaders.last().unwrap().clone();
                 gl.attach_shader(program, cur_shader);
             }
+
             gl.link_program(program);
-            if gl.get_program_link_status(program) == false {
+            if !gl.get_program_link_status(program) {
                 let ogl_error = gl.get_program_info_log(program);
                 return Err(CompilationError::ShaderError {
                     ogl_error,
                     faulty_source: String::new(),
                 });
             }
+
             for shader in shaders {
                 gl.detach_shader(program, shader);
                 gl.delete_shader(shader);
             }
+
             OglProg {
                 gl: gl.clone(),
                 prog: program,
@@ -151,8 +156,8 @@ impl ToString for SlToken {
             SlToken::If(text) => format!("#if {}\n", text),
             SlToken::Ifndef(text) => format!("#ifndef {}\n", text),
             SlToken::Define(text) => format!("#define {}\n", text),
-            SlToken::Source(text) => format!("{}", text),
-            SlToken::Endif => format!("#endif\n"),
+            SlToken::Source(text) => text.to_string(),
+            SlToken::Endif => "endif\n".to_string(),
         }
     }
 }
@@ -173,14 +178,14 @@ fn tokensize_source(raw_source: &str) -> Vec<SlToken> {
 
     let push_source = |accum: &mut String, tokens: &mut Vec<_>| {
         let all_whitespece = accum.chars().all(|a| a.is_whitespace());
-        if accum.len() > 0 && all_whitespece == false {
+        if !accum.is_empty() && !all_whitespece {
             tokens.push(SlToken::Source(accum.clone()));
         }
         accum.clear();
     };
 
-    while source_iter.peek().is_some() || accum.is_empty() == false || state != LexState::Start {
-        let c = source_iter.next().unwrap_or_else(|| '\0');
+    while source_iter.peek().is_some() || !accum.is_empty() || state != LexState::Start {
+        let c = source_iter.next().unwrap_or('\0');
         match state {
             LexState::Start => {
                 if let ('#', true, _iter) = lookahead(c, "ifndef", source_iter.clone()) {
@@ -250,7 +255,7 @@ where
     (c, eq_test, iter)
 }
 
-fn get_source_block(tokens: &Vec<SlToken>, block_ident: &'static str) -> Option<(usize, usize)> {
+fn get_source_block(tokens: &[SlToken], block_ident: &'static str) -> Option<(usize, usize)> {
     let mut found_ifndef = false;
     let query: ArrayVec<[usize; 4]> = tokens
         .iter()
@@ -281,24 +286,22 @@ fn get_source_block(tokens: &Vec<SlToken>, block_ident: &'static str) -> Option<
 }
 
 fn gen_shader_module(
-    tokens: &Vec<SlToken>,
+    tokens: &[SlToken],
     code_blocks: Vec<Option<(usize, usize)>>,
 ) -> Option<String> {
     let mut source = String::new();
 
     //the last element in the tokens list is always the core shader source ( void main(){ ... }  )
-    if tokens.last().is_none() {
-        return None;
-    }
+    tokens.last()?;
 
-    code_blocks.iter().for_each(|opt| {
-        opt.map(|(lbound, ubound)| {
-            for k in lbound + 1..ubound {
-                // print!("{}",tokens[k].to_string());
-                source.push_str(tokens[k].to_string().as_str());
-            }
+    code_blocks
+        .iter()
+        .copied()
+        .flatten()
+        .flat_map(|(lbound, ubound)| tokens.iter().take(ubound).skip(lbound + 1))
+        .for_each(|tok| {
+            source.push_str(tok.to_string().as_str());
         });
-    });
 
     Some(source)
 }

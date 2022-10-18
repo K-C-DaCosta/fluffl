@@ -70,6 +70,11 @@ pub struct FrameState {
     focused_scrollbar: FocusedScrollBarKind,
 }
 
+impl Default for FrameState{
+    fn default()->Self{
+        Self::new()
+    }
+}
 
 impl FrameState {
     pub fn new() -> Self {
@@ -175,7 +180,7 @@ impl GuiComponent for FrameState {
         state: RenderState<'b>,
         _text_writer: &mut TextWriter,
     ) {
-        if self.is_visible() == false {
+        if !self.is_visible()  {
             return;
         }
 
@@ -255,7 +260,7 @@ impl GuiComponent for FrameState {
             .unwrap_or_default();
 
         let can_draw_hori_mask = can_draw_horizontal as u32 as f32;
-        let can_draw_vert_mask = can_draw_vertical as u32 as f32;
+        let _can_draw_vert_mask = can_draw_vertical as u32 as f32;
 
         if self.is_scrollbars_enabled {
             const SCROLLBAR_DEPTH: f32 = 0.0;

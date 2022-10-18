@@ -25,7 +25,7 @@ static DEFAULT_WHITE_SPACE_LEN: f32 = 24.0;
 static CHARACTER_BUFFER_LEN: usize = 256;
 
 ///The default shader hardcoded for portability purposes
-static DEFAULT_PROGRAM: &'static str = r"
+static DEFAULT_PROGRAM: &str = r"
     #ifndef HEADER
         #version 300 es
         precision mediump float;
@@ -119,8 +119,8 @@ impl WriterState {
     fn flush(
         &mut self,
         gl: &GlowGL,
-        vert_buffer: &mut Box<dyn HasBufferObj>,
-        uv_buffer: &mut Box<dyn HasBufferObj>,
+        vert_buffer: &mut dyn HasBufferObj,
+        uv_buffer: &mut dyn HasBufferObj,
     ) {
         // submit changes to opengl
         uv_buffer.update();
@@ -152,7 +152,8 @@ pub struct TextWriter {
     gl: GlowGL,
     text_geometry: OglArray,
     renderer: OglProg,
-    atlas_table: HashMap<String, RcRefCell<HieroAtlas>>,
+    /// used to switch between fonts -  currently unimplemented
+    _atlas_table: HashMap<String, RcRefCell<HieroAtlas>>,
     atlas: Option<HieroAtlas>,
     projection_mat_loc: Option<UniformLocation>,
     model_loc: Option<UniformLocation>,
@@ -177,16 +178,13 @@ impl TextWriter {
         let renderer = match OglProg::compile_program(gl, DEFAULT_PROGRAM) {
             Ok(prog) => prog,
             Err(comp_err) => {
-                match comp_err {
-                    CompilationError::ShaderError {
-                        ogl_error,
-                        faulty_source,
-                    } => {
-                        console_log!("ogl_error:\n{}\nsource:{}\n", ogl_error, faulty_source);
-                    }
-                    _ => (),
-                };
-
+                if let CompilationError::ShaderError {
+                    ogl_error,
+                    faulty_source,
+                } = comp_err
+                {
+                    console_log!("ogl_error:\n{}\nsource:{}\n", ogl_error, faulty_source);
+                }
                 panic!("shader compiler error");
             }
         };
@@ -207,7 +205,7 @@ impl TextWriter {
             ),
             BufferPair::new(
                 "uvs",
-                OglBuf::new(&gl)
+                OglBuf::new(gl)
                     .with_usage(DYNAMIC_DRAW)
                     .with_data(uv_data)
                     .with_index(2)
@@ -225,8 +223,8 @@ impl TextWriter {
 
             OglIncomplete::new(Self {
                 gl: gl.clone(),
-                renderer: renderer,
-                atlas_table: HashMap::new(),
+                renderer,
+                _atlas_table: HashMap::new(),
                 atlas: None,
                 model_loc,
                 projection_mat_loc: proj_loc,
@@ -252,9 +250,9 @@ impl TextWriter {
     }
 
     /// returns previous scaling factor
-    pub fn set_scaling_factor(&mut self,sf:f32)->f32{
-        let pf = self.horizontal_scale_factor; 
-        self.horizontal_scale_factor =sf;
+    pub fn set_scaling_factor(&mut self, sf: f32) -> f32 {
+        let pf = self.horizontal_scale_factor;
+        self.horizontal_scale_factor = sf;
         pf
     }
 
@@ -265,7 +263,7 @@ impl TextWriter {
     /// - `x0`,`y0` - the top left corner of the bounding box
     /// - `size` - the vertical height of the text
     pub fn calc_text_aabb(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
-        if text.len() != 0 {
+        if !text.is_empty() {
             let src_bb = self.calculate_bounding_box(x0, y0, text);
             AABB {
                 x: src_bb.x,
@@ -292,7 +290,7 @@ impl TextWriter {
     /// # Comments
     /// In order to avoid 'squished' looking text, I try to maintain aspect ratio of unscaled glyphs
     pub fn calc_text_aabb_preserved(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
-        if text.len() != 0 {
+        if !text.is_empty() {
             let src_bb = self.calculate_bounding_box(x0, y0, text);
             let aspect_ratio = src_bb.w / src_bb.h;
             let width = aspect_ratio * size;
@@ -335,7 +333,7 @@ impl TextWriter {
         screen_bounds: T,
     ) {
         //just covering base cases
-        if text.len() == 0 {
+        if text.is_empty() {
             return;
         }
         let screen_bounds = screen_bounds.into();
@@ -374,7 +372,7 @@ impl TextWriter {
         screen_bounds: Option<(u32, u32)>,
     ) {
         //just covering base cases
-        if text.len() == 0 {
+        if text.is_empty() {
             return;
         }
         let gl = self.gl.clone();
@@ -404,21 +402,18 @@ impl TextWriter {
         self.text_geometry.bind(true);
 
         //if it exists, bind texture to texture unit 0
-        self.page_texture
-            .as_ref()
-            .map(|texture| texture.bind(0, self.page_loc.as_ref()));
+        if let Some(texture) = self.page_texture.as_ref() {
+            texture.bind(0, self.page_loc.as_ref())
+        }
 
         //force split borrow here
-        let uv_buffer: &mut Box<dyn HasBufferObj> = unsafe {
-            let ptr = self.text_geometry.get_mut("uvs").unwrap() as *mut Box<dyn HasBufferObj>;
-            &mut *ptr
+        let (uv_buffer_ptr, vert_buffer_ptr) = {
+            (
+                self.text_geometry.get_mut("uvs").unwrap() as *mut dyn HasBufferObj,
+                self.text_geometry.get_mut("verts").unwrap() as *mut dyn HasBufferObj,
+            )
         };
-
-        //force split borrow here too
-        let vert_buffer: &mut Box<dyn HasBufferObj> = unsafe {
-            let ptr = self.text_geometry.get_mut("verts").unwrap() as *mut Box<dyn HasBufferObj>;
-            &mut *ptr
-        };
+        let (uv_buffer, vert_buffer) = unsafe { (&mut *uv_buffer_ptr, &mut *vert_buffer_ptr) };
 
         //intitalize render state
         let mut writer_state = WriterState {
@@ -432,23 +427,19 @@ impl TextWriter {
 
         let first_char = text.chars().next().unwrap();
 
-        let first_page = self
-            .atlas
-            .as_ref()
-            .map(|atlas| {
-                atlas
-                    .bitmap_table
-                    .get(&first_char)
-                    .map(|bitmap| bitmap.page)
-            })
-            .flatten();
+        let first_page = self.atlas.as_ref().and_then(|atlas| {
+            atlas
+                .bitmap_table
+                .get(&first_char)
+                .map(|bitmap| bitmap.page)
+        });
 
-        first_page.map(|index| {
+        if let Some(index) = first_page {
             if self.cur_page() != index as usize {
                 self.decode_page(index as usize);
                 self.new_page(index as usize);
             }
-        });
+        }
 
         unsafe {
             //enable blending here
@@ -463,9 +454,8 @@ impl TextWriter {
             let bitmap = self
                 .atlas
                 .as_ref()
-                .map(|atlas| atlas.bitmap_table.get(&character))
-                .flatten()
-                .map(|&a| a);
+                .and_then(|atlas| atlas.bitmap_table.get(&character))
+                .copied();
 
             let adv = bitmap.map_or((whitespace, 0.), |bitmap| {
                 let new_page = bitmap.page as usize;
@@ -473,7 +463,7 @@ impl TextWriter {
 
                 if new_page != cur_page {
                     //flush buffer old buffer
-                    writer_state.flush(&gl, vert_buffer, uv_buffer);
+                    writer_state.flush(gl, vert_buffer, uv_buffer);
                     //load new_page
                     self.decode_page(new_page);
                 }
@@ -506,7 +496,7 @@ impl TextWriter {
 
             if writer_state.buffers_are_full(k) {
                 //opengl draw call happens here
-                writer_state.flush(&gl, vert_buffer, uv_buffer);
+                writer_state.flush(gl, vert_buffer, uv_buffer);
             }
         }
 
@@ -518,7 +508,7 @@ impl TextWriter {
 
     fn decode_page(&mut self, new_page: usize) {
         //decode new page and update OglTexture
-        self.atlas.as_ref().map(|atlas| {
+        if let Some(atlas) = self.atlas.as_ref() {
             atlas
                 .try_unpack_page(new_page)
                 .map(|page| {
@@ -531,7 +521,7 @@ impl TextWriter {
                     panic!("Error: {}", err);
                 })
                 .unwrap();
-        });
+        }
     }
 
     /// # Description
@@ -576,7 +566,7 @@ impl TextWriter {
         let pen_y = y0;
 
         let whitespace = self.whitespace();
-        self.atlas.as_ref().map(|atlas| {
+        if let Some(atlas) = self.atlas.as_ref() {
             char_iter.for_each(|c| {
                 let x_adv = atlas.bitmap_table.get(&c).map_or_else(
                     || whitespace,
@@ -609,7 +599,7 @@ impl TextWriter {
 
                 pen_x += x_adv;
             });
-        });
+        }
 
         minx = minx.min(pen_x);
         maxx = maxx.max(pen_x);
@@ -625,6 +615,7 @@ impl TextWriter {
     }
 
     ///computes quads verticies and uv coordinates and writes then to the appropriate slices
+    #[allow(clippy::identity_op)]
     fn set_glyph(vert: &mut [f32], uvs: &mut [f32], vb: AABB, hb: AABB, offset: usize) {
         //it seems hiero pages are always 512x512
         const INV_PAGE_DIM: f32 = 1.0 / 512.;
@@ -685,8 +676,7 @@ impl TextWriter {
     /// the current whitespace settings are not desireable
     /// - there should be a public "`set_whitespace(..)` or `with_whitespace(..)`" function, but currently one doesn't exist
     fn whitespace(&self) -> f32 {
-        self.whitespace_len
-            .unwrap_or_else(|| DEFAULT_WHITE_SPACE_LEN)
+        self.whitespace_len.unwrap_or(DEFAULT_WHITE_SPACE_LEN)
     }
 
     #[allow(dead_code)]
@@ -723,7 +713,7 @@ impl HasTextWriterBuilder for OglIncomplete<TextWriter> {
 
         self.inner.page_texture = atlus.try_unpack_page(0).ok().map(|page| {
             let info = page.info();
-            TextureObj::<u8>::new(gl)
+            TextureObj::<u8>::builder(gl)
                 .with_width(info.width)
                 .with_height(info.height)
                 .with_format(glow::RGBA)

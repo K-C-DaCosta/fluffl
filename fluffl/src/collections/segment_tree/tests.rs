@@ -19,8 +19,7 @@ fn delete_sanity() {
     let total_nodes_before_remove = tree.linear_tree.nodes().len();
     println!("tree before:");
     tree.print_tree("-+");
-
-    println!("");
+    println!();
     for (_, &int) in intervals.iter().enumerate() {
         tree.remove(&mut TreeIterState::new(), int)
             .for_each(|item| {
@@ -67,8 +66,8 @@ fn delete_sanity() {
 #[test]
 fn delete_by_global_id_simpe_test() {
     let mut tree = CircularSegmentTree::<i32>::new(3, 1024);
-    
-    let gid = tree.insert(Interval::from((0, 50)), 5);    
+
+    let gid = tree.insert(Interval::from((0, 50)), 5);
     tree.insert(Interval::from((50, 100)), 6);
     tree.insert(Interval::from((100, 110)), 7);
 
@@ -79,7 +78,6 @@ fn delete_by_global_id_simpe_test() {
 
     // println!("tree after:");
     // tree.print_tree(".");
-
 
     assert_eq!(item, Some(5));
 }
@@ -147,8 +145,7 @@ fn delete_shotgun_0() {
 
     println!("tree before:");
     tree.print_tree("-+");
-
-    println!("");
+    println!();
     for (_, &int) in intervals.iter().enumerate() {
         tree.remove(&mut TreeIterState::new(), int)
             .for_each(|item| {
@@ -271,7 +268,7 @@ fn insert_search_by_interval_shotgun_0() {
             t0 = Instant::now();
             let mut linear_search_query = intervals
                 .iter()
-                .map(|&a| a)
+                .copied()
                 .filter(|interval| interval.is_overlapping(&test_interval))
                 .collect::<Vec<_>>();
             linear_search_query.sort_by(sort_scheme);
@@ -411,7 +408,7 @@ fn generate_sorted_test_intervals() -> (Vec<Interval>, Interval) {
             let u = 1 + l + rand_lehmer64(&mut state) % 60_000;
             (l, u)
         })
-        .map(|a| Interval::from(a))
+        .map(Interval::from)
         .collect::<Vec<_>>();
 
     intervals.sort_by(sort_scheme);
@@ -430,7 +427,7 @@ fn generate_sorted_test_intervals_with_len(len: usize) -> (Vec<Interval>, Interv
             let u = 1 + l + rand_lehmer64(&mut state) % 60_000;
             (l, u)
         })
-        .map(|a| Interval::from(a))
+        .map(Interval::from)
         .collect::<Vec<_>>();
 
     intervals.sort_by(sort_scheme);
@@ -448,8 +445,5 @@ fn sort_scheme(a: &Interval, b: &Interval) -> std::cmp::Ordering {
     }
 }
 fn to_intervals(tuples: Vec<(u64, u64)>) -> Vec<Interval> {
-    tuples
-        .into_iter()
-        .map(|a| Interval::from(a))
-        .collect::<Vec<_>>()
+    tuples.into_iter().map(Interval::from).collect::<Vec<_>>()
 }

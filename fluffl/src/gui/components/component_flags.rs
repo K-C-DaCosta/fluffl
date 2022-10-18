@@ -29,7 +29,7 @@ impl ComponentFlags {
         self.0 &= !flags.to_bits();
     }
 
-    fn to_bits(&self) -> u64 {
+    fn to_bits(self) -> u64 {
         self.0
     }
 }
@@ -59,4 +59,3 @@ impl BitAndAssign for ComponentFlags {
         self.0 &= rhs.0;
     }
 }
-

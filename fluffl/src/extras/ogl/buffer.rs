@@ -162,12 +162,12 @@ impl<T> Drop for OglBuf<T> {
     }
 }
 
-impl<T> Into<Box<dyn HasBufferObj>> for OglBuf<Vec<T>>
+impl<T> From<OglBuf<Vec<T>>> for Box<dyn HasBufferObj>
 where
     T: 'static,
     Vec<T>: HasData,
 {
-    fn into(self) -> Box<dyn HasBufferObj> {
-        Box::new(self)
+    fn from(bo: OglBuf<Vec<T>>) -> Self {
+        Box::new(bo)
     }
 }

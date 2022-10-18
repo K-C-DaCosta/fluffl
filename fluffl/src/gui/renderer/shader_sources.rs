@@ -1,4 +1,4 @@
-pub const ROUNDED_BOX_SHADER_SOURCE: &'static str = r"
+pub const ROUNDED_BOX_SHADER_SOURCE: &str = r"
     #ifndef HEADER
         #version 300 es
         precision mediump float;
@@ -84,7 +84,7 @@ pub const ROUNDED_BOX_SHADER_SOURCE: &'static str = r"
     #endif
 ";
 
-pub const RECTANGLE_SHADER_SOURCE: &'static str = r"
+pub const RECTANGLE_SHADER_SOURCE: &str = r"
     #ifndef HEADER
         #version 300 es
         precision mediump float;

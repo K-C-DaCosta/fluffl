@@ -12,7 +12,7 @@ use std::net::TcpStream;
 
 pub struct WsClient<State, MessageCB, CloseCB, ErrorCB>
 where
-    MessageCB: Fn(  &mut dyn HasWebSocketClient,  &mut State, &[u8]) + Copy,
+    MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy,
     CloseCB: Fn(&mut State) + Copy,
     ErrorCB: Fn(&mut State) + Copy,
 {
@@ -29,7 +29,7 @@ impl<State, MessageCB, CloseCB, ErrorCB> WsClient<State, MessageCB, CloseCB, Err
 where
     ErrorCB: Fn(&mut State) + Copy,
     CloseCB: Fn(&mut State) + Copy,
-    MessageCB: Fn(  &mut dyn HasWebSocketClient,  &mut State, &[u8]) + Copy,
+    MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy,
 {
     pub fn new(client_state: State) -> NetIncomplete<Self> {
         NetIncomplete::new(Self {
@@ -49,7 +49,7 @@ impl<State, MessageCB, CloseCB, ErrorCB> WebSocketBuilder<MessageCB, CloseCB, Er
 where
     CloseCB: Fn(&mut State) + Copy,
     ErrorCB: Fn(&mut State) + Copy,
-    MessageCB: Fn(  &mut dyn HasWebSocketClient,  &mut State, &[u8]) + Copy,
+    MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy,
 {
     type InnerType = WsClient<State, MessageCB, CloseCB, ErrorCB>;
     fn connect(mut self, uri: &str) -> Result<Self::InnerType, WebsocketError> {
@@ -67,7 +67,7 @@ where
                 self.inner
             })
             .map_err(|err| {
-                println!("{}", err.to_string());
+                println!("{}", err);
                 WebsocketError::ConnectFailed {
                     details: err.to_string(),
                 }
@@ -95,11 +95,11 @@ impl<State, MessageCB, CloseCB, ErrorCB> HasWebSocketClient
 where
     CloseCB: Fn(&mut State) + Copy,
     ErrorCB: Fn(&mut State) + Copy,
-    MessageCB: Fn(  &mut dyn HasWebSocketClient,  &mut State, &[u8]) + Copy,
+    MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy,
 {
     fn send(&mut self, data: &[u8]) -> Result<(), WebsocketError> {
         if let Some(socket) = &mut self.socket {
-            let buffer: Vec<u8> = data.iter().map(|&a| a).collect();
+            let buffer = data.to_vec();
             socket
                 .write_message(Message::Binary(buffer))
                 .map_err(|err| WebsocketError::SendFailed {
@@ -123,21 +123,18 @@ where
                 .map(|read_res| read_res.map(|message| message.into_data()));
 
             match data_opt {
-                Some(Ok(data)) => {                    
+                Some(Ok(data)) => {
                     let pointer = self as *mut dyn HasWebSocketClient;
-                    let force_split_borrow =  unsafe{&mut *pointer};
+                    let force_split_borrow = unsafe { &mut *pointer };
                     let on_message = self.on_message_cb.unwrap();
-                    let client_state = &mut self.client_state; 
-                    on_message(force_split_borrow,client_state, &data[..]);
+                    let client_state = &mut self.client_state;
+                    on_message(force_split_borrow, client_state, &data[..]);
                 }
-                Some(Err(err)) => match err {
-                    Error::ConnectionClosed => {
-                        let on_close = self.on_close_cb.unwrap();
-                        on_close(&mut self.client_state);
-                        self.is_closed = true
-                    }
-                    _ => (),
-                },
+                Some(Err(Error::ConnectionClosed)) => {
+                    let on_close = self.on_close_cb.unwrap();
+                    on_close(&mut self.client_state);
+                    self.is_closed = true
+                }
                 _ => (),
             }
         }
@@ -148,7 +145,7 @@ impl<State, MessageCB, CloseCB, ErrorCB> Drop for WsClient<State, MessageCB, Clo
 where
     CloseCB: Fn(&mut State) + Copy,
     ErrorCB: Fn(&mut State) + Copy,
-    MessageCB: Fn(  &mut dyn HasWebSocketClient,  &mut State, &[u8]) + Copy,
+    MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy,
 {
     fn drop(&mut self) {
         let code = CloseFrame {
@@ -162,15 +159,15 @@ where
     }
 }
 
-impl<State, MessageCB, CloseCB, ErrorCB> Into<Box<dyn HasWebSocketClient>>
-    for WsClient<State, MessageCB, CloseCB, ErrorCB>
-where
-    MessageCB: Fn(  &mut dyn HasWebSocketClient,  &mut State, &[u8]) + Copy + 'static,
-    CloseCB: Fn(&mut State) + Copy + 'static,
-    ErrorCB: Fn(&mut State) + Copy + 'static,
-    State: 'static,
-{
-    fn into(self) -> Box<dyn HasWebSocketClient> {
-        Box::new(self)
-    }
-}
+// impl<State, MessageCB, CloseCB, ErrorCB> Into<Box<dyn HasWebSocketClient>>
+//     for WsClient<State, MessageCB, CloseCB, ErrorCB>
+// where
+//     MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy + 'static,
+//     CloseCB: Fn(&mut State) + Copy + 'static,
+//     ErrorCB: Fn(&mut State) + Copy + 'static,
+//     State: 'static,
+// {
+//     fn into(self) -> Box<dyn HasWebSocketClient> {
+//         Box::new(self)
+//     }
+// }

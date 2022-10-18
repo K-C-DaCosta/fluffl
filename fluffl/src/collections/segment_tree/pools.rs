@@ -25,10 +25,10 @@ impl<V> GlobalIntervalPool<V> {
         }
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = &'a Option<GlobalInterval<V>>> {
+    pub fn iter(&self) -> impl Iterator<Item = &'_ Option<GlobalInterval<V>>> {
         self.pool.iter()
     }
-    
+
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Option<GlobalInterval<V>>> {
         self.pool.iter_mut()
     }

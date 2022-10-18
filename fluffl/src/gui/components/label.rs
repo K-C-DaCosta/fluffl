@@ -11,11 +11,17 @@ pub struct LabelState {
     caption: String,
     size: TextSize,
 }
+
+impl Default for LabelState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl LabelState {
     pub fn new() -> Self {
         Self {
-            common: GuiCommonState::new()
-                .with_flags(component_flags::VISIBLE ),
+            common: GuiCommonState::new().with_flags(component_flags::VISIBLE),
             caption: String::new(),
             size: TextSize::Dynamic,
             aligner: TextAligner2D::new(),
@@ -156,7 +162,7 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for LabelBuilder<'a, Pr
     fn parent(&mut self) -> &mut Option<GuiComponentKey> {
         &mut self.parent
     }
-    
+
     fn state(&mut self) -> &mut Option<Self::ComponentKind> {
         &mut self.state
     }
@@ -177,7 +183,7 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for LabelBuilder<'a, Pr
 }
 
 impl<ProgramState> GuiManager<ProgramState> {
-    pub fn builder_label<'a>(&'a mut self) -> LabelBuilder<'a, ProgramState> {
+    pub fn builder_label(&mut self) -> LabelBuilder<'_, ProgramState> {
         LabelBuilder::new(self)
     }
 }

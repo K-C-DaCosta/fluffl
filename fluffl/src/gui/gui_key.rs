@@ -14,11 +14,13 @@ impl From<NodeID> for GuiComponentKey {
         unsafe { std::mem::transmute_copy(&nid) }
     }
 }
-impl Into<NodeID> for GuiComponentKey {
-    fn into(self) -> NodeID {
-        unsafe { std::mem::transmute_copy(&self) }
+
+impl From<GuiComponentKey> for NodeID{
+    fn from(key: GuiComponentKey) -> Self {
+        unsafe { std::mem::transmute_copy(&key) }
     }
-}
+} 
+
 
 impl fmt::Display for GuiComponentKey {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {

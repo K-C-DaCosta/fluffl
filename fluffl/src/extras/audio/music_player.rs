@@ -8,20 +8,16 @@ use crate::{console::*, console_log};
 // of this library is to provide a simple interface for low-level multimedia systems (just like sdl). So again feel free
 // to use this module for your own stuff but don't complain about bugs/performance if something goes wrong with this.
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PlayState {
     RampUp(usize),
     RampDown(usize),
     Playing,
     Paused,
 }
-impl PlayState{
-    pub fn is_paused(&self)->bool{
-        if let PlayState::Paused = self{
-            true
-        }else{
-            false
-        }
+impl PlayState {
+    pub fn is_paused(&self) -> bool {
+        PlayState::Paused == *self
     }
 }
 
@@ -38,7 +34,7 @@ where
     pub state: PlayState,
     pub volume: f32,
     pub music_src: PcmBuffer,
-    pub repeat_track:bool, 
+    pub repeat_track: bool,
 }
 
 impl<BufferType> Drop for MusicPlayer<BufferType>
@@ -55,10 +51,10 @@ pub fn music_callback<BufferType>(mp: &mut MusicPlayer<BufferType>, out: &mut [f
 where
     BufferType: AudioBuffer<f32> + GenericAudioSpecs,
 {
-    const MAX_RETRIES:u32 = 2; 
-    
-    if mp.state.is_paused() ||  out.is_empty() {
-        fill(out,0.0);
+    const MAX_RETRIES: u32 = 2;
+
+    if mp.state.is_paused() || out.is_empty() {
+        fill(out, 0.0);
         return;
     }
 
@@ -94,9 +90,8 @@ where
     let mut samples_read = mp.music_src.read(&mut input_samples[..]);
     let inv_out_len = 1.0 / (out.len() as f32);
     let play_state = mp.state;
-    
-    
-    if samples_read == 0{
+
+    if samples_read == 0 {
         //attempt to 'jumpstart' the mustic buffer here
         for _ in 0..MAX_RETRIES {
             samples_read = mp.music_src.read(&mut input_samples[..]);
@@ -105,13 +100,13 @@ where
             }
         }
     }
-    if samples_read == 0 && jumpstart_read_worked == false{
-        fill(out,0.0);
-        if mp.repeat_track{
+    if samples_read == 0 && !jumpstart_read_worked {
+        fill(out, 0.0);
+        if mp.repeat_track {
             mp.music_src.seek_to_start();
-            // RampUp(..) required to avoid popping. 
+            // RampUp(..) required to avoid popping.
             mp.state = PlayState::RampUp(100);
-            mp.ticks = 0; 
+            mp.ticks = 0;
 
             //appearently i gotta jumpstart again here( wtf!? )
             for _ in 0..MAX_RETRIES {
@@ -120,7 +115,7 @@ where
                     break;
                 }
             }
-        }else{
+        } else {
             mp.state = PlayState::Paused;
             return;
         }
@@ -152,7 +147,7 @@ where
                 PlayState::RampDown(max_ticks) => {
                     let t = (mp.ticks as f32 / max_ticks as f32).min(1.0).max(0.0);
                     let linear_down = 1. - t;
-                    lerp * vol * linear_down * linear_down // quadtradic down-ramp 
+                    lerp * vol * linear_down * linear_down // quadtradic down-ramp
                 }
 
                 PlayState::Paused => 0.0,
@@ -168,6 +163,6 @@ where
     }
 }
 
-fn fill(slice: &mut [f32],val:f32){
+fn fill(slice: &mut [f32], val: f32) {
     slice.iter_mut().for_each(|e| *e = val);
 }

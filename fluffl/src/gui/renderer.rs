@@ -73,7 +73,7 @@ impl ShaderUniforms {
         }
     }
 
-    fn set_edge_thickness(&self, gl: &GlowGL, prog: &OglProg, thickness:f32) {
+    fn set_edge_thickness(&self, gl: &GlowGL, prog: &OglProg, thickness: f32) {
         prog.bind(true);
         unsafe {
             gl.uniform_1_f32(self.edge_thickness_loc.as_ref(), thickness);
@@ -105,7 +105,7 @@ impl ShaderUniforms {
         let scale = math::scale4(bounds);
         let translate = math::translate4(position);
         let modelview = translate * scale;
-        
+
         unsafe {
             gl.uniform_4_f32_slice(self.position_loc.as_ref(), position.as_slice());
             gl.uniform_matrix_4_f32_slice(self.modelview_loc.as_ref(), true, modelview.as_slice());
@@ -141,10 +141,10 @@ impl<'a> RenderBuilder<'a> {
         let r = Vec4::from(roundness);
         self.set_roundness(r[0], r[1], r[2], r[3])
     }
-    
-    pub fn set_edge_thickness<T:Into<f32>>(self, thickness: T) -> Self
-    {
-        self.uniforms.set_edge_thickness(self.gl, self.prog, thickness.into());
+
+    pub fn set_edge_thickness<T: Into<f32>>(self, thickness: T) -> Self {
+        self.uniforms
+            .set_edge_thickness(self.gl, self.prog, thickness.into());
         self
     }
 
@@ -200,9 +200,9 @@ struct OglProgramBlock {
 }
 impl OglProgramBlock {
     fn new(gl: &GlowGL, source: &str) -> Self {
-        let program = ogl::OglProg::compile_program(&gl, source)
-            .expect("GUI SHADER CODE FAILED TO COMPILE");
-        let uniforms = ShaderUniforms::new().with_location_hooks(&gl, &program);
+        let program =
+            ogl::OglProg::compile_program(gl, source).expect("GUI SHADER CODE FAILED TO COMPILE");
+        let uniforms = ShaderUniforms::new().with_location_hooks(gl, &program);
 
         Self { program, uniforms }
     }
@@ -227,7 +227,7 @@ impl GuiRenderer {
             1.0,
         );
 
-        let buf = ogl::OglBuf::<Vec<f32>>::new(&gl)
+        let buf = ogl::OglBuf::<Vec<f32>>::new(gl)
             .with_target(glow::ARRAY_BUFFER)
             .with_usage(glow::STATIC_DRAW)
             .with_num_comps(4)
@@ -236,7 +236,7 @@ impl GuiRenderer {
             .build();
 
         let unit_square_vao =
-            ogl::OglArray::new(&gl).init(vec![BufferPair::new("verts", Box::new(buf))]);
+            ogl::OglArray::new(gl).init(vec![BufferPair::new("verts", Box::new(buf))]);
 
 
 

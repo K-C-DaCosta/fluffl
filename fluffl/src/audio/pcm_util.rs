@@ -73,7 +73,7 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
 impl<'a, T> Deref for PCMSlice<'a, T> {
     type Target = [T];
     fn deref(&self) -> &Self::Target {
-        &self.planar_pcm
+        self.planar_pcm
     }
 }
 

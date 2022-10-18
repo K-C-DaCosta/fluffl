@@ -162,10 +162,7 @@ pub fn drag<State>() -> ListenerCallBack<State> {
     })
 }
 
-fn get_frame<'a>(
-    tree: &'a LinearTree<Box<dyn GuiComponent>>,
-    key: GuiComponentKey,
-) -> &'a FrameState {
+fn get_frame(tree: &LinearTree<Box<dyn GuiComponent>>, key: GuiComponentKey) -> &FrameState {
     tree.get(key)
         .expect("root key invalid")
         .as_any()
@@ -173,10 +170,10 @@ fn get_frame<'a>(
         .expect("node expected to be a frame")
 }
 
-fn get_frame_mut<'a>(
-    tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
+fn get_frame_mut(
+    tree: &mut LinearTree<Box<dyn GuiComponent>>,
     key: GuiComponentKey,
-) -> &'a mut FrameState {
+) -> &mut FrameState {
     tree.get_mut(key)
         .expect("root key invalid")
         .as_any_mut()
@@ -184,14 +181,14 @@ fn get_frame_mut<'a>(
         .expect("node expected to be a frame")
 }
 
-fn translate_children<'a>(
-    tree: &'a mut LinearTree<Box<dyn GuiComponent>>,
+fn translate_children(
+    tree: &mut LinearTree<Box<dyn GuiComponent>>,
     root_key: GuiComponentKey,
     disp: Vec2<f32>,
 ) {
     for NodeInfoMut { val, .. } in tree
         .iter_children_mut(root_key)
-        .filter(|node| node.val.flags().is_set(component_flags::TITLEBAR) == false)
+        .filter(|node| !node.val.flags().is_set(component_flags::TITLEBAR))
     {
         val.translate(disp);
     }
@@ -241,12 +238,11 @@ fn resize_component_bounds_if_needed(
     let new_component_bounding_box = compute_component_bounds(gui_component_tree, root_key);
     const EPSILON: f32 = 0.001;
 
-    let component_bounding_box_changed_dramatically = new_component_bounding_box
+    let component_bounding_box_changed_dramatically = !new_component_bounding_box
         .dims()
         .iter()
         .zip(old_component_bounding_box.dims().iter())
-        .all(|(&cur, &prev)| (cur - prev).abs() < EPSILON)
-        == false;
+        .all(|(&cur, &prev)| (cur - prev).abs() < EPSILON);
 
     if component_bounding_box_changed_dramatically {
         let old_uv = get_frame_mut(gui_component_tree, root_key).percentages;

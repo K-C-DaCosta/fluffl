@@ -3,7 +3,7 @@ use super::ogl::{array::*, buffer::*, program::*, *};
 use crate::GlowGL;
 use glow::*;
 
-static BOX_PROGRAM_SOURCE: &'static str = "
+static BOX_PROGRAM_SOURCE: &str = "
     #ifndef HEADER
         #version 300 es
         precision mediump float;
@@ -179,6 +179,7 @@ impl ShapePainter2D {
     /// - `roundness`- the roundness of the rectangle valid from: 0.0 <= roundness <= +inf
     /// - `glow_strength` - determines the strength of the glow
     /// - 'circle_morph' - determines the transition from rectangle(morph=0) to circle(morph=1)
+    #[allow(clippy::too_many_arguments)]
     pub fn draw_rectangle(
         &mut self,
         a: &[f32],
@@ -247,7 +248,7 @@ impl ShapePainter2D {
         let window_dims = [self.window_width, self.window_height];
 
         //compute bounding box by modifing content of vertex buffer
-        self.bounding_box.get_mut("quad_verts").map(|buffer_ref| {
+        if let Some(buffer_ref) = self.bounding_box.get_mut("quad_verts") {
             let vect_list = cast_slice_to_vec2(buffer_ref.raw_bytes_mut());
 
             if glow_strength.max(0.) > 0.1 {
@@ -261,7 +262,7 @@ impl ShapePainter2D {
 
             // submit changes to vertex buffer
             buffer_ref.update();
-        });
+        }
 
         //draw bounding box
         unsafe {
@@ -295,8 +296,6 @@ impl ShapePainter2D {
         let top_left = [center[0] - radius, center[1] - radius];
         let aabb_dims = [2. * radius, 2. * radius];
 
-
-
         //update uniforms
         unsafe {
             let proj_mat = calc_proj(self.window_width, self.window_height);
@@ -312,7 +311,8 @@ impl ShapePainter2D {
             self.gl
                 .uniform_1_f32(self.rectangle_glow_str_loc.as_ref(), glow_strength.max(0.));
 
-            self.gl.uniform_1_f32(self.circle_radius_loc.as_ref(), radius);
+            self.gl
+                .uniform_1_f32(self.circle_radius_loc.as_ref(), radius);
 
             self.gl
                 .uniform_2_f32(self.circle_center_loc.as_ref(), center[0], center[1]);
@@ -323,7 +323,7 @@ impl ShapePainter2D {
         let window_dims = [self.window_width, self.window_height];
 
         //compute bounding box by modifing content of vertex buffer
-        self.bounding_box.get_mut("quad_verts").map(|buffer_ref| {
+        if let Some(buffer_ref) = self.bounding_box.get_mut("quad_verts") {
             let vect_list = cast_slice_to_vec2(buffer_ref.raw_bytes_mut());
 
             if glow_strength.max(0.) > 0.1 {
@@ -337,7 +337,7 @@ impl ShapePainter2D {
 
             // submit changes to vertex buffer
             buffer_ref.update();
-        });
+        }
 
         //draw bounding box
         unsafe {

@@ -78,11 +78,18 @@ impl OglArray {
             buf_table: HashMap::new(),
         })
     }
-    pub fn get(&self, buffer_name: &'static str) -> Option<&Box<dyn HasBufferObj>> {
-        self.buf_table.get(buffer_name)
+    pub fn get(&self, buffer_name: &'static str) -> Option<&dyn HasBufferObj> {
+        self.buf_table
+            .get(buffer_name)
+            .map(|box_ptr| box_ptr.as_ref())
     }
-    pub fn get_mut(&mut self, buffer_name: &'static str) -> Option<&mut Box<dyn HasBufferObj>> {
-        self.buf_table.get_mut(buffer_name)
+    pub fn get_mut(
+        &mut self,
+        buffer_name: &'static str,
+    ) -> Option<&mut (dyn HasBufferObj + 'static)> {
+        self.buf_table
+            .get_mut(buffer_name)
+            .map(|box_ptr| box_ptr.as_mut())
     }
 }
 

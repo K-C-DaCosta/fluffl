@@ -4,7 +4,7 @@ use std::ops::{Index, IndexMut};
 use super::Ptr; 
 
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone,Default)]
 pub struct BinNode<T> {
     pub data: Option<T>,
     pub parent: Ptr,
@@ -37,6 +37,8 @@ impl<T> BinNode<T> {
     }
 }
 
+
+#[derive(Default)]
 pub struct BinaryTree<T> {
     root: Ptr,
     node: Vec<BinNode<T>>,

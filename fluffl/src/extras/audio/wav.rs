@@ -1,6 +1,6 @@
-use crate::audio::{GenericAudioSpecs};
-use super::{AudioSample, AudioBuffer,PcmConverter};
-use super::super::{ErrorKind,Result};
+use super::super::{ErrorKind, Result};
+use super::{AudioBuffer, AudioSample, PcmConverter};
+use crate::audio::GenericAudioSpecs;
 
 use std::io::Read;
 use std::mem;
@@ -44,6 +44,7 @@ pub struct WavHeader {
     pub subchunk2_size: u32,
 }
 
+#[derive(Default)]
 pub struct WavFile {
     data: Option<Vec<u8>>,
     header: Option<WavHeader>,
@@ -77,7 +78,7 @@ impl WavFile {
             let mut data_slice = &data[..];
             let mut header_bytes = [0u8; 44];
             data_slice.read(&mut header_bytes).map(|bytes_read| {
-                let header = *unsafe { mem::transmute::<_, &WavHeader>(header_bytes.as_ptr()) };
+                let header = unsafe { *header_bytes.as_ptr().cast::<WavHeader>() };
                 (header, bytes_read)
             })
         });
@@ -90,23 +91,20 @@ impl WavFile {
                 ));
             }
         };
-
-        match &self.header {
-            &Some(WavHeader {
-                bits_per_sample,
-                audio_format,
-                ..
-            }) => {
-                if bits_per_sample != 16 && bits_per_sample != 8 {
-                    return Err(wav_parse_error(
-                        "Only 8 and 16 bit precision pcm is supported",
-                    ));
-                }
-                if audio_format != 1 {
-                    return Err(wav_parse_error("Only uncompressed wav files is supported"));
-                }
+        if let Some(WavHeader {
+            bits_per_sample,
+            audio_format,
+            ..
+        }) = self.header
+        {
+            if bits_per_sample != 16 && bits_per_sample != 8 {
+                return Err(wav_parse_error(
+                    "Only 8 and 16 bit precision pcm is supported",
+                ));
             }
-            _ => (),
+            if audio_format != 1 {
+                return Err(wav_parse_error("Only uncompressed wav files is supported"));
+            }
         }
 
         Ok(self)
@@ -145,21 +143,20 @@ impl PcmConverter<f32> for WavFile {
     }
 }
 
-impl<T> Into<WavBuffer<T>> for Vec<AudioSample<T>> {
-    fn into(self) -> WavBuffer<T> {
-        WavBuffer {
-            samples: self,
-            sample_index: 0,
+impl <T> From<Vec<AudioSample<T>>> for WavBuffer<T>{
+    fn from( samples:Vec<AudioSample<T>>) -> Self {
+        Self{
+            samples, 
+            sample_index:0,
         }
     }
 }
 
-impl Into<WavBuffer<f32>> for WavFile {
-    fn into(self) -> WavBuffer<f32> {
-        let samples = self.samples();
-        WavBuffer {
-            samples,
-            sample_index: 0,
+impl From<WavFile> for WavBuffer<f32>{
+    fn from(wf:WavFile)->Self{
+        Self{
+            samples:wf.samples(),
+            sample_index:0, 
         }
     }
 }

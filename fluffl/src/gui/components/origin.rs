@@ -1,8 +1,11 @@
 use super::*;
 
+
+#[derive(Default)]
 pub struct OriginState {
     common: GuiCommonState, 
 }
+
 impl OriginState {
     pub fn new() -> Self {
         Self {
