@@ -16,6 +16,7 @@ impl TouchStats {
     }
 }
 
+#[derive(Default)]
 pub struct TouchTracker<ID> {
     table: HashMap<ID, TouchStats>,
 }
@@ -62,7 +63,7 @@ where
                 stats.prev_pos = new_pos;
                 stats.displacement = disp;
             })
-            .or_insert(TouchStats::initial_stats(new_pos));
+            .or_insert_with(|| TouchStats::initial_stats(new_pos));
 
         touch_table.get(&id).unwrap().displacement
     }

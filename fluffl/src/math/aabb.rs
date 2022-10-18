@@ -100,7 +100,7 @@ where
 
 impl<const DIM: usize, T> AABB<DIM, T>
 where
-    T: Copy + Default + PartialOrd ,
+    T: Copy + Default + PartialOrd,
 {
     /// merges curent aabbs with `other` so that the resulting AABB contains the minimal area AABB such that points from both `self` and `other`
     pub fn merge(&mut self, other: AABB<DIM, T>) {
@@ -153,5 +153,5 @@ fn verts_contained_sanity() {
     let big_fully_contains_small = big.fully_contains(small);
     println!("big fully contains small =  {}", big_fully_contains_small);
 
-    assert_eq!(true, big_fully_contains_small)
+    assert!(big_fully_contains_small)
 }

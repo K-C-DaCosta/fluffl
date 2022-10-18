@@ -100,10 +100,10 @@ impl<'a, T> Iterator for StackSignalIteratorMut<'a, T> {
         //allows me to split-borrow the tree
         let tree = unsafe { mem::force_borrow_mut(self.tree) };
         
-        if self.covered_root == false {
+        if !self.covered_root {
             self.covered_root = true;
             return Some(StackSignal::Nop)
-                .zip(tree.node_id.get(0).map(|&id| id).zip(tree.data.get_mut(0)))
+                .zip(tree.node_id.get(0).copied().zip(tree.data.get_mut(0)))
                 .map(|(ss, (nid, data))| (ss, nid, unsafe { data.assume_init_mut() }));
             // return Some((StackSignal::Nop, tree.node_id[0], unsafe {
             //     tree.data[0].assume_init_mut()

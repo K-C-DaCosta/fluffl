@@ -15,8 +15,6 @@ use be_glutin::{
     ContextWrapper,
 };
 
-use glow::*;
-
 ///Global for touch tracker
 static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker<DeviceId>> = None;
 
@@ -82,7 +80,7 @@ impl FlufflWindow {
                 //execute future
                 futures::executor::block_on(unexecuted_iteration);
 
-                if is_running == false {
+                if !is_running  {
                     *control_flow = ControlFlow::Exit;
                 }
             } else {
@@ -95,13 +93,14 @@ impl FlufflWindow {
 
     fn convert_glutin_event_to_fluffl_event(&mut self, glutin_event: be_glutin::event::Event<()>) {
         match glutin_event {
+            Event::Resumed => {}
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                     self.events.push_event(EventKind::Quit);
                 }
                 WindowEvent::KeyboardInput {
                     input,
-                    is_synthetic,
+                    is_synthetic:_,
                     ..
                 } => match (input.state, input.virtual_keycode) {
                     (ElementState::Pressed, Some(code)) => {
@@ -125,7 +124,7 @@ impl FlufflWindow {
 
                     let device_state = TouchTracker::get_mut()
                         .get(&device_id)
-                        .map(|&a| a)
+                        .copied()
                         .expect("device_id not found");
 
                     let fluffl_event = match state {
@@ -244,7 +243,7 @@ impl HasFlufflWindow for FlufflWindow {
         let window = self.window.window();
         let monitor_handle = window.current_monitor();
         window.set_fullscreen(
-            go_fullscreen.then(|| be_glutin::window::Fullscreen::Borderless(monitor_handle)),
+            go_fullscreen.then_some(be_glutin::window::Fullscreen::Borderless(monitor_handle)),
         );
     }
 }

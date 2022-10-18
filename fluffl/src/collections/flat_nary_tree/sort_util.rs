@@ -89,22 +89,19 @@ fn quick_sort_sanity() {
         "both arrays should be equal in length"
     );
 
-    assert_eq!(
-        true,
+    assert!(
         test.iter()
             .zip(co_test.iter())
             .all(|(&a, &b)| a.abs() == b.abs()),
         "test and co_test should have the same magnitude"
     );
 
-    assert_eq!(
-        true,
+    assert!(
         test.windows(2).all(|window| window[0] < window[1]),
         "test should be sorted"
     );
 
-    assert_eq!(
-        true,
+    assert!(
         test.iter()
             .zip(co_test.iter())
             .all(|(&a, &b)| a.abs() == b.abs()),

@@ -11,7 +11,7 @@ use fluffl::{
 
 use std::collections::HashMap;
 
-static CONFIG: &'static str = "
+static CONFIG: &str = "
     <window>
         <width>800</width> 
         <height>600</height>

@@ -56,6 +56,7 @@ impl DesiredSpecs {
 /// Creating this object is not enough to play sound. We will need to convert this into a `FlufflAudioDeviceContex`\
 /// This struct is mostly used as a way to setup state, define a callback and specify things like channels, frequency, etc.\
 /// Look at the examples for a complete example on how to do this.
+#[derive(Default)]
 pub struct AudioDeviceCore<Callback, State> {
     cb: Option<Callback>,
     state: Option<State>,
@@ -112,20 +113,12 @@ pub fn calculate_samples_needed_per_channel_st(frequency: u32, dt: FP64) -> Samp
 /// given `frequency` (in sample/sec) and `dt`(in milliseconds), it can calculate samples required per channel
 pub fn calculate_samples_needed_per_channel_fp(frequency: u32, dt: FP64) -> FP64 {
     const MILLISECONDS_IN_ONE_SEC: i32 = 1000;
-    let result = (FP64::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC;
-    // let mut samps = result.as_f64();
-    // samps += 1.0;
-    // samps -= 1.0;
-    result
+    (FP64::from(frequency) * dt) / MILLISECONDS_IN_ONE_SEC
 }
 
 /// given a `num_samples` and `frequency` it returns the elapsed time in ms
 /// ## Comments
 /// this is a single channel calculation
 pub fn calculate_elapsed_time_in_ms_fp(frequency: u32, num_samples: usize) -> FP64 {
-    let result = FP64::from(num_samples as u64 * 1000) / FP64::from(frequency);
-    // let mut samps = result.as_f64();
-    // samps += 1.0;
-    // samps -= 1.0;
-    result
+    FP64::from(num_samples as u64 * 1000) / FP64::from(frequency)
 }

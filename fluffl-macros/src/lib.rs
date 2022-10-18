@@ -6,12 +6,12 @@ use syn::{parse_macro_input, ItemFn};
 
 #[derive(Clone, Copy)]
 enum EntryMode {
-    DEFAULT,
-    DEBUG,
+    Default,
+    Debug,
 }
 impl Default for EntryMode {
     fn default() -> Self {
-        Self::DEFAULT
+        Self::Default
     }
 }
 
@@ -24,8 +24,8 @@ pub fn fluffl(attr: TokenStream, input: TokenStream) -> TokenStream {
         .next()
         .map(|tok| tok.to_string().to_lowercase())
         .map(|val| match val.as_str() {
-            "debug" => EntryMode::DEBUG,
-            _ => EntryMode::DEFAULT,
+            "debug" => EntryMode::Debug,
+            _ => EntryMode::Default,
         })
         .unwrap_or_default();
 
@@ -38,7 +38,7 @@ pub fn fluffl(attr: TokenStream, input: TokenStream) -> TokenStream {
         panic!("Function must be async");
     }
 
-    let debug_quote_wasm = if let EntryMode::DEBUG = mode {
+    let debug_quote_wasm = if let EntryMode::Debug = mode {
         quote! {
             std::panic::set_hook(Box::new(console_error_panic_hook::hook));
         }

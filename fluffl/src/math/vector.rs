@@ -170,7 +170,7 @@ where
         let mut result = Self::zero();
         let inv_denom = T::from_i32(1) / T::from_i32(255);
         for k in 0..4 {
-            let comp_byte = (color >> 8 * (4 - k - 1)) & 0xFF;
+            let comp_byte = (color >> (8 * (4 - k - 1))) & 0xFF;
             let comp = T::from_i32(comp_byte as i32) * inv_denom;
             result[k] = comp;
         }

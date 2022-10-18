@@ -1,4 +1,3 @@
-use super::*; 
 pub trait HasTrig: Copy {
     fn sin(self) -> Self;
     fn cos(self) -> Self;

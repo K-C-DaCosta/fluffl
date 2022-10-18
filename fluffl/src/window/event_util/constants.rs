@@ -94,19 +94,19 @@ pub enum EventKind {
 }
 impl EventKind {
     pub fn mouse_pos(&self) -> Vec2<f32> {
-        match self {
-            &Self::MouseDown { x, y, .. } => Vec2::from([x as f32, y as f32]),
-            &Self::MouseUp { x, y, .. } => Vec2::from([x as f32, y as f32]),
-            &Self::MouseMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
-            &Self::TouchMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
+        match *self {
+            Self::MouseDown { x, y, .. } => Vec2::from([x as f32, y as f32]),
+            Self::MouseUp { x, y, .. } => Vec2::from([x as f32, y as f32]),
+            Self::MouseMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
+            Self::TouchMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
             _ => Vec2::zero(),
         }
     }
 
     pub fn disp(&self) -> Vec2<f32> {
-        match self {
-            &Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
-            &Self::TouchMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+        match *self {
+            Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+            Self::TouchMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
             _ => Vec2::zero(),
         }
     }
@@ -157,16 +157,16 @@ pub enum KeyCode {
     KEY_X = 'x' as isize,
     KEY_Y = 'y' as isize,
     KEY_Z = 'z' as isize,
-    NUM_0 = ('0' as isize) + 0,
-    NUM_1 = ('1' as isize) + 0,
-    NUM_2 = ('2' as isize) + 0,
-    NUM_3 = ('3' as isize) + 0,
-    NUM_4 = ('4' as isize) + 0,
-    NUM_5 = ('5' as isize) + 0,
-    NUM_6 = ('6' as isize) + 0,
-    NUM_7 = ('7' as isize) + 0,
-    NUM_8 = ('8' as isize) + 0,
-    NUM_9 = ('9' as isize) + 0,
+    NUM_0 = ('0' as isize),
+    NUM_1 = ('1' as isize),
+    NUM_2 = ('2' as isize),
+    NUM_3 = ('3' as isize),
+    NUM_4 = ('4' as isize),
+    NUM_5 = ('5' as isize),
+    NUM_6 = ('6' as isize),
+    NUM_7 = ('7' as isize),
+    NUM_8 = ('8' as isize),
+    NUM_9 = ('9' as isize),
     MINUS = '-' as isize,
     EQUALS = '=' as isize,
     BRACKET_LEFT = '{' as isize,
@@ -267,11 +267,12 @@ impl KeyCode {
     }
 }
 
-impl Into<i128> for KeyCode {
-    fn into(self) -> i128 {
-        self as i128
+impl From<KeyCode> for i128{
+    fn from(a: KeyCode) -> Self {
+        a as Self
     }
 }
+
 #[allow(non_camel_case_types)]
 #[derive(Copy, Clone, Serialize, Deserialize, Debug, PartialEq, Eq)]
 pub enum MouseCode {

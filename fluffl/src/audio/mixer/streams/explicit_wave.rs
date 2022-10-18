@@ -106,10 +106,12 @@ impl ExplicitWave {
             for aux_sample_idx in num_channels_in_output..num_channels_in_explicit_wave {
                 let aux_sample = sample_group[aux_sample_idx];
                 //loop over samples I want to keep and blend the aux signal into it
-                for kept_samples_idx in 0..num_channels_in_output {
-                    sample_group[kept_samples_idx] =
-                        (sample_group[kept_samples_idx] + aux_sample) * 0.5;
-                }
+                sample_group
+                    .iter_mut()
+                    .take(num_channels_in_output)
+                    .for_each(|samp_group_samp| {
+                        *samp_group_samp = (*samp_group_samp + aux_sample) * 0.5;
+                    });
             }
 
             //write samples to output
@@ -146,7 +148,7 @@ impl ExplicitWave {
 
         PullInfo {
             samples_read: mixed_samples_written,
-            samples_read_per_channel: samples_read_per_channel,
+            samples_read_per_channel,
             elapsed_audio_in_ms: audio::calculate_elapsed_time_in_ms_fp(
                 self.frequency(),
                 samples_read_per_channel,

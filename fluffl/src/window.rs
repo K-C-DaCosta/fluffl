@@ -13,9 +13,9 @@ use crate::{audio::FlufflAudioContext, FlufflError, GlowGL};
 pub use event_util::FlufflEvent;
 pub use window_backends::*;
 pub mod event_util;
-pub mod touch_tracker; 
+pub mod touch_tracker;
 
-use touch_tracker::*; 
+use touch_tracker::*;
 
 #[derive(Clone, Copy)]
 pub struct FlufflRunning {
@@ -250,56 +250,55 @@ impl FlufflWindowConfigs {
     where
         Callback: FnMut(bool),
     {
-        parser
-            .search(tag_name, parser.ast.root_list[0])
-            .map(|node_ptr| {
-                for (_, data) in parser.get_child_tokens(node_ptr) {
-                    if let Some(token) = data {
-                        let content_text = (&token.content).trim().to_lowercase();
-                        let is_true = content_text == "true";
-                        let is_false = content_text == "false";
-                        let is_valid_text_boolean = is_true || is_false;
-                        if is_valid_text_boolean {
-                            closure(is_true);
-                        }
-                        break;
+        if let Some(node_ptr) = parser.search(tag_name, parser.ast.root_list[0]) {
+            for (_, data) in parser.get_child_tokens(node_ptr) {
+                if let Some(token) = data {
+                    let content_text = token.content.trim().to_lowercase();
+                    let is_true = content_text == "true";
+                    let is_false = content_text == "false";
+                    let is_valid_text_boolean = is_true || is_false;
+                    if is_valid_text_boolean {
+                        closure(is_true);
                     }
+                    break;
                 }
-            });
+            }
+        }
     }
 
     fn search_string<Callback>(parser: &XMLParser, tag_name: &str, mut closure: Callback)
     where
         Callback: FnMut(&String),
     {
-        parser
-            .search(tag_name, parser.ast.root_list[0])
-            .map(|node_ptr| {
-                for (_, data) in parser.get_child_tokens(node_ptr) {
-                    if let Some(token) = data {
-                        closure(&token.content);
-                        break;
-                    }
+        if let Some(node_ptr) = parser.search(tag_name, parser.ast.root_list[0]) {
+            for (_, data) in parser.get_child_tokens(node_ptr) {
+                if let Some(token) = data {
+                    closure(&token.content);
+                    break;
                 }
-            });
+            }
+        }
     }
 
     fn search_numeric<Callback>(parser: &XMLParser, tag_name: &str, mut closure: Callback)
     where
         Callback: FnMut(u32),
     {
-        parser
-            .search(tag_name, parser.ast.root_list[0])
-            .map(|node_ptr| {
-                for (_, data) in parser.get_child_tokens(node_ptr) {
-                    if let Some(token) = data {
-                        if let Ok(num) = token.content.parse() {
-                            closure(num);
-                            break;
-                        };
+        if let Some(node_ptr) = parser.search(tag_name, parser.ast.root_list[0]) {
+            for (_, data) in parser.get_child_tokens(node_ptr) {
+                if let Some(token) = data {
+                    if let Ok(num) = token.content.parse() {
+                        closure(num);
+                        break;
                     };
-                }
-            });
+                };
+            }
+        }
     }
 }
 
+impl Default for FlufflWindowConfigs{
+    fn default()->Self{
+        Self::new()
+    }
+}

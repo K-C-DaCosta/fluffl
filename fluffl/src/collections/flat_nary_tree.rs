@@ -48,6 +48,12 @@ pub struct LinearTree<T> {
     id_to_ptr_table: Vec<Ptr>,
 }
 
+impl<T> Default for LinearTree<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> LinearTree<T> {
     pub fn new() -> Self {
         Self {
@@ -83,7 +89,7 @@ impl<T> LinearTree<T> {
         self.parent[current_ptr.as_usize()] = new_parent_ptr;
     }
 
-    pub fn iter<'a>(&'a self) -> impl Iterator<Item = NodeInfo<'a, T>> {
+    pub fn iter(&self) -> impl Iterator<Item = NodeInfo<'_, T>> {
         let len = self.len();
 
         let data = &self.data;
@@ -104,7 +110,7 @@ impl<T> LinearTree<T> {
             })
     }
 
-    pub fn iter_mut<'a>(&'a mut self) -> impl Iterator<Item = NodeInfoMut<'a, T>> {
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = NodeInfoMut<'_, T>> {
         let len = self.len();
         let data = &mut self.data;
         let parent = &mut self.parent;
@@ -170,7 +176,7 @@ impl<T> LinearTree<T> {
     fn resolve_id_to_ptr(&self, id: NodeID) -> Ptr {
         self.id_to_ptr_table
             .get(id.as_usize())
-            .map(|&a| a)
+            .copied()
             .unwrap_or(Ptr::null())
     }
 
@@ -178,7 +184,9 @@ impl<T> LinearTree<T> {
     /// `Self::reconstruct_preorder(..)` is called
     /// ## Comments
     /// -  O(1) Complexity. This is ,uch faster than `Self::add(..)`
+    /// # Safety
     /// - the node attributes like `parent` of newly added nodes are safe to mutate using this method
+    /// - must call `Self::reconstruct_preorder(..)` manually
     pub unsafe fn add_deferred_reconstruction(
         &mut self,
         data: MaybeUninit<T>,
@@ -288,6 +296,10 @@ impl<T> LinearTree<T> {
         }
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn len(&self) -> usize {
         self.data.len() - self.nodes_deleted
     }
@@ -325,7 +337,7 @@ impl<T> LinearTree<T> {
         let root = root.into();
         let parent = &self.parent;
         (0..num_active_nodes)
-            .map(|ptr| Ptr::from(ptr))
+            .map(Ptr::from)
             .filter(move |ptr| parent[ptr.as_usize()] == root)
     }
 
@@ -334,9 +346,8 @@ impl<T> LinearTree<T> {
     }
 
     unsafe fn allocate_node_uninit(&mut self, data: MaybeUninit<T>, parent: Ptr) -> (NodeID, Ptr) {
-        debug_assert_eq!(
+        debug_assert!(
             self.nodes_deleted <= self.data.len(),
-            true,
             "nodes_deleted cannot be greater than the length of the array"
         );
 
@@ -366,29 +377,29 @@ impl<T> LinearTree<T> {
     }
 
     /// loops through just children of `root`
-    pub fn iter_children<'a, NID: Into<NodeID>>(
-        &'a self,
+    pub fn iter_children<NID: Into<NodeID>>(
+        &self,
         root: NID,
-    ) -> impl Iterator<Item = NodeInfo<'a, T>> {
+    ) -> impl Iterator<Item = NodeInfo<'_, T>> {
         let root = root.into();
         self.iter_subtree(root)
             .filter(move |node| node.parent.is_some() && node.parent.unwrap() == root)
     }
 
-    pub fn iter_children_mut<'a, NID: Into<NodeID>>(
-        &'a mut self,
+    pub fn iter_children_mut<NID: Into<NodeID>>(
+        &mut self,
         root: NID,
-    ) -> impl Iterator<Item = NodeInfoMut<'a, T>> {
+    ) -> impl Iterator<Item = NodeInfoMut<'_, T>> {
         let root = root.into();
         self.iter_subtree_mut(root)
             .filter(move |node| node.parent.is_some() && node.parent.unwrap() == root)
     }
 
     /// traverses through a subtree of nodes starting at `root`
-    pub fn iter_subtree<'a, NID: Into<NodeID>>(
-        &'a self,
+    pub fn iter_subtree<NID: Into<NodeID>>(
+        &self,
         root: NID,
-    ) -> impl Iterator<Item = NodeInfo<'a, T>> {
+    ) -> impl Iterator<Item = NodeInfo<'_, T>> {
         let ptr = self.resolve_id_to_ptr(root.into());
         let len = self.len();
         let level = &self.level;
@@ -406,10 +417,10 @@ impl<T> LinearTree<T> {
             })
     }
 
-    pub fn iter_subtree_mut<'a, NID: Into<NodeID>>(
-        &'a mut self,
+    pub fn iter_subtree_mut<NID: Into<NodeID>>(
+        &mut self,
         root: NID,
-    ) -> impl Iterator<Item = NodeInfoMut<'a, T>> {
+    ) -> impl Iterator<Item = NodeInfoMut<'_, T>> {
         let ptr = self.resolve_id_to_ptr(root.into());
         let len = self.len();
         let level = &mut self.level;
@@ -487,7 +498,7 @@ impl<T> LinearTree<T> {
                 }),
                 StackSignal::Nop => {}
             }
-            if indents.len() > 0 {
+            if !indents.is_empty() {
                 indents.pop();
                 indents.push('>');
                 println!("{}{}", indents, item.as_usize());
@@ -516,7 +527,7 @@ where
                 }),
                 StackSignal::Nop => {}
             }
-            if indents.len() > 0 {
+            if !indents.is_empty() {
                 indents.pop();
                 indents.push('>');
                 println!("{}{}", indents, item);
@@ -586,9 +597,9 @@ pub fn drop_sanity() {
 
     //node has been removed but removed object shouldn't be dropped
     tree.remove(node, &mut removed_nodes);
-    assert_eq!(false, has_been_dropped.get());
+    assert!(!has_been_dropped.get());
 
     //the clear should invoke drop
     removed_nodes.clear();
-    assert_eq!(true, has_been_dropped.get());
+    assert!(has_been_dropped.get());
 }

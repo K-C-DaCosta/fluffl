@@ -59,12 +59,8 @@ where
                 let prev_val = self.prev_val;
                 let current_key = get_key(&i);
                 let key = get_key(&i);
-                
-                
-                
-                
 
-                let group = if current_key.eq(prev_key) == false {
+                let group = if !current_key.eq(prev_key) {
                     Some(prev_val)
                 } else {
                     Some(None)
@@ -76,22 +72,20 @@ where
 
                 group
             }
-            _ => self.prev_val.take().map(|a| Some(a)),
+            _ => self.prev_val.take().map(Option::Some),
         }
     }
 }
 
 #[test]
 fn sanity() {
-    let list:Vec<u32> = vec![
-        0, 0,0,
-    ];
+    let list: Vec<u32> = vec![0, 0, 0];
 
     GroupIterator::new(
         list.iter().enumerate(),
         |&a| a.1,
         |b| println!("item:{:?}", b),
     )
-    .filter_map(|a| a)
+    .flatten()
     .for_each(|b| println!("group is {}", b.1));
 }

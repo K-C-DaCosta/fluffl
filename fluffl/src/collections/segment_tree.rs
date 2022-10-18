@@ -23,16 +23,14 @@ use index_types::*;
 use iterators::*;
 use pools::*;
 
+#[derive(Default)]
 pub struct TreeIterState {
     pub intervals: [Interval; 2],
     pub aux_intervals: [Interval; 2],
 }
 impl TreeIterState {
     pub fn new() -> Self {
-        Self {
-            intervals: [Interval::default(); 2],
-            aux_intervals: [Interval::default(); 2],
-        }
+        Self::default()
     }
 }
 
@@ -69,10 +67,10 @@ impl<V: 'static> CircularSegmentTree<V> {
         }
     }
 
-    pub fn search_scalar<'a>(
-        &'a self,
+    pub fn search_scalar(
+        &self,
         time: FP64,
-    ) -> impl Iterator<Item = (GlobalIndex, &'a GlobalInterval<V>)> {
+    ) -> impl Iterator<Item = (GlobalIndex, &'_ GlobalInterval<V>)> {
         let tree = self;
         let exponent = self.exponent as u8;
         self.bucket_search_scalar(time)
@@ -94,7 +92,7 @@ impl<V: 'static> CircularSegmentTree<V> {
     /// but gets converted to circular t internally
     /// ## Comments
     /// - For whatever reason, scalar searches are fastest kind of iterator
-    fn bucket_search_scalar<'a>(&'a self, t: FP64) -> ScalarSearchIter<'a, V> {
+    fn bucket_search_scalar(&self, t: FP64) -> ScalarSearchIter<'_, V> {
         ScalarSearchIter::new(self, t)
     }
 
@@ -155,8 +153,8 @@ impl<V: 'static> CircularSegmentTree<V> {
     {
         let num_clipped = self.clip_interval(interval, clipped_intervals);
         clipped_intervals[0..num_clipped]
-            .into_iter()
-            .flat_map(move |&i| IntervalSearchIter::new(&self, i).filter_map(|ptr| ptr))
+            .iter()
+            .flat_map(move |&i| IntervalSearchIter::new(self, i).flatten())
     }
 
     /// ## Description
@@ -221,7 +219,7 @@ impl<V: 'static> CircularSegmentTree<V> {
                 height += 1;
             } else {
                 //cant go any further without splitting
-                //so stop and insert 
+                //so stop and insert
                 break;
             }
         }
@@ -342,16 +340,15 @@ impl<V: 'static> CircularSegmentTree<V> {
                 mut_self.remove_helper(ptr, tree_interval);
             },
         )
-        .flat_map(move |a| a)
+        .flatten()
         .map(move |(_bucket_ptr, tree_interval, _)| {
             let mut_self = unsafe {
                 &mut *(seg_tree_ptr as *const CircularSegmentTree<V> as *mut CircularSegmentTree<V>)
             };
-            let value = mut_self
+            mut_self
                 .global_pool
                 .free(tree_interval.global_idx)
-                .expect("value should be here");
-            value
+                .expect("value should be here")
         })
     }
 
@@ -449,7 +446,7 @@ impl<V: 'static> CircularSegmentTree<V> {
             clippings[0] = split_a;
             clippings[1] = split_b;
             2
-        } else if splic_c.inverted() == false {
+        } else if !splic_c.inverted() {
             //interval doesn't sit on a block boundary so clipping is not needed
             clippings[0] = splic_c;
             1

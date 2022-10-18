@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use super::super::collections::{nary_forest::*,Ptr};
+use super::super::collections::{nary_forest::*, Ptr};
 use std::collections::HashMap;
 
 #[derive(Debug)]
@@ -97,7 +97,7 @@ impl XMLParser {
                             self.push_token(Open, &mut accum);
                         }
                     } else {
-                        let adding_first_character = accum.len() == 0;
+                        let adding_first_character = accum.is_empty();
                         if adding_first_character {
                             if c.is_alphabetic() {
                                 accum.push(c);
@@ -186,7 +186,7 @@ impl XMLParser {
     }
 
     ///Builds AST with an explicit stack
-    pub fn parse(mut self, src: &String) -> Result<XMLParser, XMLErrorKind> {
+    pub fn parse(mut self, src: &str) -> Result<XMLParser, XMLErrorKind> {
         use XMLTokenKind::*;
 
         //lex raw text first
@@ -211,7 +211,7 @@ impl XMLParser {
                     if open_tag_name != close_tag_name {
                         return Err(XMLErrorKind::ParserErr("Tags mismatch"));
                     }
-                    if let None = ast_stack.pop() {
+                    if ast_stack.pop().is_none() {
                         return Err(XMLErrorKind::ParserErr("Close Tag without Opening Tag"));
                     }
                 } else if let Inner = current_token.token_kind {
@@ -225,7 +225,7 @@ impl XMLParser {
                 return Err(XMLErrorKind::ParserErr("Extra Tag"));
             }
         }
-        if ast_stack.is_empty() == false {
+        if !ast_stack.is_empty() {
             return Err(XMLErrorKind::ParserErr(
                 "Opening tags do not match close tags",
             ));
@@ -237,7 +237,7 @@ impl XMLParser {
     }
 
     fn push_token(&mut self, token_kind: XMLTokenKind, accum: &mut String) {
-        if accum.len() == 0 || accum.trim().len() == 0 {
+        if accum.is_empty() || accum.trim().is_empty() {
             accum.clear();
             return;
         }
@@ -307,7 +307,6 @@ impl XMLParser {
 
         (0..c_kind.len()).for_each(|_| {
             char_stack.pop();
-            ()
         });
     }
 
@@ -328,8 +327,8 @@ impl XMLParser {
         if node_ptr == Ptr::null() {
             return;
         }
-        match self.ast[node_ptr].data.as_ref() {
-            Some(token) => match token.token_kind {
+        if let Some(token) = self.ast[node_ptr].data.as_ref() {
+            match token.token_kind {
                 XMLTokenKind::Open => {
                     xml_stream.push_str(format!("<{}", token.content).as_str());
                     for (key, val) in token.attribs.iter() {
@@ -342,7 +341,7 @@ impl XMLParser {
                     xml_stream.push_str(format!("</{}>", token.content).as_str());
                 }
                 XMLTokenKind::Inner => {
-                    xml_stream.push_str(format!("{}", token.content).as_str());
+                    xml_stream.push_str(token.content.as_str());
                 }
                 XMLTokenKind::OpenClose => {
                     xml_stream.push_str(format!("<{}", token.content).as_str());
@@ -352,8 +351,7 @@ impl XMLParser {
                     xml_stream.push_str("/>");
                 }
                 _ => (),
-            },
-            None => (),
+            }
         }
     }
 
@@ -372,8 +370,8 @@ impl XMLParser {
         if node_ptr == Ptr::null() {
             return;
         }
-        match self.ast[node_ptr].data.as_ref() {
-            Some(token) => match token.token_kind {
+        if let Some(token) = self.ast[node_ptr].data.as_ref() {
+            match token.token_kind {
                 XMLTokenKind::Open => {
                     xml_stream.push_str(format!("<{}", token.content).as_str().trim());
                     for (key, val) in token.attribs.iter() {
@@ -386,7 +384,7 @@ impl XMLParser {
                     xml_stream.push_str(format!("</{}>", token.content.trim()).as_str());
                 }
                 XMLTokenKind::Inner => {
-                    xml_stream.push_str(format!("{}", token.content.trim()).as_str());
+                    xml_stream.push_str(token.content.trim());
                 }
                 XMLTokenKind::OpenClose => {
                     xml_stream.push_str(format!("<{} ", token.content.trim()).as_str());
@@ -396,8 +394,7 @@ impl XMLParser {
                     xml_stream.push_str("/>");
                 }
                 _ => (),
-            },
-            None => (),
+            }
         }
     }
 
@@ -424,8 +421,7 @@ impl XMLParser {
     pub fn get_child_tokens(
         &self,
         node_ptr: Ptr,
-    ) -> impl Iterator<Item = ( usize, Option<&XMLToken> )>
-    {
+    ) -> impl Iterator<Item = (usize, Option<&XMLToken>)> {
         //without get_child_tokens(...) I would have to do something like this EVERY time i wanted to iterate through
         //the children of a particular node
         self.ast[node_ptr]

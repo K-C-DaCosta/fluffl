@@ -22,6 +22,15 @@ pub struct Matrix<const N: usize, const M: usize, T> {
     data: [[T; M]; N],
 }
 
+impl<const N: usize, const M: usize, T> Default for Matrix<N, M, T>
+where
+    T: Default + Copy + HasConstants,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize, const M: usize, T> Matrix<N, M, T>
 where
     T: Default + Copy + HasConstants,
@@ -59,34 +68,33 @@ where
     pub fn swap_rows(&mut self, i0: usize, i1: usize) {
         let min_row_idx = i0.min(i1);
         let max_row_idx = i0.max(i1);
-
         let (min_rows, max_rows) = self.split_at_mut(max_row_idx);
         let min_row = min_rows[min_row_idx].iter_mut();
         let max_row = max_rows[0].iter_mut();
-        min_row.zip(max_row).for_each(|(r1, r2)| {
-            let temp = *r1;
-            *r1 = *r2;
-            *r2 = temp;
-        });
+        min_row
+            .zip(max_row)
+            .for_each(|(r1, r2)| std::mem::swap(r1, r2));
     }
 
+    /// # Description
+    /// swaps rows `i0` and `i1`
+    /// # Safety
+    /// the row indexes `i0` and `i1` are assumed to be valid
     pub unsafe fn swap_rows_unchecked(&mut self, i0: usize, i1: usize) {
         let row_i0_ptr = self.get_unchecked_mut(i0) as *mut [T; M];
         let row_i1_ptr = self.get_unchecked_mut(i1) as *mut [T; M];
         let row_i0 = (*row_i0_ptr).iter_mut();
         let row_i1 = (*row_i1_ptr).iter_mut();
-        row_i0.zip(row_i1).for_each(|(r1, r2)| {
-            let temp = *r1;
-            *r1 = *r2;
-            *r2 = temp;
-        });
+        row_i0
+            .zip(row_i1)
+            .for_each(|(r1, r2)| std::mem::swap(r1, r2));
     }
 
     pub fn as_slice(&self) -> &[T] {
         unsafe { std::slice::from_raw_parts(self.data.as_ptr() as *const T, N * M) }
     }
 
-    pub fn as_slice_mut(&self) -> &mut [T] {
+    pub fn as_slice_mut(&mut self) -> &mut [T] {
         unsafe { std::slice::from_raw_parts_mut(self.data.as_ptr() as *mut T, N * M) }
     }
 }
@@ -182,7 +190,7 @@ where
     }
 
     pub fn transpose(&self) -> Self {
-        let mut res = self.clone();
+        let mut res = *self;
         res.transpose_in_place();
         res
     }
@@ -265,9 +273,8 @@ where
                     write!(f, ",{:8.2}", e)?;
                 }
             }
-            write!(f, "]\n")?;
+            writeln!(f)?;
         }
-
         Ok(())
     }
 }

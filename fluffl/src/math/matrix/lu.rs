@@ -250,7 +250,7 @@ where
     ///     - diagonally dominant matracies
     ///     - rigid transform matracies
     ///     - orthoganal matracies
-    pub fn decomp_lu_inplace_gaussian<'a>(&'a mut self) -> DecompLUInplace<'a, N, T> {
+    pub fn decomp_lu_inplace_gaussian(&mut self) -> DecompLUInplace<'_, N, T> {
         for j in 0..N {
             let inv_pivot = T::from_i32(-1) / self[j][j];
             for i in j + 1..N {
@@ -283,7 +283,7 @@ where
     /// ## Comments
     /// - tried to make this as branchless as possible
     /// - source: https://www.javatpoint.com/doolittle-algorithm-lu-decomposition
-    pub fn decomp_lu_inplace_doolittle<'a>(&'a mut self) -> DecompLUInplace<'a, N, T> {
+    pub fn decomp_lu_inplace_doolittle(& mut self) -> DecompLUInplace<'_, N, T> {
         for i in 1..N {
             for j in 0..N {
                 let a = self[i][j];
@@ -351,7 +351,7 @@ fn lu_decomp_sanity() {
     let decomp = mat.decomp_plu(0.01).expect("this matrix is not degenerate");
 
     let recomposition = decomp.recompose();
-    assert_eq!(true, mat.is_similar(&recomposition, THRESHOLD));
+    assert!( mat.is_similar(&recomposition, THRESHOLD));
 
     // decomp.print();
     // let sol = decomp.upper.back_sub([1.0, 2.0, 3.0]);
@@ -363,30 +363,28 @@ fn lu_decomp_sanity() {
         .decomp_plu(0.01)
         .map(|lu| lu.invert())
         .expect("matrix is not degenerate");
-    assert_eq!(
-        true,
+    assert!(
         (inverse * mat).is_similar(&Mat3::identity(), THRESHOLD)
     );
 
     //this should fail
     let mat = degen_4x4();
     let decomp = mat.decomp_plu(0.01);
-    assert_eq!(true, decomp.is_none());
+    assert!(decomp.is_none());
 
     //this should pass, rigid transforms are always invertable
     let mat = rigid_rotation_4x4();
     // println!("transform:\n{mat}");
     let decomp = mat.decomp_plu(0.01).expect("shouldn't be degen");
     // decomp.print();
-    assert_eq!(true, mat.is_similar(&decomp.recompose(), THRESHOLD));
+    assert!( mat.is_similar(&decomp.recompose(), THRESHOLD));
 
     let mat = rigid_rotation_4x4();
     let mat_inv = rigid_rotation_4x4().decomp_lu_inplace_gaussian().invert();
 
     // println!("lu:\n{}", mat * mat_inv);
 
-    assert_eq!(
-        true,
+    assert!(
         (mat * mat_inv).is_similar(&SquareMat::identity(), THRESHOLD),
         "rigid transforms should be okay for no-pivot lu decomposition"
     );

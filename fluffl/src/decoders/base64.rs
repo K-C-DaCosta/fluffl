@@ -19,7 +19,7 @@ pub fn encode(data: &[u8]) -> String {
     let mut accum = 0;
     for i in 0..num_bits {
         let bit = (data[(i / 8) as usize] >> (8 - (i % 8) - 1)) & 1;
-        accum |= bit << 6 - (i % 6) - 1;
+        accum |= bit << (6 - (i % 6) - 1);
         if i % 6 == 5 {
             output.push(map_binary_to_b64_digit(accum).unwrap());
             accum = 0;
@@ -37,15 +37,15 @@ pub fn encode(data: &[u8]) -> String {
     output
 }
 
-pub fn decode<S:AsRef<str>>(raw_text: S) -> Result<Vec<u8>, Error> {
+
+#[allow(clippy::same_item_push)]
+pub fn decode<S: AsRef<str>>(raw_text: S) -> Result<Vec<u8>, Error> {
     let raw_text = raw_text.as_ref();
     let mut byte_buffer = vec![0; 64];
     let mut remaining_size = byte_buffer.len() * 8;
     let mut bit_cursor = 0;
 
-    let iter = raw_text
-        .chars()
-        .filter(|&a| a.is_whitespace() == false && a != '=');
+    let iter = raw_text.chars().filter(|&a| !a.is_whitespace() && a != '=');
 
     for c in iter {
         //every bit pattern has 6 bits worth of content
@@ -81,7 +81,8 @@ fn map_b64_digit_to_binary(c: char) -> Option<u8> {
         b'0'..=b'9' => c - b'0' + 52,
         b'+' => 62,
         b'/' => 63,
-        b'=' | _ => 0,
+        b'=' => 0,
+        _ => 0,
     };
     Some(c)
 }

@@ -30,8 +30,7 @@ impl FP32 {
 
     /// does no conversion at all,use From trait for that
     pub fn from_bits(bits: i32) -> Self {
-        let data = bits.into();
-        Self { data }
+        Self { data:bits }
     }
 
     /// not using the from trait for this because it needs to be const
@@ -40,9 +39,9 @@ impl FP32 {
     }
 
     /// computes 1/x
-    pub fn invert(self)-> Self{
+    pub fn invert(self) -> Self {
         let one = Self::from(1);
-        let res = ( (one.data <<14)  /self.data ) << 2;
+        let res = ((one.data << 14) / self.data) << 2;
         Self::from_bits(res)
     }
     /// slower,because calculations take up an entire register on 64-bit
@@ -183,7 +182,7 @@ impl Div<i32> for FP32 {
 }
 impl DivAssign for FP32 {
     fn div_assign(&mut self, rhs: Self) {
-        self.data = (self.data << 7 / rhs.data) << 9;
+        self.data = ((self.data << 7) / rhs.data) << 9;
     }
 }
 impl DivAssign<i32> for FP32 {
@@ -292,8 +291,7 @@ impl FP32 {
             let coef_1_term_1 = (x.abs() >> 8) * (B >> 19);
             let coef_0 = (A >> 15) * (x >> 12);
             let coef_1 = coef_1_term_0 - coef_1_term_1;
-            let out = (coef_0 >> 15) * (coef_1 >> 12);
-            out
+            (coef_0 >> 15) * (coef_1 >> 12)
         };
         let accurate_spline = |x: Self| {
             const K0F: f32 = 0.865;
@@ -346,7 +344,7 @@ impl FP32 {
 
         let (m, m_root) = M_TABLE
             .iter()
-            .map(|&a| a)
+            .copied()
             .find(|&m_k| self.data <= (m_k.0 << 16))
             .unwrap_or(LAST);
 
@@ -432,7 +430,7 @@ fn fast_mod_tests() {
 #[test]
 fn trig_tests() {
     const NUM_STEPS: usize = 10000;
-    let delta_f64 = 2.0 * 3.14159 / NUM_STEPS as f32;
+    let delta_f64 = 2.0 * std::f32::consts::PI / NUM_STEPS as f32;
     let delta_fp64 = FP32::from(delta_f64);
     let mut t_f64 = 0.0f32;
     let mut t_fp64 = FP32::zero();
@@ -446,7 +444,7 @@ fn trig_tests() {
         max_error = max_error.max(error);
 
         let meets_tolerance = error < MAX_TOLERANCE;
-        if meets_tolerance == false {
+        if !meets_tolerance {
             println!(
                 "k = {k}\nangle_f64= {},angle_fp64={}\nf64={s_f64},fp64={s_fp64}\nerror = {error}",
                 t_f64, t_fp64
@@ -470,10 +468,8 @@ pub fn qsqrt_test() {
     }
 }
 
-
 #[test]
 pub fn inv_test() {
-    let x = FP32::from_bits(1<<1);
-    println!("{}",x.invert());
+    let x = FP32::from_bits(1 << 1);
+    println!("{}", x.invert());
 }
-

@@ -7,6 +7,7 @@ pub struct FixedStack<const N: usize, V> {
     cursor: usize,
     len: usize,
 }
+
 impl<const N: usize, V> FixedStack<N, V>
 where
     V: Default + Copy,
@@ -19,12 +20,12 @@ where
         }
     }
 
-    pub fn clear(&mut self){
+    pub fn clear(&mut self) {
         self.len = 0;
         self.cursor = 0;
     }
 
-    pub fn clear_with_root_val(&mut self,init:V){
+    pub fn clear_with_root_val(&mut self, init: V) {
         self.len = 0;
         self.cursor = 0;
         self.memory[0] = init;
@@ -58,6 +59,16 @@ where
         })
     }
 }
+
+impl<const N: usize, V> Default for FixedStack<N, V>
+where
+    V: Default + Copy,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const N: usize, V: Copy> Index<usize> for FixedStack<N, V> {
     type Output = V;
     fn index(&self, index: usize) -> &Self::Output {

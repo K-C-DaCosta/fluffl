@@ -1,4 +1,5 @@
 
+#[derive(Default)]
 pub struct BitArray {
     blocks: Vec<u32>,
     len: u128,
@@ -22,6 +23,10 @@ impl BitArray {
             self.blocks.push(block_val);
         }
         self.len = num_bits;
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0 
     }
 
     /// returns number of bits available

@@ -8,11 +8,14 @@ pub use std::{
     sync::{Arc, Mutex, MutexGuard},
 };
 
-
 pub struct RequestQueuePtr {
     queue_ptr: Arc<Mutex<VecDeque<MixerRequest>>>,
 }
-
+impl Default for RequestQueuePtr {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 impl RequestQueuePtr {
     pub fn new() -> Self {
         Self {
@@ -22,14 +25,14 @@ impl RequestQueuePtr {
 
     pub fn submit_requests(&self, requests: &mut LocalRequestQueue) {
         let queue_that_only_user_has_access_to = requests;
-        if let Some(mut queue_that_mixer_has_access_to) = self.queue_ptr.try_lock().ok() {
+        if let Ok(mut queue_that_mixer_has_access_to) = self.queue_ptr.try_lock() {
             while let Some(req) = queue_that_only_user_has_access_to.queue.pop_front() {
                 queue_that_mixer_has_access_to.borrow_mut().push_back(req)
             }
         }
     }
 
-    pub fn lock<'a>(&'a self)->Option<MutexGuard<'a,VecDeque<MixerRequest>>>{
+    pub fn lock(&self) -> Option<MutexGuard<'_, VecDeque<MixerRequest>>> {
         self.queue_ptr.try_lock().ok()
     }
 }
@@ -46,20 +49,28 @@ pub struct ResponseQueuePtr {
     queue_ptr: Arc<Mutex<VecDeque<MixerResponse>>>,
 }
 
+impl Default for ResponseQueuePtr {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ResponseQueuePtr {
     pub fn new() -> Self {
         Self {
             queue_ptr: Arc::new(Mutex::new(VecDeque::new())),
         }
     }
+
     pub fn recieve_responses(&self) -> impl Iterator<Item = MixerResponse> + '_ {
         self.queue_ptr
             .try_lock()
             .ok()
             .map(|guard| DequeueAndRemove::new(Some(guard)))
-            .unwrap_or(DequeueAndRemove::new(None))
+            .unwrap_or_else(|| DequeueAndRemove::new(None))
     }
-    pub fn lock<'a>(&'a self)->Option<MutexGuard<'a,VecDeque<MixerResponse>>>{
+
+    pub fn lock(&self) -> Option<MutexGuard<'_, VecDeque<MixerResponse>>> {
         self.queue_ptr.try_lock().ok()
     }
 }

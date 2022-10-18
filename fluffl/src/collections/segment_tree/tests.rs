@@ -306,7 +306,7 @@ fn insert_search_by_interval_shotgun_0() {
     t0 = Instant::now();
     intervals
         .iter()
-        .map(|&a| a)
+        .copied()
         .filter(|interval| interval.is_overlapping(&single_query_range))
         .for_each(|_| total += 1);
     total_linear_search_dt = t0.elapsed().as_micros();

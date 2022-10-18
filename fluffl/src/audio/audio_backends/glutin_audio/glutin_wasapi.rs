@@ -1,22 +1,19 @@
 use super::*;
-use crate::{console::*, *};
 use std::sync::{Arc, Mutex};
 use std::{
     thread,
-    time::{Duration, Instant},
+    time::{Duration},
 };
 
 use windows::{
     core::*,
     Win32::{
-        Devices::FunctionDiscovery::*,
         Media::{
             Audio::{eRender, IMMDeviceEnumerator, MMDeviceEnumerator, WAVEFORMATEX, *},
             KernelStreaming::*,
             Multimedia::*,
         },
         System::Com::*,
-        UI::Shell::PropertiesSystem::PROPERTYKEY,
     },
 };
 
@@ -113,7 +110,6 @@ where
     }
 
     unsafe fn wasapi_resume_thread(mut requested_specs: ConcreteSpecs, ctx: Self) -> Result<()> {
-
         if let Ok(mut state) =ctx.state.lock(){
             if let DeviceState::Paused = *state{
                 *state = DeviceState::Playing;
@@ -186,9 +182,6 @@ where
         render_client: &IAudioRenderClient,
         requested_specs: ConcreteSpecs,
     ) -> Result<()> {
-        /*
-            
-        */
         let buffer_frame_count = audio_client.GetBufferSize()?;
         audio_client.Start()?;
         let mut can_sleep = None;
@@ -198,7 +191,7 @@ where
         loop {
             if let Some(num_frames_written) = can_sleep.take() {
                 let duration_buffered_in_nanos = (num_frames_written * 1_000_000_000) / frequency;
-                std::thread::sleep(Duration::from_nanos(duration_buffered_in_nanos / 4));
+                std::thread::sleep(Duration::from_nanos(duration_buffered_in_nanos / 2));
             }
             let num_frames_padding = audio_client.GetCurrentPadding()?;
             let num_frames_available = buffer_frame_count - num_frames_padding;
@@ -225,7 +218,7 @@ where
                 // let the callback write data to the WASAPI buffer
                 let _ = callback(state, &mut mono_buffer);
 
-                // mix mono to stereo
+                // mix from mono to stereo
                 pcm_buffer_slice
                     .chunks_mut(2)
                     .zip(mono_buffer.iter())
@@ -254,7 +247,7 @@ where
         loop {
             if let Some(num_frames_written) = can_sleep.take() {
                 let duration_buffered_in_nanos = (num_frames_written * 1_000_000_000) / frequency;
-                std::thread::sleep(Duration::from_nanos(duration_buffered_in_nanos / 4));
+                std::thread::sleep(Duration::from_nanos(duration_buffered_in_nanos / 2));
             }
             let num_frames_padding = audio_client.GetCurrentPadding()?;
             let num_frames_available = buffer_frame_count - num_frames_padding;
@@ -330,9 +323,7 @@ pub unsafe fn request_device_format(
         Source:https://learn.microsoft.com/en-us/windows/win32/coreaudio/device-formats
     */
     // let format_buffer = audio_client.GetMixFormat()? as *mut WAVEFORMATEXTENSIBLE;
-
     // let device_format_header = &mut *format_buffer;
-
     // print_format_header("default", device_format_header);
 
     let mut requested_device_format = requested_specs.to_wasapi();

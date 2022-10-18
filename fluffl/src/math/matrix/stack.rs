@@ -2,7 +2,6 @@ use super::*;
 
 pub type MatStack<T> = MatrixStack<32, T>;
 
-
 /// # Description
 /// Used for scene-graphs and GUI stuff  
 pub struct MatrixStack<const N: usize, T> {
@@ -20,9 +19,13 @@ where
             stack: [Mat4::identity(); N],
         }
     }
-    
-    pub fn len(&self)->usize{
-        self.cursor-1
+
+    pub fn is_empty(&self)->bool{
+        self.len() == 0
+    }
+
+    pub fn len(&self) -> usize {
+        self.cursor - 1
     }
 
     pub fn clear(&mut self) {
@@ -61,6 +64,15 @@ where
 
     pub fn iter(&self) -> impl Iterator<Item = &Mat4<T>> {
         self.stack.iter().take(self.cursor)
+    }
+}
+
+impl<const N: usize, T> Default for MatrixStack<N, T>
+where
+    T: Copy + Default + HasConstants + Mul<Output = T> + Add<Output = T> + AddAssign,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 

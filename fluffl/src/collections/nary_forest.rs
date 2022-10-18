@@ -1,9 +1,7 @@
-use super::Ptr; 
+use super::Ptr;
 
-use std::ops::{Index, IndexMut};
 use serde::{Deserialize, Serialize};
-
-
+use std::ops::{Index, IndexMut};
 
 #[derive(Serialize, Deserialize)]
 pub struct NaryNode<T> {
@@ -23,6 +21,12 @@ impl<T> NaryNode<T> {
     pub fn with_data(mut self, data: T) -> Self {
         self.data = Some(data);
         self
+    }
+}
+
+impl<T> Default for NaryNode<T> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -56,7 +60,7 @@ where
             pool_node
         }
     }
-    
+
     #[allow(dead_code)]
     pub fn free(&mut self, node: Ptr) {
         if node == Ptr::null() {
@@ -85,6 +89,15 @@ where
     pub fn add_child(&mut self, parent: Ptr, child: Ptr) {
         self[parent].children.push(child);
         self[child].parent = parent;
+    }
+}
+
+impl<T> Default for NaryForest<T>
+where
+    Self: Index<Ptr, Output = NaryNode<T>> + IndexMut<Ptr>,
+{
+    fn default() -> Self {
+        Self::new()
     }
 }
 

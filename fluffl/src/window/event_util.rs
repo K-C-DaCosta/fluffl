@@ -5,6 +5,7 @@ use std::collections::VecDeque;
 /// A generic interface for events\
 /// Unfortunately I needed a layer between SDL2 and other WASM+JS interfaces for the web build\
 /// because the SDL2 crate pretty much only supports desktop platforms
+#[derive(Default)]
 pub struct FlufflEvent {
     event_queue: VecDeque<EventKind>,
 }

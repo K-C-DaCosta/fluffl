@@ -14,9 +14,11 @@ pub use platform_specifics::*;
 
 type Track = Box<dyn HasAudioStream>;
 
+#[derive(Default)]
 pub struct LocalRequestQueue {
     queue: VecDeque<MixerRequest>,
 }
+
 impl LocalRequestQueue {
     pub fn new() -> Self {
         Self {

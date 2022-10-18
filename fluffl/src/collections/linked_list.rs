@@ -46,13 +46,15 @@ where
     /// returns the length of the dll
     fn len(&self) -> usize;
 
-    /// returns a mutable pointer to memory \
-    /// Even though this is considered safe in rust, I would prefren manual manipulation \
-    /// to be done by code in this module \
-    unsafe fn get_memory_mut(&mut self) -> &mut Vec<NodeType>;
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
 
-    /// returns a mutable refrence to the pool pointer for external manipulation
-    unsafe fn get_pool_mut(&mut self) -> &mut Ptr;
+    /// returns a mutable reference to memory
+    fn get_memory_mut(&mut self) -> &mut Vec<NodeType>;
+
+    /// returns a mutable reference to the pool pointer for external manipulation
+    fn get_pool_mut(&mut self) -> &mut Ptr;
 
     /// inserts a node to the left or right of location `cur_node` in "memmory" \
     /// `dir` =  0  when inserting to the left of cur_node \
@@ -84,16 +86,12 @@ where
     /// free node at location `node`
     fn free(&mut self, node: Ptr) {
         if self.get_pool() == Ptr::null() {
-            unsafe {
-                *self.get_pool_mut() = node;
-                self.get_memory_mut()[node.as_usize()].nullify();
-            }
+            *self.get_pool_mut() = node;
+            self.get_memory_mut()[node.as_usize()].nullify();
         } else {
-            unsafe {
-                self.get_memory_mut()[node.as_usize()].nullify();
-                self.get_memory_mut()[node.as_usize()].get_children_mut()[0] = self.get_pool();
-                *self.get_pool_mut() = node;
-            }
+            self.get_memory_mut()[node.as_usize()].nullify();
+            self.get_memory_mut()[node.as_usize()].get_children_mut()[0] = self.get_pool();
+            *self.get_pool_mut() = node;
         }
     }
 }
@@ -225,6 +223,7 @@ impl<NodeType> DoublyLinkedList<NodeType> {
         }
     }
 }
+
 #[allow(dead_code)]
 impl<NodeType> DoublyLinkedList<NodeType>
 where
@@ -251,7 +250,13 @@ where
     pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut NodeType> {
         let mem_ptr = self.memory.as_mut_ptr();
         self.node_index_iter()
-            .map(move |index| unsafe { &mut *mem_ptr.offset(index.as_usize() as isize) })
+            .map(move |index| unsafe { &mut *mem_ptr.add(index.as_usize()) })
+    }
+}
+
+impl<NodeType> Default for DoublyLinkedList<NodeType> {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -264,11 +269,11 @@ impl<T> LLOps<OptionNode<T>, T> for DoublyLinkedList<OptionNode<T>> {
         self.pool
     }
 
-    unsafe fn get_memory_mut(&mut self) -> &mut Vec<OptionNode<T>> {
+    fn get_memory_mut(&mut self) -> &mut Vec<OptionNode<T>> {
         &mut self.memory
     }
 
-    unsafe fn get_pool_mut(&mut self) -> &mut Ptr {
+    fn get_pool_mut(&mut self) -> &mut Ptr {
         &mut self.pool
     }
 
@@ -369,11 +374,11 @@ where
         self.len as usize
     }
 
-    unsafe fn get_memory_mut(&mut self) -> &mut Vec<Node<T>> {
+    fn get_memory_mut(&mut self) -> &mut Vec<Node<T>> {
         &mut self.memory
     }
 
-    unsafe fn get_pool_mut(&mut self) -> &mut Ptr {
+    fn get_pool_mut(&mut self) -> &mut Ptr {
         &mut self.pool
     }
 

@@ -241,7 +241,7 @@ impl Mixer {
         }
     }
 
-    fn mix_audio<'a>(&mut self, mut output_buffer: PCMSlice<'a, f32>) {
+    fn mix_audio(&mut self, mut output_buffer: PCMSlice<'_, f32>) {
         //the 'length' of the cursor determines the global speed of the mixer
         //this controls the speed of the mixer
         let new_samples_per_channel =
@@ -267,6 +267,9 @@ impl Mixer {
         //update t
         self.global_t.increment(cursor.delta.samps());
     }
+
+
+
     fn mix_active_tracks(&mut self, cursor: MixerCursor, output_buffer: PCMSlice<f32>) {
         // its easier to pull audio from tracks KNOWING that the cursor for the output buffer starts at ZERO
         self.handle_intersecting_tracks_not_first_time(cursor, output_buffer);
@@ -274,6 +277,8 @@ impl Mixer {
         // tracks that intersect the cursor for the first time are handled differently than
         self.handle_intersecting_tracks(cursor, output_buffer);
     }
+
+    
     fn handle_intersecting_tracks(
         &mut self,
         cursor: MixerCursor,
@@ -307,7 +312,7 @@ impl Mixer {
             //actually pull required pulses from track
             let PullInfo { samples_read, .. } = current_track.pull_samples(
                 stream_scratch_space,
-                output_buffer.with_slice(&mut sample_scratch_space[0..samples_needed]),
+                output_buffer.with_slice(&sample_scratch_space[0..samples_needed]),
             );
 
             //sound gets added to
@@ -388,7 +393,7 @@ impl Mixer {
         track_chart
             .search_interval(&mut TreeIterState::new(), cursor.to_interval_ms())
             .for_each(|(gi, _)| {
-                if running_streams_table.contains_key(&gi) == false {
+                if !running_streams_table.contains_key(&gi) {
                     running_streams_on_intersection.push(gi);
                     // At this stage it is good enough to know that the stream is being mixed
                     // Inserting (GlobalIndex, Ptr::NULL) into the table tells us the stream is being mixed but
@@ -514,7 +519,7 @@ impl Mixer {
                 MixerRequest::Seek(offset_kind) => {
                     Self::request_operation_seek(track_chart, global_t, offset_kind);
                     mixer_ref.remove_irrelevent_tracks_predicate(|track| {
-                        track.interval().is_within(global_t.elapsed_in_ms_fp()) == false
+                        !track.interval().is_within(global_t.elapsed_in_ms_fp())
                     });
                 }
             }
@@ -745,7 +750,7 @@ impl Mixer {
         let running_streams = &mut self.running_streams;
         let running_streams_table = &mut self.running_streams_table;
 
-        let ptr = running_streams_table.get(&current_track_gid).map(|&a| a)?;
+        let ptr = running_streams_table.get(&current_track_gid).copied()?;
         if ptr.is_null() {
             return None;
         }
@@ -766,7 +771,7 @@ fn resample_and_mix_assumed_2_channels(src: &[f32], dst: &mut [f32]) {
     mix_resample_audio_both_2_channels_iterator_version_vectorized(src, dst)
 }
 
-#[allow(dead_code)]
+#[allow(dead_code, clippy::identity_op)]
 fn mix_resample_audio_both_2_channels_slow_reference(src: &[f32], dst: &mut [f32]) {
     const NUM_CHANNELS: usize = 2;
     let src_sample_count = src.len() / NUM_CHANNELS;
@@ -855,4 +860,3 @@ pub fn mix_resample_audio_test(src: &[f32], dst: &mut [f32]) {
         src_full += step;
     });
 }
-

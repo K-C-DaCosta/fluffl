@@ -1,12 +1,11 @@
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     fmt,
-    marker::PhantomData,
     mem::MaybeUninit,
     vec,
 };
 
-use glow::{HasContext, Program};
+use glow::HasContext;
 
 use crate::{
     collections::{
@@ -17,7 +16,7 @@ use crate::{
         ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
         text_writer::TextWriter,
     },
-    math::{self, MatStack, translate4, ComponentWriter, Mat4, Vec2, Vec4, AABB2},
+    math::{self, translate4, ComponentWriter, Mat4, MatStack, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
     window::event_util::{EventKind, KeyCode},
     FlufflState, GlowGL,
@@ -42,6 +41,13 @@ pub type GuiMutation<T> = Box<dyn FnMut(&T)>;
 pub struct MutationRequestQueue<ProgramState> {
     queue: VecDeque<GuiMutation<ProgramState>>,
 }
+
+impl<ProgramState> Default for MutationRequestQueue<ProgramState> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<ProgramState> MutationRequestQueue<ProgramState> {
     pub fn new() -> Self {
         Self {
@@ -69,7 +75,7 @@ pub struct GuiManager<ProgramState> {
     component_transform_stack: MatStack<f32>,
 
     /// used for cut+copy+paste
-    clipboard: String,
+    _clipboard: String,
 
     ///component that is currently in "focus"
     focused_component: Option<GuiComponentKey>,
@@ -120,7 +126,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             key_down_table: HashSet::new(),
             visibility_table: Vec::new(),
             visibility_intersection_stack: FixedStack::new(),
-            clipboard: String::new(),
+            _clipboard: String::new(),
             gl,
             mutation_queue: MutationRequestQueue::new(),
         }
@@ -170,7 +176,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             transform * pos
         };
 
-        let compute_current_level = |stack: &LevelStack, comp: &Box<dyn GuiComponent>| {
+        let compute_current_level = |stack: &LevelStack, comp: &dyn GuiComponent| {
             let parent_level = stack.peek();
             if comp.flags().is_set(component_flags::OVERFLOWABLE) {
                 (-127, -126)
@@ -203,7 +209,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     node_stack.pop();
                     level_stack.pop();
 
-                    let (cur_level, new_level) = compute_current_level(&level_stack, &comp);
+                    let (cur_level, new_level) = compute_current_level(&level_stack, comp.as_ref());
                     let gpos = compute_global_position(rel_pos, transform_stack);
 
                     transform_stack.push(transform);
@@ -244,7 +250,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                         }
                     }
 
-                    let (cur_level, new_level) = compute_current_level(&level_stack, comp);
+                    let (cur_level, new_level) = compute_current_level(&level_stack, comp.as_ref());
                     let gpos = compute_global_position(rel_pos, transform_stack);
 
                     transform_stack.push(transform);
@@ -254,7 +260,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     (cur_level, gpos)
                 }
                 StackSignal::Push => {
-                    let (cur_level, new_level) = compute_current_level(&level_stack, comp);
+                    let (cur_level, new_level) = compute_current_level(&level_stack, comp.as_ref());
                     let gpos = compute_global_position(rel_pos, transform_stack);
 
                     transform_stack.push(transform);
@@ -300,7 +306,7 @@ impl<ProgramState> GuiManager<ProgramState> {
     ) -> GuiComponentKey {
         let comp = comp
             .take()
-            .map(|v| MaybeUninit::new(v))
+            .map(MaybeUninit::new)
             .unwrap_or(MaybeUninit::zeroed());
 
         let id = self
@@ -398,7 +404,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                             .set_visible(!v);
                     }
 
-                    if key_down_table.contains(&code) == false {
+                    if !key_down_table.contains(&code) {
                         if let &mut Some(fkey) = focused_component {
                             component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnKeyDown,
@@ -509,7 +515,7 @@ impl<ProgramState> GuiManager<ProgramState> {
 
                     if let &mut Some(clicked_key) = clicked_component {
                         //force release of component if its being clicked on while being invisible
-                        if visibility_table[clicked_key] == false && clicked_component.is_some() {
+                        if !visibility_table[clicked_key] && clicked_component.is_some() {
                             let clicked_key = clicked_component.expect("clicked should be valid");
                             component_signal_bus.push_back(ComponentEventSignal::new(
                                 GuiEventKind::OnMouseRelease,
@@ -520,9 +526,9 @@ impl<ProgramState> GuiManager<ProgramState> {
                         }
 
                         Self::object_is_clicked_so_send_drag_signal_to_focused_component(
-                            &gui_component_tree,
+                            gui_component_tree,
                             component_signal_bus,
-                            &key_to_handler_block_table,
+                            key_to_handler_block_table,
                             clicked_key,
                             event,
                         );
@@ -551,8 +557,8 @@ impl<ProgramState> GuiManager<ProgramState> {
                     if let &mut Some(hovered_key) = hover_component {
                         Self::push_signal_to_bus_and_bubble(
                             component_signal_bus,
-                            &gui_component_tree,
-                            &key_to_handler_block_table,
+                            gui_component_tree,
+                            key_to_handler_block_table,
                             hovered_key,
                             GuiEventKind::OnWheelWhileHovered,
                             event,
@@ -596,13 +602,14 @@ impl<ProgramState> GuiManager<ProgramState> {
         );
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn check_for_hover_signal_and_send_if_found<'a>(
         mouse_pos: Vec2<f32>,
         hover_component: &mut Option<GuiComponentKey>,
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
         component_signal_bus: &mut VecDeque<ComponentEventSignal>,
-        visibility_table: &'a Vec<bool>,
+        visibility_table: &'a [bool],
         visibility_intersection_stack: &'a mut FixedStack<128, bool>,
         event: EventKind,
     ) {
@@ -683,7 +690,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             let mut cur_node_id = node.id;
             self.visibility_table[cur_node_id.as_usize()] = get_visibility(node.id).unwrap();
             while let Some(parent) = gui_component_tree.get_parent_id(cur_node_id) {
-                if get_visibility(parent).unwrap() == false {
+                if !get_visibility(parent).unwrap() {
                     self.visibility_table[node.id.as_usize()] = false;
                     break;
                 }
@@ -695,7 +702,7 @@ impl<ProgramState> GuiManager<ProgramState> {
     fn point_in_aabb_cumulative_intersections<'a, CB>(
         gui_component_tree: &'a LinearTree<Box<dyn GuiComponent>>,
         key_to_aabb_table: &'a HashMap<GuiComponentKey, AABB2<f32>>,
-        visibility_table: &'a Vec<bool>,
+        visibility_table: &'a [bool],
         visibility_stack: &'a mut VisibilityStack,
         mouse_pos: Vec2<f32>,
         mut callback: CB,
@@ -739,7 +746,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                 }
             };
 
-            if intersected_visibility && visibility_table[key] {
+            if intersected_visibility && visibility_table[key.as_usize()] {
                 callback(key);
             }
         }
@@ -799,7 +806,7 @@ impl<ProgramState> GuiManager<ProgramState> {
         let current_node_has_listener = key_to_handler_block_table
             .get(&key)
             .and_then(|block| block.get(sig_kind as usize))
-            .map(|wheel_hovered_handlers| wheel_hovered_handlers.is_empty() == false)
+            .map(|wheel_hovered_handlers| !wheel_hovered_handlers.is_empty())
             .unwrap_or(false);
 
         if current_node_has_listener {

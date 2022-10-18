@@ -175,7 +175,7 @@ impl Div<i32> for FP64 {
 }
 impl DivAssign for FP64 {
     fn div_assign(&mut self, rhs: Self) {
-        self.data = (self.data << 8 / rhs.data) << 8;
+        self.data = ((self.data << 8) / rhs.data) << 8;
     }
 }
 impl DivAssign<i32> for FP64 {
@@ -269,11 +269,10 @@ impl FP64 {
     /// divisor assumed to be relatively small
     pub fn remainder(self, inv_divisor: Self, divisor: Self) -> Self {
         let x = self;
-        let x_scaled = Self::from_bits((x.data >> 14) * (inv_divisor.data >> 1) >> 1);
+        let x_scaled = Self::from_bits( ((x.data >> 14) * (inv_divisor.data >> 1)) >> 1);
         let x_quotient = x_scaled.floor();
-        let x_multiple = Self::from_bits((x_quotient.data >> 14) * (divisor.data >> 1) >> 1);
-        let x_remainder = x - x_multiple;
-        x_remainder
+        let x_multiple = Self::from_bits( ((x_quotient.data >> 14) * (divisor.data >> 1)) >> 1);
+        x - x_multiple
     }
 
     /// Computes sin quickly by using spline approximations
@@ -331,7 +330,7 @@ fn conversion_tests() {
     assert_eq!(-10, val.as_i64());
 
     //exhaustive test
-    for k in -900_000_00..=900_000_00 {
+    for k in -90_000_000..=90_000_000 {
         // println!("k ={}",k );
         let val = FP64::from(k);
 
@@ -359,7 +358,7 @@ fn trig_eval_bug_1() {
 #[test]
 fn trig_tests() {
     const NUM_STEPS: usize = 2048;
-    let delta_f64 = 2.0*3.14159 / NUM_STEPS as f64;
+    let delta_f64 = 2.0*std::f64::consts::PI / NUM_STEPS as f64;
     let delta_fp64 = FP64::from(delta_f64);
     let mut t_f64 = 0.0f64;
     let mut t_fp64 = FP64::zero();
@@ -370,7 +369,7 @@ fn trig_tests() {
         let s_fp64 = t_fp64.sin();
         let distance = (s_f64 - s_fp64.as_f64()).abs();
         let meets_tolerance = distance < TOLERANCE;
-        if meets_tolerance == false {
+        if !meets_tolerance {
             println!(
                 "k = {k}\nangle_f64= {},angle_fp64={}\nf64={s_f64},fp64={s_fp64}\ndistance = {distance}",
                 t_f64, t_fp64

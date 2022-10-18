@@ -94,8 +94,7 @@ pub fn sanity() {
     writer.write(&Vec4::from_array([1.0f32, 0.2, 0.3, 0.4]));
     writer.write(&Vec4::from_array([2.0f32, 3.2, -0.3, 9.]));
 
-    assert_eq!(
-        true,
+    assert!(
         list.iter()
             .zip([1., 0.2, 0.3, 0.4, 2.0, 3.2, -0.3, 9.].iter())
             .all(|(a, b)| (b - a).abs() < 0.001)

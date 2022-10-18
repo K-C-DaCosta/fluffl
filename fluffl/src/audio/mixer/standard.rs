@@ -1,8 +1,8 @@
-use std::{fs, ops::Deref};
+use std::ops::Deref;
 
 use super::*;
 use crate::audio::{AudioDeviceCore, DesiredSpecs, FlufflAudioContext, FlufflAudioDeviceContext};
-use adhoc_audio::{StreamInfo, Streamable, WavCodec};
+use adhoc_audio::{StreamInfo, WavCodec};
 
 pub type StandardMixerCB = fn(&mut StandardMixerState, &mut [f32]);
 
