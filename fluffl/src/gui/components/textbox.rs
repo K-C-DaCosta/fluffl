@@ -694,10 +694,10 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
                         KeyCode::BACKSPACE => {
                             comp.remove_char_at_cursor();
                         }
-                        KeyCode::ARROW_LEFT => {
+                        KeyCode::ARROW_L => {
                             comp.offset_cursor(-1);
                         }
-                        KeyCode::ARROW_RIGHT => {
+                        KeyCode::ARROW_R => {
                             comp.offset_cursor(1);
                         }
                         KeyCode::SHIFT_L | KeyCode::SHIFT_R | KeyCode::CTRL_L | KeyCode::CTRL_R => {

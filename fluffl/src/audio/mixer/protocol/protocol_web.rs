@@ -27,15 +27,20 @@ impl RequestQueuePtr {
 
     pub fn submit_requests(&self, requests: &mut LocalRequestQueue) {
         let queue_that_only_user_has_access_to = requests;
-        if let Some(mut queue_that_mixer_has_access_to) = self.queue.try_borrow_mut().ok() {
+        if let Ok(mut queue_that_mixer_has_access_to) = self.queue.try_borrow_mut() {
             while let Some(req) = queue_that_only_user_has_access_to.queue.pop_front() {
                 queue_that_mixer_has_access_to.push_back(req)
             }
         }
     }
 
-    pub fn lock<'a>(&'a self) -> Option<RefMut<'a, VecDeque<MixerRequest>>> {
+    pub fn lock(&self) -> Option<RefMut<'_, VecDeque<MixerRequest>>> {
         self.queue.try_borrow_mut().ok()
+    }
+}
+impl Default for RequestQueuePtr {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -51,7 +56,7 @@ impl ResponseQueuePtr {
         }
     }
 
-    pub fn lock<'a>(&'a self) -> Option<RefMut<'a, VecDeque<MixerResponse>>> {
+    pub fn lock(&self) -> Option<RefMut<'_, VecDeque<MixerResponse>>> {
         self.queue.try_borrow_mut().ok()
     }
 
@@ -60,7 +65,13 @@ impl ResponseQueuePtr {
             .try_borrow_mut()
             .ok()
             .map(|guard| DequeueAndRemove::new(Some(guard)))
-            .unwrap_or(DequeueAndRemove::new(None))
+            .unwrap_or_else(|| DequeueAndRemove::new(None))
+    }
+}
+
+impl Default for ResponseQueuePtr {
+    fn default() -> Self {
+        Self::new()
     }
 }
 pub struct DequeueAndRemove<'a, T> {

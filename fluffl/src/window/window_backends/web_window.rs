@@ -11,11 +11,7 @@ pub use wasm_bindgen;
 pub use wasm_bindgen::{prelude::*, JsCast};
 pub use web_sys::*;
 
-use std::{
-    cell::{Cell, RefCell},
-    rc::Rc,
-    sync::Arc,
-};
+use std::{cell::RefCell, rc::Rc, sync::Arc};
 
 use glow;
 use glow::*;
@@ -112,7 +108,7 @@ fn get_canvas() -> Rc<HtmlCanvasElement> {
 #[allow(dead_code)]
 pub struct FlufflWindow {
     glue_event: Option<FlufflEvent>,
-    gl: Arc<Box<Context>>,
+    gl: GlowGL,
     render_loop: Option<glow::RenderLoop>,
     window_width: u32,
     window_height: u32,
@@ -145,9 +141,8 @@ impl FlufflWindow {
         };
 
         let app_state_ptr = FlufflState::new(app_state);
-
         render_loop.run(move |running| {
-            if window_ptr.window_mut_cb(|win| transfer_events(win)) {
+            if window_ptr.window_mut_cb(transfer_events) {
                 let win_ptr_clone = window_ptr.clone();
                 let app_state_clone = app_state_ptr.clone();
                 spawn_local(core_loop(
@@ -202,15 +197,13 @@ impl HasFlufflWindow for FlufflWindow {
         let gl = glow::Context::from_webgl2_context(webgl2_context);
         let render_loop = glow::RenderLoop::from_request_animation_frame();
 
-        match attach_event_handlers(&web_window, &canvas) {
-            Err(_) => {
-                // console_write("Event handler instantiation failed!");
-                return Err(FlufflError::WindowInitError(String::from(
-                    "javascript event listeners failed",
-                )));
-            }
-            _ => (),
+        if attach_event_handlers(&web_window, &canvas).is_err() {
+            // console_write("Event handler instantiation failed!");
+            return Err(FlufflError::WindowInitError(String::from(
+                "javascript event listeners failed",
+            )));
         }
+
         let canvas = Rc::new(canvas);
 
         //I need a global reference to the canvas in this module
@@ -259,13 +252,13 @@ impl HasFlufflWindow for FlufflWindow {
     fn set_fullscreen(&mut self, go_fullscren: bool) {
         let document: Document = web_sys::window().unwrap().document().unwrap();
 
-        if go_fullscren == true && document.fullscreen() == false {
+        if go_fullscren && !document.fullscreen() {
             let canvas_ref = self.canvas.as_ref();
             let canvas_element: &HtmlElement = canvas_ref.dyn_ref::<HtmlElement>().unwrap();
             canvas_element
                 .request_fullscreen()
                 .expect("Fullscreen Failed");
-        } else if go_fullscren == false && document.fullscreen() == true {
+        } else if !go_fullscren && document.fullscreen() {
             document.exit_fullscreen();
         }
     }
@@ -302,7 +295,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
             let event_queue = get_global_event_queue_mut();
 
             for k in 0..touch_list.length() {
-                touch_list.item(k).map(|touch: Touch| {
+                if let Some(touch) = touch_list.item(k) {
                     let id = touch.identifier();
 
                     let x = touch.client_x() as f64;
@@ -318,7 +311,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
                         dx,
                         dy,
                     });
-                });
+                }
             }
         }) as Box<dyn FnMut(_)>);
 
@@ -335,7 +328,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
             let event_queue = get_global_event_queue_mut();
 
             for k in 0..touch_list.length() {
-                touch_list.item(k).map(|touch: Touch| {
+                if let Some(touch) = touch_list.item(k) {
                     let id = touch.identifier();
                     let x = touch.client_x() as f64;
                     let y = touch.client_y() as f64;
@@ -356,7 +349,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
                     // Its important to remove info associated with id when finger is released.
                     // We only want to track unique fingers detected by the touchscreen
                     TouchTracker::get_mut().remove(&id);
-                });
+                }
             }
         }) as Box<dyn FnMut(_)>);
 
@@ -373,7 +366,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
             let event_queue = get_global_event_queue_mut();
 
             for k in 0..touch_list.length() {
-                touch_list.item(k).map(|touch: Touch| {
+                if let Some(touch) = touch_list.item(k) {
                     let id = touch.identifier();
                     let x = touch.client_x() as f64;
                     let y = touch.client_y() as f64;
@@ -390,7 +383,7 @@ fn attach_event_handlers(window: &Window, canvas: &HtmlCanvasElement) -> Result<
                         dx: 0.0,
                         dy: 0.0,
                     });
-                });
+                }
             }
         }) as Box<dyn FnMut(_)>);
 
@@ -563,7 +556,7 @@ fn viewport_to_window_mobile_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32, 
     } else {
         let window = web_sys::window().unwrap();
         let document = window.document().unwrap();
-        let screen: Screen = window.screen().ok().unwrap();
+        let _screen: Screen = window.screen().ok().unwrap();
         let canvas = get_canvas();
         let rect = canvas.get_bounding_client_rect();
 
@@ -620,7 +613,7 @@ fn viewport_to_window_desktop_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32,
     let canvas_width = canvas.width() as f64;
     let canvas_height = canvas.height() as f64;
 
-    if document.fullscreen() == false {
+    if !document.fullscreen()  {
         let sx = canvas_width / rect.width() as f64;
         let sy = canvas_height / rect.height() as f64;
         let x = (x * sx - rect.x() * sx) as i32;
@@ -690,7 +683,8 @@ fn is_in_portrait_mode() -> bool {
         false
     }
 }
-
+/// MDN docs:
+/// https://developer.mozilla.org/en-US/docs/Web/API/UI_Events/Keyboard_event_code_values
 fn map_keycode(js_keycode: &str) -> KeyCode {
     match js_keycode {
         "KeyA" => KeyCode::KEY_A,
@@ -730,27 +724,43 @@ fn map_keycode(js_keycode: &str) -> KeyCode {
         "Digit7" => KeyCode::NUM_7,
         "Digit8" => KeyCode::NUM_8,
         "Digit9" => KeyCode::NUM_9,
+        "Numpad0" => KeyCode::KP_0,
+        "Numpad1" => KeyCode::KP_1,
+        "Numpad2" => KeyCode::KP_2,
+        "Numpad3" => KeyCode::KP_3,
+        "Numpad4" => KeyCode::KP_4,
+        "Numpad5" => KeyCode::KP_5,
+        "Numpad6" => KeyCode::KP_6,
+        "Numpad7" => KeyCode::KP_7,
+        "Numpad8" => KeyCode::KP_8,
+        "Numpad9" => KeyCode::KP_9,
         "Minus" => KeyCode::MINUS,
         "Equal" => KeyCode::EQUALS,
         "Comma" => KeyCode::COMMA,
         "Semicolon" => KeyCode::COLON,
         "Quote" => KeyCode::QUOTE,
-        "Slash" => KeyCode::FORWARD_SLASH,
+        "Slash" => KeyCode::FORDSLASH,
         "Backslash" => KeyCode::BACKSLASH,
         "Insert" => KeyCode::INSERT,
         "Home" => KeyCode::HOME,
-        "PageUp" => KeyCode::PAGE_UP,
-        "PageDown" => KeyCode::PAGE_DOWN,
+        "PageUp" => KeyCode::PAGE_U,
+        "PageDown" => KeyCode::PAGE_D,
         "End" => KeyCode::END,
         "Delete" => KeyCode::DELETE,
         "ShiftLeft" => KeyCode::SHIFT_L,
         "ShiftRight" => KeyCode::SHIFT_R,
-        "ArrowUp" => KeyCode::ARROW_UP,
-        "ArrowLeft" => KeyCode::ARROW_LEFT,
-        "ArrowRight" => KeyCode::ARROW_RIGHT,
-        "ArrowDown" => KeyCode::ARROW_DOWN,
+        "ArrowUp" => KeyCode::ARROW_U,
+        "ArrowLeft" => KeyCode::ARROW_L,
+        "ArrowRight" => KeyCode::ARROW_R,
+        "ArrowDown" => KeyCode::ARROW_D,
         "Space" => KeyCode::SPACE,
         "Period" => KeyCode::PERIOD,
+        "AltLeft" => KeyCode::ALT_L,
+        "AltRight" => KeyCode::ALT_R,
+        "ControlLeft" => KeyCode::CTRL_L,
+        "ControlRight" => KeyCode::CTRL_R,
+        "BracketLeft" => KeyCode::BRACKET_L,
+        "BracketRight" => KeyCode::BRACKET_R,
         _ => KeyCode::UNKNOWN,
     }
 }

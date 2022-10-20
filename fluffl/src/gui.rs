@@ -393,7 +393,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             let _old_signal_len = component_signal_bus.len();
             match event {
                 EventKind::KeyDown { code } => {
-                    if let KeyCode::BRAKET_RIGHT = code {
+                    if let KeyCode::BRACKET_R = code {
                         let v = gui_component_tree
                             .get_mut(GuiComponentKey(5))
                             .unwrap()

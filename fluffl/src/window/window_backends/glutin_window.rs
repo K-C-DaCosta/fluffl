@@ -65,28 +65,28 @@ impl FlufflWindow {
 
         render_loop.run(move |event, _, control_flow| {
             let mut is_running = true;
-
-            if let Event::MainEventsCleared = &event {
-                let unexecuted_iteration = core_loop(
-                    window_ptr.clone(),
-                    FlufflRunning::new(&mut is_running),
-                    state_ptr.clone(),
-                );
-                window_ptr
-                    .window()
-                    .window
-                    .swap_buffers()
-                    .expect("failed to swap buffers");
-                //execute future
-                futures::executor::block_on(unexecuted_iteration);
-
-                if !is_running  {
-                    *control_flow = ControlFlow::Exit;
+            match event {
+                Event::MainEventsCleared | Event::RedrawRequested(_) => {
+                    window_ptr
+                        .window()
+                        .window
+                        .swap_buffers()
+                        .expect("failed to swap buffers");
+                    //execute future
+                    futures::executor::block_on(core_loop(
+                        window_ptr.clone(),
+                        FlufflRunning::new(&mut is_running),
+                        state_ptr.clone(),
+                    ));
+                    if !is_running {
+                        *control_flow = ControlFlow::Exit;
+                    }
                 }
-            } else {
-                window_ptr
-                    .window_mut()
-                    .convert_glutin_event_to_fluffl_event(event);
+                _ => {
+                    window_ptr
+                        .window_mut()
+                        .convert_glutin_event_to_fluffl_event(event);
+                }
             }
         });
     }
@@ -100,7 +100,7 @@ impl FlufflWindow {
                 }
                 WindowEvent::KeyboardInput {
                     input,
-                    is_synthetic:_,
+                    is_synthetic: _,
                     ..
                 } => match (input.state, input.virtual_keycode) {
                     (ElementState::Pressed, Some(code)) => {
@@ -315,12 +315,12 @@ pub fn map_virtual_keycode_to_fluffl(code: VirtualKeyCode) -> Option<KeyCode> {
         VirtualKeyCode::Home => KeyCode::HOME,
         VirtualKeyCode::Delete => KeyCode::DELETE,
         VirtualKeyCode::End => KeyCode::END,
-        VirtualKeyCode::PageDown => KeyCode::PAGE_DOWN,
-        VirtualKeyCode::PageUp => KeyCode::PAGE_UP,
-        VirtualKeyCode::Left => KeyCode::ARROW_LEFT,
-        VirtualKeyCode::Up => KeyCode::ARROW_UP,
-        VirtualKeyCode::Right => KeyCode::ARROW_RIGHT,
-        VirtualKeyCode::Down => KeyCode::ARROW_DOWN,
+        VirtualKeyCode::PageDown => KeyCode::PAGE_D,
+        VirtualKeyCode::PageUp => KeyCode::PAGE_U,
+        VirtualKeyCode::Left => KeyCode::ARROW_L,
+        VirtualKeyCode::Up => KeyCode::ARROW_U,
+        VirtualKeyCode::Right => KeyCode::ARROW_R,
+        VirtualKeyCode::Down => KeyCode::ARROW_D,
         VirtualKeyCode::Back => KeyCode::BACKSPACE,
         VirtualKeyCode::Return => KeyCode::ENTER,
         VirtualKeyCode::Space => KeyCode::SPACE,
@@ -348,17 +348,17 @@ pub fn map_virtual_keycode_to_fluffl(code: VirtualKeyCode) -> Option<KeyCode> {
         VirtualKeyCode::Minus => KeyCode::MINUS,
         VirtualKeyCode::Period => KeyCode::PERIOD,
         VirtualKeyCode::RAlt => KeyCode::ALT_R,
-        VirtualKeyCode::RBracket => KeyCode::BRAKET_RIGHT,
+        VirtualKeyCode::RBracket => KeyCode::BRACKET_R,
         VirtualKeyCode::RControl => KeyCode::CTRL_R,
         VirtualKeyCode::RShift => KeyCode::SHIFT_R,
         VirtualKeyCode::RWin => KeyCode::SUPER_R,
         VirtualKeyCode::LAlt => KeyCode::ALT_L,
-        VirtualKeyCode::LBracket => KeyCode::BRACKET_LEFT,
+        VirtualKeyCode::LBracket => KeyCode::BRACKET_L,
         VirtualKeyCode::LControl => KeyCode::CTRL_L,
         VirtualKeyCode::LShift => KeyCode::SHIFT_L,
         VirtualKeyCode::LWin => KeyCode::SUPER_L,
         VirtualKeyCode::Semicolon => KeyCode::COLON,
-        VirtualKeyCode::Slash => KeyCode::FORWARD_SLASH,
+        VirtualKeyCode::Slash => KeyCode::FORDSLASH,
         VirtualKeyCode::Sleep => KeyCode::SLEEP,
         VirtualKeyCode::Tab => KeyCode::TAB,
         VirtualKeyCode::Underline => KeyCode::MINUS,

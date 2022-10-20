@@ -2,7 +2,7 @@ use super::*;
 use std::cell::RefCell;
 use std::marker::PhantomData;
 use std::rc::Rc;
-use wasm_bindgen::{closure::Closure, JsCast, JsValue};
+use wasm_bindgen::{closure::Closure, JsCast};
 use web_sys::{BinaryType, CloseEvent, Event, MessageEvent, WebSocket};
 
 pub struct WsClient<State, MessageCB, CloseCB, ErrorCB>
@@ -75,7 +75,7 @@ where
     fn with_on_message_cb(mut self, callback: MessageCB) -> Self {
         let socket_state = self.inner.client_state.clone();
 
-        // Moving a raw pointer into the closure works so far 
+        // Moving a raw pointer into the closure works so far
         // But I could see browser panics/segfaults later down the road
         // I'm definitely not comfortable with this, and honestly, im not sure why this even works at all.
         let innner_pointer = (&mut self.inner) as *mut dyn HasWebSocketClient;
@@ -96,22 +96,22 @@ where
         WebSocket::new(uri)
             .map(move |socket| {
                 //set onclose here
-                self.inner.on_close_cb.as_ref().map(|js_callback| {
+                if let Some(js_callback) = self.inner.on_close_cb.as_ref() {
                     let js_function: &js_sys::Function = js_callback.as_ref().unchecked_ref();
                     socket.set_onclose(Some(js_function));
-                });
+                }
 
                 //set onerror here
-                self.inner.on_error_cb.as_ref().map(|js_callback| {
+                if let Some(js_callback) = self.inner.on_error_cb.as_ref() {
                     let js_function: &js_sys::Function = js_callback.as_ref().unchecked_ref();
                     socket.set_onerror(Some(js_function));
-                });
+                }
 
                 //set onmessage cb
-                self.inner.on_message_cb.as_ref().map(|js_callback| {
+                if let Some(js_callback) = self.inner.on_message_cb.as_ref() {
                     let js_function: &js_sys::Function = js_callback.as_ref().unchecked_ref();
                     socket.set_onmessage(Some(js_function));
-                });
+                }
 
                 // According to the wasm-bindgen example 'ArrayBuffer' is better for small messages
                 // so I've decided ArrayBuffer is probably the right way to go for this library
@@ -147,7 +147,7 @@ where
     }
 
     fn listen(&mut self) {
-       //the javascript runtime does this for us 
+        //the javascript runtime does this for us
     }
 }
 
@@ -155,15 +155,15 @@ impl<State, MessageCB, CloseCB, ErrorCB> Drop for WsClient<State, MessageCB, Clo
     fn drop(&mut self) {}
 }
 
-impl<State, MessageCB, CloseCB, ErrorCB> Into<Box<dyn HasWebSocketClient>>
-    for WsClient<State, MessageCB, CloseCB, ErrorCB>
+impl<State, MessageCB, CloseCB, ErrorCB> From<WsClient<State, MessageCB, CloseCB, ErrorCB>>
+    for Box<dyn HasWebSocketClient>
 where
     State: 'static,
     MessageCB: 'static,
     CloseCB: 'static,
     ErrorCB: 'static,
 {
-    fn into(self) -> Box<dyn HasWebSocketClient> {
-        Box::new(self)
+    fn from(a: WsClient<State, MessageCB, CloseCB, ErrorCB>) -> Self {
+        Box::new(a)
     }
 }

@@ -282,8 +282,8 @@ async fn process_events(
                         }));
                 }
 
-                if let KeyCode::PAGE_UP = code {}
-                if let KeyCode::PAGE_DOWN = code {}
+                if let KeyCode::PAGE_U = code {}
+                if let KeyCode::PAGE_D = code {}
                 if let KeyCode::SPACE = code {
                     unsafe {
                         gl.clear(glow::COLOR_BUFFER_BIT);
@@ -663,15 +663,12 @@ fn setup_test_gui(
                     ))
                 }));
             } else {
-                let t = FP32::from(32767.0 * percentage);
-                let a = FP32::from(-20000);
-                let b = FP32::from(12768);
-
-                let s = t.div_exact(FP32::from(32767));
-                let mix = (b - a) * s + a;
-
-                println!("mix = {mix}");
-
+                // let t = FP32::from(32767.0 * percentage);
+                // let a = FP32::from(-20000);
+                // let b = FP32::from(12768);
+                // let s = t.div_exact(FP32::from(32767));
+                // let mix = (b - a) * s + a;
+                // println!("mix = {mix}");
                 info.mutation_queue.enqueue(Box::new(move |state| {
                     let state = &mut *state.borrow_mut();
                     state.angle = new_angle;

@@ -114,14 +114,14 @@ pub async fn main() {
                                 Some(())
                             })
                         }
-                        if let KeyCode::PAGE_UP = code {
+                        if let KeyCode::PAGE_U = code {
                             device.modify_state(|mp_opt| {
                                 let mp = mp_opt?;
                                 mp.volume = (mp.volume + 0.1).min(1.0).max(0.0);
                                 Some(())
                             })
                         }
-                        if let KeyCode::PAGE_DOWN = code {
+                        if let KeyCode::PAGE_D = code {
                             device.modify_state(|state_opt| {
                                 let mp = state_opt?;
                                 mp.volume = (mp.volume - 0.1).min(1.0).max(0.0);

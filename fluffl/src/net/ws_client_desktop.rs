@@ -159,15 +159,15 @@ where
     }
 }
 
-// impl<State, MessageCB, CloseCB, ErrorCB> Into<Box<dyn HasWebSocketClient>>
-//     for WsClient<State, MessageCB, CloseCB, ErrorCB>
-// where
-//     MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy + 'static,
-//     CloseCB: Fn(&mut State) + Copy + 'static,
-//     ErrorCB: Fn(&mut State) + Copy + 'static,
-//     State: 'static,
-// {
-//     fn into(self) -> Box<dyn HasWebSocketClient> {
-//         Box::new(self)
-//     }
-// }
+impl<State, MessageCB, CloseCB, ErrorCB> From<WsClient<State, MessageCB, CloseCB, ErrorCB>>
+    for Box<dyn HasWebSocketClient>
+where
+    MessageCB: Fn(&mut dyn HasWebSocketClient, &mut State, &[u8]) + Copy + 'static,
+    CloseCB: Fn(&mut State) + Copy + 'static,
+    ErrorCB: Fn(&mut State) + Copy + 'static,
+    State: 'static,
+{
+    fn from(a: WsClient<State, MessageCB, CloseCB, ErrorCB>) -> Self {
+        Box::new(a)
+    }
+}

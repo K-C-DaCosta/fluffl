@@ -1,4 +1,4 @@
-use super::{AudioDeviceCore,ConcreteSpecs};
+use super::{AudioDeviceCore, ConcreteSpecs};
 
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -6,7 +6,7 @@ use wasm_bindgen::JsCast;
 // use wasm_bindgen_futures::*;
 use web_sys::*;
 
-use std::{cell::RefCell, rc::Rc, sync::Arc};
+use std::{cell::RefCell, rc::Rc};
 
 use crate::{
     collections::{linked_list::*, Ptr},
@@ -44,7 +44,6 @@ fn get_thread_state<'a>(thread_id: Ptr) -> Option<&'a ThreadState> {
         .get_data()
         .unwrap()
         .as_ref()
-        .map(|thread_state| thread_state)
 }
 
 fn get_thread_state_mut<'a>(thread_id: Ptr) -> Option<&'a mut ThreadState> {
@@ -52,7 +51,6 @@ fn get_thread_state_mut<'a>(thread_id: Ptr) -> Option<&'a mut ThreadState> {
         .get_data_mut()
         .unwrap()
         .as_mut()
-        .map(|thread_state| thread_state)
 }
 
 fn can_buffer(thread_id: Ptr, buffer_time: f64, audio_context: FlufflAudioContext) -> bool {
@@ -66,11 +64,18 @@ pub struct FlufflAudioContext {
     pub ctx: AudioContext,
 }
 
+
 impl FlufflAudioContext {
     pub fn new() -> Self {
         let ctx = AudioContext::new().unwrap();
         Self { ctx }
     }
+}
+
+impl Default for FlufflAudioContext{
+    fn default() -> Self {
+        Self::new( )
+    }    
 }
 
 impl Drop for FlufflAudioContext {
@@ -241,7 +246,7 @@ where
 
                     //copy the callback buffer to the web_audio_buffer
                     buffer_pool.borrow()[web_audio_buffer_ptr]
-                        .copy_to_channel(&mut sample_buffer_for_channel[..], channel_index as i32)
+                        .copy_to_channel(&sample_buffer_for_channel[..], channel_index as i32)
                         .unwrap();
                 }
 
@@ -261,11 +266,13 @@ where
                         .borrow_mut()
                         .free_audio_buffer(web_audio_buffer_ptr);
 
-                    get_audio_thread_list()[thread_id].get_data().map(|data| {
-                        data.as_ref().map(|ThreadState { audio_thread, .. }| {
-                            let _ = audio_thread.call0(&JsValue::null());
-                        });
-                    });
+                    if let Some(ThreadState { audio_thread, .. }) = get_audio_thread_list()
+                        [thread_id]
+                        .get_data()
+                        .and_then(|data| data.as_ref())
+                    {
+                        let _ = audio_thread.call0(&JsValue::null());
+                    }
                 };
 
                 //wrap continue_buffering in boxed closure and convert to a Js Function
@@ -294,9 +301,9 @@ where
 
                 //because each chunk of samples takes some time,DT,to play  I have to
                 //increment play_time by that amount. DT in this case is equal to : buffer_size/sample_rate
-                get_thread_state_mut(thread_id).map(|thread_state| {
+                if let Some(thread_state) = get_thread_state_mut(thread_id) {
                     thread_state.play_time += buffer_size as f64 / sample_rate as f64;
-                });
+                }
             }
         };
 
@@ -307,14 +314,12 @@ where
             .unwrap();
 
         //initalize 'audio thread'
-        get_audio_thread_list_mut()[thread_id]
-            .get_data_mut()
-            .map(|data| {
-                *data = Some(ThreadState {
-                    play_time: 0.0,
-                    audio_thread: process_raw_pcm_closure,
-                });
+        if let Some(data) = get_audio_thread_list_mut()[thread_id].get_data_mut() {
+            *data = Some(ThreadState {
+                play_time: 0.0,
+                audio_thread: process_raw_pcm_closure,
             });
+        }
 
         Self {
             state,
@@ -337,21 +342,19 @@ where
     pub fn resume(&self) {
         let thread_id = self.thread_id;
         //begin 'audio thread'
-        get_audio_thread_list_mut()[thread_id]
-            .get_data_mut()
-            .map(|data| {
-                data.as_mut().map(
-                    |ThreadState {
-                         play_time,
-                         audio_thread,
-                     }| {
-                        // really need to make sure that play_time is updated before playing
-                        *play_time = self.audio_context.ctx.current_time();
-                        // this line,once executed, actually starts the thread
-                        audio_thread.call0(&JsValue::null())
-                    },
-                );
-            });
+        if let Some(data) = get_audio_thread_list_mut()[thread_id].get_data_mut() {
+            data.as_mut().map(
+                |ThreadState {
+                     play_time,
+                     audio_thread,
+                 }| {
+                    // really need to make sure that play_time is updated before playing
+                    *play_time = self.audio_context.ctx.current_time();
+                    // this line,once executed, actually starts the thread
+                    audio_thread.call0(&JsValue::null())
+                },
+            );
+        }
     }
 
     pub fn pause(&self) {
