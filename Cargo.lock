@@ -492,7 +492,7 @@ dependencies = [
 
 [[package]]
 name = "fluffl"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "adhoc_audio",
  "alsa",
@@ -522,7 +522,7 @@ dependencies = [
 
 [[package]]
 name = "fluffl-macros"
-version = "0.0.1"
+version = "0.0.4"
 dependencies = [
  "quote 1.0.20",
  "syn",
