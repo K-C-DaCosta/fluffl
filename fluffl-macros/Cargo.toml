@@ -1,7 +1,15 @@
 [package]
 name = "fluffl-macros"
-version = "0.0.1"
+version = "0.0.4"
 edition = "2021"
+authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
+description = "A cross-platform multimedia layer that exposes opengl,sockets,and audio utilities for desktop and browser"
+readme = "README.md"
+repository = "https://github.com/K-C-DaCosta/fluffl"
+keywords = ["multimedia", "graphics", "audio", "wasm"]
+categories = ["graphics", "gui", "game-development", "multimedia", "wasm"]
+license = "MIT OR Apache-2.0"
+
 
 [lib]
 proc-macro = true
