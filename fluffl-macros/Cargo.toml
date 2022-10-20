@@ -1,6 +1,6 @@
 [package]
 name = "fluffl-macros"
-version = "0.0.4"
+version = "0.0.3"
 edition = "2021"
 authors = ["khadeem dacosta <khadeem.dacosta@gmail.com>"]
 description = "A cross-platform multimedia layer that exposes opengl,sockets,and audio utilities for desktop and browser"
