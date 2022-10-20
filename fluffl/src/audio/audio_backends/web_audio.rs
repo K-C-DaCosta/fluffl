@@ -64,7 +64,6 @@ pub struct FlufflAudioContext {
     pub ctx: AudioContext,
 }
 
-
 impl FlufflAudioContext {
     pub fn new() -> Self {
         let ctx = AudioContext::new().unwrap();
@@ -72,10 +71,10 @@ impl FlufflAudioContext {
     }
 }
 
-impl Default for FlufflAudioContext{
+impl Default for FlufflAudioContext {
     fn default() -> Self {
-        Self::new( )
-    }    
+        Self::new()
+    }
 }
 
 impl Drop for FlufflAudioContext {
