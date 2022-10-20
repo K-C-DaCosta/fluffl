@@ -140,8 +140,8 @@ pub async fn main() {
                 let [x, y] = state.mouse_pos;
                 let pos_str = format!("[{},{}]", x, y);
                 let aabb = writer.calc_text_aabb_preserved(pos_str.as_str(), x, y, 48.);
-                let tx = (x - aabb.w / 2.).max(0.).min(bounds.0 as f32 - aabb.w);
-                let ty = (y - aabb.h / 2.).max(0.).min(bounds.1 as f32 - aabb.h);
+                let tx = (x - aabb.w() / 2.).max(0.).min(bounds.0 as f32 - aabb.w());
+                let ty = (y - aabb.h() / 2.).max(0.).min(bounds.1 as f32 - aabb.h());
                 writer.draw_text_line_preserved(pos_str.as_str(), tx, ty, 48., Some(bounds));
             }
 
@@ -151,8 +151,8 @@ pub async fn main() {
                 let aabb = writer.calc_text_aabb_preserved(id_str.as_str(), x, y, 32.);
                 writer.draw_text_line_preserved(
                     id_str.as_str(),
-                    (x - aabb.w / 2.).max(0.).min(bounds.0 as f32 - aabb.w),
-                    (y - aabb.h / 2.).max(0.).min(bounds.1 as f32 - aabb.h),
+                    (x - aabb.w() / 2.).max(0.).min(bounds.0 as f32 - aabb.w()),
+                    (y - aabb.h() / 2.).max(0.).min(bounds.1 as f32 - aabb.h()),
                     32.,
                     Some(bounds),
                 );

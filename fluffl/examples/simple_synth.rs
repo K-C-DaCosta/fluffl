@@ -4,7 +4,6 @@ use fluffl::{
     console::*,
     //playing music files requires more than what the base library provides
     //so here is my implementation of certain things like "text rendering" and music playing
-    extras::hiero_pack::*,
     io::*,
     math::FP64,
     prelude::*,

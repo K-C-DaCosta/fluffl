@@ -60,7 +60,7 @@ impl GuiComponent for LabelState {
         };
 
         let text_bounds = text_writer.calc_text_aabb(&self.caption, 0.0, 0.0, text_height);
-        let text_bounds = Vec2::from([text_bounds.w, text_bounds.h]);
+        let text_bounds = Vec2::from([text_bounds.w(), text_bounds.h()]);
 
         let aligned_position = self.aligner.compute_position(
             Vec2::convert(state.global_position),

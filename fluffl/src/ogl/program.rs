@@ -257,7 +257,7 @@ where
 
 fn get_source_block(tokens: &[SlToken], block_ident: &'static str) -> Option<(usize, usize)> {
     let mut found_ifndef = false;
-    let query: ArrayVec<[usize; 4]> = tokens
+    let query = tokens
         .iter()
         .enumerate()
         .filter(|&(_, tok)| {
@@ -276,7 +276,7 @@ fn get_source_block(tokens: &[SlToken], block_ident: &'static str) -> Option<(us
         })
         .take(2)
         .map(|(index, _)| index)
-        .collect();
+        .collect::<Vec<_>>();
 
     if query.len() == 2 {
         Some((query[0], query[1]))

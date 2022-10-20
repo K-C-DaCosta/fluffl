@@ -31,17 +31,25 @@ where
         Self::from_segment(Vector::zero(), Vector::zero())
     }
 
-    pub fn from_segment(a: Vector<DIM, T>, b: Vector<DIM, T>) -> Self {
+    pub fn from_segment<V0, V1>(a: V0, b: V1) -> Self
+    where
+        V0: Into<Vector<DIM, T>>,
+        V1: Into<Vector<DIM, T>>,
+    {
         Self {
-            min_pos: a,
-            max_pos: b,
+            min_pos: a.into(),
+            max_pos: b.into(),
         }
     }
 
-    pub fn from_point_and_lengths(x0: Vector<DIM, T>, dim: Vector<DIM, T>) -> Self {
+    pub fn from_point_and_lengths<V0, V1>(x0: V0, dim: V1) -> Self
+    where
+        V0:Copy+ Into<Vector<DIM, T>>,
+        V1:Copy+ Into<Vector<DIM, T>>,
+    {
         Self {
-            min_pos: x0,
-            max_pos: x0 + dim,
+            min_pos: x0.into(),
+            max_pos: x0.into() + dim.into(),
         }
     }
 
@@ -137,6 +145,45 @@ impl<const DIM: usize> AABB<DIM, f32> {
             max_pos: Vector::from_array([f32::NEG_INFINITY; DIM]),
         }
     }
+}
+
+#[rustfmt::skip]
+impl<T> AABB2<T> 
+where 
+    T:Copy 
+{
+    pub fn x(&self) -> T { self.min_pos[0] }
+    pub fn y(&self) -> T { self.min_pos[1] }
+}
+
+#[rustfmt::skip]
+impl<T> AABB2<T>
+where
+    T: Copy + Sub<Output = T>,
+{
+    pub fn w(&self) -> T { self.max_pos[0] - self.min_pos[0] }
+    pub fn h(&self) -> T { self.max_pos[1] - self.min_pos[1] }
+}
+
+#[rustfmt::skip]
+impl<T> AABB3<T>
+where
+    T:Copy 
+{
+    pub fn x(&self) -> T { self.min_pos[0] }
+    pub fn y(&self) -> T { self.min_pos[1] }
+    pub fn z(&self) -> T { self.min_pos[2] }
+}
+
+#[rustfmt::skip]
+impl<T> AABB3<T>
+where
+    T: Sub<Output = T> + Copy,
+{
+    pub fn w(&self) -> T { self.max_pos[0] - self.min_pos[0] }
+    pub fn h(&self) -> T { self.max_pos[1] - self.min_pos[1] }
+    pub fn d(&self) -> T { self.max_pos[2] - self.min_pos[2] }
+
 }
 
 #[test]

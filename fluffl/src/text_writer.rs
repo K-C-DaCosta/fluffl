@@ -1,9 +1,10 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use extras::math_util::*;
+// use extras::math_util::*;
 
 use crate::{
     console::*,
+    math::{AABB2, *},
     ogl::{array::*, buffer::*, program::*, texture::*, OglIncomplete, *},
     *,
 };
@@ -86,17 +87,15 @@ impl WriterState {
         uvs: &mut [f32],
         xoff: f32,
         yoff: f32,
-        glyph_bounds: AABB,
+        glyph_bounds: AABB2<f32>,
     ) {
         //generate glyph quad and its uvs
         TextWriter::set_glyph(
             verts,
             uvs,
-            AABB::new(
-                self.pen_x + xoff,
-                self.pen_y + yoff,
-                glyph_bounds.w,
-                glyph_bounds.h,
+            AABB2::from_point_and_lengths(
+                [self.pen_x + xoff, self.pen_y + yoff],
+                glyph_bounds.dims(),
             ),
             glyph_bounds,
             self.comps_filled,
@@ -263,22 +262,15 @@ impl TextWriter {
     /// - `text` - the text you wish compute bonding box of
     /// - `x0`,`y0` - the top left corner of the bounding box
     /// - `size` - the vertical height of the text
-    pub fn calc_text_aabb(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
+    pub fn calc_text_aabb(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB2<f32> {
         if !text.is_empty() {
             let src_bb = self.calculate_bounding_box(x0, y0, text);
-            AABB {
-                x: src_bb.x,
-                y: src_bb.y,
-                w: src_bb.w * self.horizontal_scale_factor,
-                h: size,
-            }
+            AABB2::from_point_and_lengths(
+                [src_bb.x(), src_bb.y()],
+                [src_bb.w() * self.horizontal_scale_factor, size],
+            )
         } else {
-            AABB {
-                x: x0,
-                y: y0,
-                w: 0.,
-                h: 0.,
-            }
+            AABB2::from_point_and_lengths([x0, y0], [0., 0.])
         }
     }
 
@@ -290,24 +282,14 @@ impl TextWriter {
     /// - `size` - the vertical height of the text
     /// # Comments
     /// In order to avoid 'squished' looking text, I try to maintain aspect ratio of unscaled glyphs
-    pub fn calc_text_aabb_preserved(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB {
+    pub fn calc_text_aabb_preserved(&self, text: &str, x0: f32, y0: f32, size: f32) -> AABB2<f32> {
         if !text.is_empty() {
             let src_bb = self.calculate_bounding_box(x0, y0, text);
-            let aspect_ratio = src_bb.w / src_bb.h;
+            let aspect_ratio = src_bb.w() / src_bb.h();
             let width = aspect_ratio * size;
-            AABB {
-                x: src_bb.x,
-                y: src_bb.y,
-                w: width,
-                h: size,
-            }
+            AABB2::from_point_and_lengths([src_bb.x(), src_bb.y()], [width, size])
         } else {
-            AABB {
-                x: x0,
-                y: y0,
-                w: 0.,
-                h: 0.,
-            }
+            AABB2::from_point_and_lengths([x0, y0], [0., 0.])
         }
     }
 
@@ -341,11 +323,14 @@ impl TextWriter {
 
         let gl = self.gl.clone();
         let (screen_w, screen_h) = screen_bounds.unwrap_or((800, 600));
-        let proj_mat = calc_proj(screen_w as f32, screen_h as f32);
+        let proj_mat = calc_ortho_window_f32(screen_w as f32, screen_h as f32);
         let src_bb = self.calculate_bounding_box(x0, y0, text);
         let resize_matrix = resize_region(
             src_bb,
-            AABB::new(x0, y0, src_bb.w * self.horizontal_scale_factor, size),
+            AABB2::from_point_and_lengths(
+                [x0, y0],
+                [src_bb.w() * self.horizontal_scale_factor, size],
+            ),
         );
         self.draw(&gl, text, x0, y0, proj_mat, resize_matrix);
     }
@@ -378,10 +363,13 @@ impl TextWriter {
         }
         let gl = self.gl.clone();
         let (screen_w, screen_h) = screen_bounds.unwrap_or((800, 600));
-        let proj_mat = calc_proj(screen_w as f32, screen_h as f32);
+        let proj_mat = calc_ortho_window_f32(screen_w as f32, screen_h as f32);
         let src_bb = self.calculate_bounding_box(x0, y0, text);
-        let aspect_ratio = src_bb.w / src_bb.h;
-        let resize_matrix = resize_region(src_bb, AABB::new(x0, y0, aspect_ratio * size, size));
+        let aspect_ratio = src_bb.w() / src_bb.h();
+        let resize_matrix = resize_region(
+            src_bb,
+            AABB2::from_point_and_lengths([x0, y0], [aspect_ratio * size, size]),
+        );
         self.draw(&gl, text, x0, y0, proj_mat, resize_matrix);
     }
 
@@ -391,8 +379,8 @@ impl TextWriter {
         text: &str,
         x0: f32,
         y0: f32,
-        proj_mat: [f32; 16],
-        resize_matrix: [f32; 16],
+        proj_mat: Mat4<f32>,
+        resize_matrix: Mat4<f32>,
     ) {
         let whitespace = self.whitespace();
 
@@ -447,8 +435,8 @@ impl TextWriter {
             gl.enable(glow::BLEND);
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
             //make uniforms are up-to-date
-            gl.uniform_matrix_4_f32_slice(self.projection_mat_loc.as_ref(), false, &proj_mat[..]);
-            gl.uniform_matrix_4_f32_slice(self.model_loc.as_ref(), true, &resize_matrix[..]);
+            gl.uniform_matrix_4_f32_slice(self.projection_mat_loc.as_ref(), true, proj_mat.as_slice());
+            gl.uniform_matrix_4_f32_slice(self.model_loc.as_ref(), true, resize_matrix.as_slice());
         }
 
         for (k, character) in text.char_indices() {
@@ -469,11 +457,9 @@ impl TextWriter {
                     self.decode_page(new_page);
                 }
 
-                let hiero_bounds = AABB::new(
-                    bitmap.x as f32,
-                    bitmap.y as f32,
-                    bitmap.width as f32,
-                    bitmap.height as f32,
+                let hiero_bounds = AABB2::from_point_and_lengths(
+                    [bitmap.x as f32, bitmap.y as f32],
+                    [bitmap.width as f32, bitmap.height as f32],
                 );
 
                 //type-pun both buffers to float-32
@@ -529,7 +515,7 @@ impl TextWriter {
     /// Computes bounding box of unscaled `text` at pen position: `(x0,y0)`
     /// # Comments
     /// - All coordinates are in standard screen-space
-    fn calculate_bounding_box(&self, x0: f32, y0: f32, text: &str) -> AABB {
+    fn calculate_bounding_box(&self, x0: f32, y0: f32, text: &str) -> AABB2<f32> {
         self.calculate_bounding_box_iter(x0, y0, text.chars())
     }
 
@@ -543,8 +529,8 @@ impl TextWriter {
             .map(|(&k, _)| k);
         let aabb = self.calculate_bounding_box_iter(0.0, 0.0, char_iter);
 
-        self.global_dy_t = Some(aabb.y);
-        self.global_dy_b = Some(aabb.y + aabb.h);
+        self.global_dy_t = Some(aabb.y());
+        self.global_dy_b = Some(aabb.y() + aabb.h());
     }
 
     fn calculate_bounding_box_iter(
@@ -552,7 +538,7 @@ impl TextWriter {
         x0: f32,
         y0: f32,
         char_iter: impl Iterator<Item = char>,
-    ) -> AABB {
+    ) -> AABB2<f32> {
         let mut minx = std::f32::INFINITY;
         let mut miny = self
             .global_dy_t
@@ -607,17 +593,12 @@ impl TextWriter {
         miny = miny.min(pen_y);
         maxy = maxy.max(pen_y);
 
-        AABB {
-            x: minx,
-            y: miny,
-            w: maxx - minx,
-            h: maxy - miny,
-        }
+        AABB2::from_segment([minx, miny], [maxx, maxy])
     }
 
     ///computes quads verticies and uv coordinates and writes then to the appropriate slices
     #[allow(clippy::identity_op)]
-    fn set_glyph(vert: &mut [f32], uvs: &mut [f32], vb: AABB, hb: AABB, offset: usize) {
+    fn set_glyph(vert: &mut [f32], uvs: &mut [f32], vb: AABB2<f32>, hb: AABB2<f32>, offset: usize) {
         //it seems hiero pages are always 512x512
         const INV_PAGE_DIM: f32 = 1.0 / 512.;
 
@@ -634,22 +615,24 @@ impl TextWriter {
         };
 
         //verts and uvs are generated on stack here
+        #[rustfmt::skip]
         let uvs = [
-            (hb.x, hb.y),
-            (hb.x + hb.w, hb.y),
-            (hb.x + hb.w, hb.y + hb.h),
-            (hb.x, hb.y),
-            (hb.x + hb.w, hb.y + hb.h),
-            (hb.x, hb.y + hb.h),
+            (hb.x()         ,hb.y()          ),
+            (hb.x() + hb.w(),hb.y()          ),
+            (hb.x() + hb.w(),hb.y() + hb.h() ),
+            (hb.x()         ,hb.y()          ),
+            (hb.x() + hb.w(),hb.y() + hb.h() ),
+            (hb.x()         ,hb.y() + hb.h() ),
         ];
 
+        #[rustfmt::skip]
         let verts = [
-            (vb.x, vb.y),
-            (vb.x + vb.w, vb.y),
-            (vb.x + vb.w, vb.y + vb.h),
-            (vb.x, vb.y),
-            (vb.x + vb.w, vb.y + vb.h),
-            (vb.x, vb.y + vb.h),
+            (vb.x()         , vb.y()         ),
+            (vb.x() + vb.w(), vb.y()         ),
+            (vb.x() + vb.w(), vb.y() + vb.h()),
+            (vb.x()         , vb.y()         ),
+            (vb.x() + vb.w(), vb.y() + vb.h()),
+            (vb.x()         , vb.y() + vb.h()),
         ];
 
         //write attribute data from stack to heap

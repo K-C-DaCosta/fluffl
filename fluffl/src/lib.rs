@@ -5,8 +5,7 @@ pub mod audio;
 pub mod console;
 /// Module for loading files
 pub mod io;
-/// Module for opening websocket clients
-pub mod net;
+
 pub mod prelude;
 /// Module for timing functions
 pub mod time;
@@ -37,6 +36,10 @@ pub mod ogl;
 
 /// a utility module for drawing text
 pub mod text_writer; 
+
+/// Optional module for websocket clients
+#[cfg(feature="net")]
+pub mod net;
 
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library

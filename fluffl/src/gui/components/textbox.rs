@@ -90,7 +90,7 @@ impl CaptionClipper {
             clipped_text = visible_slice.get_slice(text);
             aabb = text_writer.calc_text_aabb(clipped_text, 0.0, 0.0, text_size);
 
-            if aabb.w < max_text_width {
+            if aabb.w() < max_text_width {
                 visible_slice.push_rear(1);
             } else {
                 //on the first overflow record text positions
@@ -105,7 +105,7 @@ impl CaptionClipper {
         while {
             clipped_text = visible_slice.get_slice(text);
             aabb = text_writer.calc_text_aabb(clipped_text, 0.0, 0.0, text_size);
-            aabb.w >= max_text_width
+            aabb.w() >= max_text_width
         } {
             visible_slice.pop_front(1);
         }
@@ -170,7 +170,7 @@ impl CaptionClipper {
             let cumulative_text = &clipped_text[..k];
             let cur_w = text_writer
                 .calc_text_aabb(cumulative_text, 0.0, 0.0, font_size)
-                .w;
+                .w();
             self.visible_text_dx.push(cur_w - prev_w);
             prev_w = cur_w;
         }
@@ -224,7 +224,7 @@ impl CaptionClipper {
                 let clipped_max_width = frame_bounds.x()
                     - margin_right
                         * MARGIN_SCALING_TO_MAKE_SURE_CURSOR_REACES_THE_START_OF_THE_TEXT;
-                clipped_text_aabb.w > clipped_max_width
+                clipped_text_aabb.w() > clipped_max_width
             };
 
             if is_overflow_on_x() || off <= 0 {
@@ -388,7 +388,7 @@ impl GuiComponent for TextBoxState {
 
             let aligned_global_position = self.aligner.compute_position(
                 Vec2::convert(position),
-                Vec2::from([text_aabb.w, text_aabb.h]),
+                Vec2::from([text_aabb.w(), text_aabb.h()]),
                 self.frame.bounds(),
             );
 
@@ -405,7 +405,7 @@ impl GuiComponent for TextBoxState {
                     aligned_global_position.x() + HORIZONTAL_MARGIN,
                     aligned_global_position.y(),
                 ]),
-                Vec2::from([text_aabb.w, text_aabb.h]),
+                text_aabb.dims(),
             );
 
             unsafe {
@@ -417,8 +417,8 @@ impl GuiComponent for TextBoxState {
             let scroll_bar_bounds = Vec2::from([50.0, 12.0]);
             let scroll_bar_pos = [
                 (aligned_global_position.x() + HORIZONTAL_MARGIN)
-                    + (text_aabb.w - scroll_bar_bounds.x()) * scroll_percentage,
-                aligned_global_position.y() + text_aabb.h,
+                    + (text_aabb.w() - scroll_bar_bounds.x()) * scroll_percentage,
+                aligned_global_position.y() + text_aabb.h(),
             ];
 
             state
@@ -437,13 +437,13 @@ impl GuiComponent for TextBoxState {
             self.cursor_area = AABB2::from_segment(
                 Vec2::from([
                     (aligned_global_position.x() + HORIZONTAL_MARGIN)
-                        + (text_aabb.w - scroll_bar_bounds.x()) * 0.0,
-                    aligned_global_position.y() + text_aabb.h * 1.0,
+                        + (text_aabb.w() - scroll_bar_bounds.x()) * 0.0,
+                    aligned_global_position.y() + text_aabb.h() * 1.0,
                 ]),
                 Vec2::from([
                     (aligned_global_position.x() + HORIZONTAL_MARGIN)
-                        + (text_aabb.w - scroll_bar_bounds.x()) * 1.0,
-                    (aligned_global_position.y() + text_aabb.h * 1.5)
+                        + (text_aabb.w() - scroll_bar_bounds.x()) * 1.0,
+                    (aligned_global_position.y() + text_aabb.h() * 1.5)
                         .min(position.y() + self.frame.bounds().y()),
                 ]),
             );
@@ -501,7 +501,7 @@ impl GuiComponent for TextBoxState {
                     aligned_global_position.y(),
                 ]);
 
-                let cursor_bounds = Vec2::from([2.0, text_aabb.h]);
+                let cursor_bounds = Vec2::from([2.0, text_aabb.h()]);
                 state
                     .renderer
                     .builder(gl, GuiShaderKind::Rectangle)

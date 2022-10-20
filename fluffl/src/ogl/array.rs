@@ -38,27 +38,27 @@ impl ArrayBuilder for OglIncomplete<OglArray> {
             buffer_object,
         } in buffer_list
         {
-            if let Ok(name) = FixedString::from(buffer_name) {
-                //bind buffer object
-                buffer_object.bind(true);
-                let index = buffer_object.info().index;
-                unsafe {
-                    //define attrib pointers
-                    gl.vertex_attrib_pointer_f32(
-                        index,
-                        buffer_object.info().num_comps as i32,
-                        glow::FLOAT,
-                        false,
-                        0,
-                        0,
-                    );
+            //bind buffer object
+            buffer_object.bind(true);
+            let index = buffer_object.info().index;
+            unsafe {
+                //define attrib pointers
+                gl.vertex_attrib_pointer_f32(
+                    index,
+                    buffer_object.info().num_comps as i32,
+                    glow::FLOAT,
+                    false,
+                    0,
+                    0,
+                );
 
-                    //enable attrib pointer
-                    gl.enable_vertex_attrib_array(index);
-                }
-
-                self.inner.buf_table.insert(name, buffer_object);
+                //enable attrib pointer
+                gl.enable_vertex_attrib_array(index);
             }
+
+            self.inner
+                .buf_table
+                .insert(buffer_name.to_string(), buffer_object);
         }
         self.inner
     }
@@ -67,7 +67,7 @@ impl ArrayBuilder for OglIncomplete<OglArray> {
 pub struct OglArray {
     gl: GlowGL,
     gl_array: Option<glow::VertexArray>,
-    buf_table: HashMap<FixedString, Box<dyn HasBufferObj>>,
+    buf_table: HashMap<String, Box<dyn HasBufferObj>>,
 }
 
 impl OglArray {

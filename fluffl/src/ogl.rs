@@ -7,8 +7,6 @@ pub mod buffer;
 pub mod program;
 pub mod texture;
 
-type FixedString = ArrayString<[u8; 32]>;
-use arrayvec::{ArrayString, ArrayVec};
 use std::collections::HashMap;
 
 pub use self::{
