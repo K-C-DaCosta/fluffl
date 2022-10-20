@@ -1,3 +1,9 @@
+# Fluffl
+[![Build status](https://github.com/K-C-DaCosta/fluffl/actions/workflows/rust.yml/badge.svg?branch=master)](https://github.com/K-C-DaCosta/fluffl/actions/workflows/rust.yml)
+[![Crates.io](https://img.shields.io/crates/v/fluffl)](https://crates.io/crates/fluffl)
+[![Documentation](https://docs.rs/fluffl/badge.svg)](https://docs.rs/fluffl)
+
+
 # what is fluffl?
 fluffl is a media layer that provides an extremely simple, but cross-platform, interface between **desktop** and **wasm** targets.
 Its built on top of the <a href="https://github.com/grovesNL/glow">glow</a> OpenGL bindings.
