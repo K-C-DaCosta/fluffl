@@ -3,8 +3,8 @@ use fluffl::{
     extras::{
         audio::{music_player::*, ogg::*, *},
         shapes::ShapePainter2D,
-        text_writer::*,
     },
+    text_writer::*,
     io::*,
     prelude::*,
     window::{event_util::*, *},

@@ -19,16 +19,12 @@ use fluffl::{
     console::*,
     //playing music files requires more than what the base library provides
     //so here is my implementation of certain things like "text rendering" and music playing
-    extras::{
-        hiero_pack::*,
-        text_writer::{
-            self, HasTextWriterBuilder, TextWriter, PACKED_COURIER_NEW_ENCODED_TO_BASE64,
-        },
-    },
+    extras::hiero_pack::*,
     gui::*,
     io::*,
     math::{Vec2, Vec4, WaveKind, FP32, FP64},
     prelude::*,
+    text_writer::{self, HasTextWriterBuilder, TextWriter, UROOB},
     window::{event_util::*, *},
     *,
 };
@@ -105,11 +101,9 @@ pub async fn main() {
     }
 
     let atlas_bytes = load_file!("./wasm_bins/resources/font.bcode").expect("file not found");
-    let atlas = HieroAtlas::deserialize(
-        crate::decoders::base64::decode(PACKED_COURIER_NEW_ENCODED_TO_BASE64).unwrap(),
-    )
-    .ok()
-    .expect("font parse failed");
+    let atlas = HieroAtlas::deserialize(crate::decoders::base64::decode(UROOB).unwrap())
+        .ok()
+        .expect("font parse failed");
 
     let ctx = window.audio_context();
 

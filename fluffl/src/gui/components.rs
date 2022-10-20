@@ -1,6 +1,6 @@
 use super::{builder::*, *};
 
-use crate::{extras::text_writer::TextWriter, math::AABB2};
+use crate::{math::AABB2, text_writer::TextWriter};
 use std::any::Any;
 
 pub mod component_flags;
@@ -17,8 +17,8 @@ pub struct TextAligner2D {
     alignment_mode_per_axis: [TextAlignment; 2],
 }
 
-impl Default for TextAligner2D{
-    fn default()->Self{
+impl Default for TextAligner2D {
+    fn default() -> Self {
         Self::new()
     }
 }
@@ -283,7 +283,7 @@ const LAYER_BIAS: i32 = 128;
 
 #[allow(clippy::identity_op)]
 pub fn layer_lock(gl: &GlowGL, layer_id: i32, flags: ComponentFlags) {
-    if !flags.is_set(component_flags::OVERFLOWABLE)  {
+    if !flags.is_set(component_flags::OVERFLOWABLE) {
         layer_lock_always(gl, layer_id);
     } else {
         unsafe {
@@ -294,7 +294,6 @@ pub fn layer_lock(gl: &GlowGL, layer_id: i32, flags: ComponentFlags) {
         }
     }
 }
-
 
 #[allow(clippy::identity_op)]
 pub fn layer_lock_always(gl: &GlowGL, layer_id: i32) {

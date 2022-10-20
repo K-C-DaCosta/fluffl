@@ -1,9 +1,6 @@
 use super::*;
 use std::sync::{Arc, Mutex};
-use std::{
-    thread,
-    time::{Duration},
-};
+use std::{thread, time::Duration};
 
 use windows::{
     core::*,
@@ -110,10 +107,10 @@ where
     }
 
     unsafe fn wasapi_resume_thread(mut requested_specs: ConcreteSpecs, ctx: Self) -> Result<()> {
-        if let Ok(mut state) =ctx.state.lock(){
-            if let DeviceState::Paused = *state{
+        if let Ok(mut state) = ctx.state.lock() {
+            if let DeviceState::Paused = *state {
                 *state = DeviceState::Playing;
-            }else{
+            } else {
                 println!("already playing");
                 return Ok(());
             }
@@ -143,8 +140,8 @@ where
         audio_client.Initialize(
             AUDCLNT_SHAREMODE_SHARED,
             0,
-            //allocate 30ms worth of data to buffer ahead by
-            (100_000_000 * 3) / 100,
+            //allocate 100ms worth of data to buffer ahead by
+            10_000_000/10 ,
             0,
             (&requested_device_format) as *const _ as *const _,
             None,
@@ -168,8 +165,6 @@ where
         }
     }
 
-
-
     /// WASAPI works differently from ALSA in that If you request mono,
     /// WASAPI wont automatically mix that mono signal to stereo, instead,
     /// it pumps the audio to only ONE speaker (not what I want at all).
@@ -189,6 +184,10 @@ where
         let mut mono_buffer = vec![0f32; requested_specs.buffer_size];
 
         loop {
+            if let Ok(DeviceState::Paused) = ctx.state.lock().map(|g| *g) {
+                break;
+            }
+
             if let Some(num_frames_written) = can_sleep.take() {
                 let duration_buffered_in_nanos = (num_frames_written * 1_000_000_000) / frequency;
                 std::thread::sleep(Duration::from_nanos(duration_buffered_in_nanos / 2));
@@ -216,7 +215,7 @@ where
                 );
 
                 // let the callback write data to the WASAPI buffer
-                let _ = callback(state, &mut mono_buffer);
+                callback(state, &mut mono_buffer);
 
                 // mix from mono to stereo
                 pcm_buffer_slice
@@ -245,6 +244,10 @@ where
         let mut can_sleep = None;
         let frequency = requested_specs.sample_rate as u64;
         loop {
+            if let Ok(DeviceState::Paused) = ctx.state.lock().map(|g| *g) {
+                break;
+            }
+
             if let Some(num_frames_written) = can_sleep.take() {
                 let duration_buffered_in_nanos = (num_frames_written * 1_000_000_000) / frequency;
                 std::thread::sleep(Duration::from_nanos(duration_buffered_in_nanos / 2));
@@ -258,7 +261,7 @@ where
                 can_sleep = Some((buffer_frame_count - num_frames_available) as u64);
                 continue;
             }
-            Self::pump_data(ctx.clone(), &render_client, requested_specs)?;
+            Self::pump_data(ctx.clone(), render_client, requested_specs)?;
         }
         Ok(())
     }
@@ -282,7 +285,7 @@ where
             );
 
             // let the callback write data to the WASAPI buffer
-            let _ = callback(state, pcm_buffer_slice);
+            callback(state, pcm_buffer_slice);
 
             // let WASAPI know im finished writing to the buffer, so it can enqueue what I wrote
             render_client.ReleaseBuffer(requested_specs.buffer_size as u32, 0)?;
@@ -312,7 +315,7 @@ where
         self.core.state.as_mut()
     }
 }
-
+/// # Safety
 pub unsafe fn request_device_format(
     audio_client: &IAudioClient,
     requested_specs: ConcreteSpecs,
@@ -326,7 +329,7 @@ pub unsafe fn request_device_format(
     // let device_format_header = &mut *format_buffer;
     // print_format_header("default", device_format_header);
 
-    let mut requested_device_format = requested_specs.to_wasapi();
+    let requested_device_format = requested_specs.to_wasapi();
 
     print_format_header("requested", &requested_device_format);
 
@@ -350,13 +353,13 @@ pub unsafe fn request_device_format(
         println!("WASAPI: Requested format not found BUT the next best thing is:");
         print_format_header(
             "closest",
-            &mut **(closest_match as *mut *mut WAVEFORMATEXTENSIBLE),
+            &**(closest_match as *mut *mut WAVEFORMATEXTENSIBLE),
         );
     }
 
     Ok(requested_device_format)
 }
-
+/// # Safety
 pub unsafe fn print_format_header(dev_name: &str, hdr: &WAVEFORMATEXTENSIBLE) {
     println!("== START {dev_name} device format ==");
     println!("nSamplesPerSec = {}", { hdr.Format.nSamplesPerSec });

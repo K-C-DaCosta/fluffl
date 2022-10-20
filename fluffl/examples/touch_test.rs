@@ -1,13 +1,11 @@
 use fluffl::{
     console::*,
-    extras::text_writer::*,
     io::*,
     prelude::*,
+    text_writer::*,
     window::{event_util::*, *},
     *,
 };
-
-
 
 use std::collections::HashMap;
 

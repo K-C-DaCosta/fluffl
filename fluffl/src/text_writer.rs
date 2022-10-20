@@ -1,13 +1,14 @@
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
 
-use super::{
-    math_util::*,
+use extras::math_util::*;
+
+use crate::{
+    console::*,
     ogl::{array::*, buffer::*, program::*, texture::*, OglIncomplete, *},
+    *,
 };
 
-use crate::{console::*, *};
 use glow::*;
-
 pub use hiero_pack::{self, *};
 
 pub mod default_font;

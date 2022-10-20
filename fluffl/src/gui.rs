@@ -12,12 +12,10 @@ use crate::{
         fixed_stack::FixedStack,
         flat_nary_tree::{LinearTree, NodeID, StackSignal},
     },
-    extras::{
-        ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
-        text_writer::TextWriter,
-    },
+    text_writer::TextWriter,
     math::{self, translate4, ComponentWriter, Mat4, MatStack, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
+    ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
     window::event_util::{EventKind, KeyCode},
     FlufflState, GlowGL,
 };

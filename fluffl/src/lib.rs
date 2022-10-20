@@ -32,6 +32,12 @@ mod iterators;
 /// math utilities
 pub mod math;
 
+/// utilities for opengl
+pub mod ogl;
+
+/// a utility module for drawing text
+pub mod text_writer; 
+
 /// Extras module has music playback and text-rendering routines
 /// This module is totally optional, and not really considered a part of the library
 #[cfg(feature = "extras")]

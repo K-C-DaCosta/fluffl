@@ -1,8 +1,10 @@
+/// ## Description
+/// an font file Uroob 
 /// Its output from `hiero_pack` encoded to base64
 /// ## Contains
-/// - an atlas parsed to binary
-/// - a 512x512 png
-pub const PACKED_COURIER_NEW_ENCODED_TO_BASE64: &str = "
+/// - a 512x512 png 
+/// - glypth info
+pub const UROOB: &str = "
 DQAAAAAAAABVcm9vYiBSZWd1bGFyIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZAAAAAEAAAABAAAA
 BAAAAAAAAAABAAAAAQAAAAEAAAABAAAAAgAAAAAAAAD+/////v///yEAAAAVAAAAAAIAAAACAAAB
 AAAAAAAAANUAAAAAAAAAOUgAAABPAAAADgAAABUAAAAAAAAAAgAAAA0AAAAAAAAAAAAAAGomAAAA
@@ -616,7 +618,7 @@ fn default_decode() {
     //     println!("{}",x);
     // }
 
-    let x = crate::decoders::base64::decode(PACKED_COURIER_NEW_ENCODED_TO_BASE64)
+    let x = crate::decoders::base64::decode(UROOB)
         .expect("failed to decode base64");
 
     let y = hiero_pack::HieroAtlas::deserialize(x);
