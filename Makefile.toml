@@ -1,16 +1,9 @@
 [config]
 default_to_workspace = false
 
-
-# [tasks.ignore-members]
-# workspace = false
-
-
-
 [tasks.clean]
 command = "cargo"
 args = ["clean"]
-
 
 [tasks.glutin_alsa]
 command = "cargo"
@@ -32,9 +25,6 @@ command = "cargo"
 args =["build","--no-default-features","--features=sdl2"]
 dependencies = ["clean"]
 
-
-
-
 [tasks.build]
 dependencies = [
     "glutin_alsa",
@@ -42,4 +32,3 @@ dependencies = [
     "web",
     "sdl2",
 ]
-
