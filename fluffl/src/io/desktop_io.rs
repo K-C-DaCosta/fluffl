@@ -11,7 +11,7 @@ use std::io::prelude::*;
 /// On deksop targets, this is just a `std::fs::read(...)` or someting (could change)
 /// In the future I could use http *HEAD* combined with *PARTIAL CONTENT*
 /// in order to read parts of files on the HTTP side of things.  
-pub async fn load_file(file_path: &str) -> Result<Vec<u8>, FlufflError> {
+pub async fn load_file(file_path: &str) -> Result<Vec<u8>, Error> {
     load_file_helper(file_path)
 }
 
@@ -21,17 +21,17 @@ pub async fn load_file(file_path: &str) -> Result<Vec<u8>, FlufflError> {
 /// this function only really does non-blocking reads in wasm target AFAICT
 pub fn load_file_cb<F>(file_path: &str, mut cb: F)
 where
-    F: FnMut(Result<Vec<u8>, FlufflError>),
+    F: FnMut(Result<Vec<u8>, Error>),
 {
     let result = load_file_helper(file_path);
     cb(result)
 }
 
-fn load_file_helper(file_path: &str) -> Result<Vec<u8>, FlufflError> {
+fn load_file_helper(file_path: &str) -> Result<Vec<u8>, Error> {
     let mut file = match File::open(file_path) {
         Ok(f) => f,
         Err(_) => {
-            return Err(FlufflError::IOError(format!(
+            return Err(Error::IOError(format!(
                 "failed to open {}",
                 file_path,
             )))
@@ -40,7 +40,7 @@ fn load_file_helper(file_path: &str) -> Result<Vec<u8>, FlufflError> {
 
     let mut byte_buffer = Vec::new();
     if file.read_to_end(&mut byte_buffer).is_err() {
-        return Err(FlufflError::IOError(format!(
+        return Err(Error::IOError(format!(
             "failed to read {}",
             file_path
         )));

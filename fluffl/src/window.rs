@@ -8,7 +8,7 @@ use std::{
 mod window_backends;
 
 use super::parsers::xml::*;
-use crate::{audio::FlufflAudioContext, FlufflError, GlowGL};
+use crate::{audio::FlufflAudioContext, Error, GlowGL};
 
 pub use event_util::FlufflEvent;
 pub use window_backends::*;
@@ -131,7 +131,7 @@ pub trait HasFlufflWindow: Sized {
     ///         - configures window to be resizable if `true` else the window stays fixed
     ///         - by default this setting is assumed to be false
     ///     - value type: `bool`
-    fn init(config: &str) -> Result<Self, FlufflError>;
+    fn init(config: &str) -> Result<Self, Error>;
     /// returns the window event queue
     fn get_events(&mut self) -> &mut FlufflEvent;
 
@@ -173,7 +173,7 @@ trait HasEventCollection {
     fn collect_events(&mut self);
 }
 
-impl fmt::Display for FlufflError {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self {
             Self::GenericError(err_str) => write!(f, "Generic Error: {}", err_str),

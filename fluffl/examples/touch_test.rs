@@ -1,6 +1,5 @@
 use fluffl::{
     console::*,
-    io::*,
     prelude::*,
     text_writer::*,
     window::{event_util::*, *},
@@ -43,13 +42,13 @@ pub async fn main() {
     let window = FlufflWindow::init(CONFIG).expect("init failed");
     let gl = window.gl();
     let mut app_state = AppState::new();
-
-    // load font called "plasmatic"
-    let data = load_file!("./wasm_bins/resources/plasmatic.bcode").expect("load failed");
-    let atlas = HieroAtlas::deserialize(data)
-        .ok()
-        .expect("font unpacked failed");
-    let writer = TextWriter::new(&gl).with_atlas(atlas).build();
+    let writer = TextWriter::new(&gl)
+        .with_atlas(
+            text_writer::default_font::UROOB
+                .to_hiero_atlas()
+                .expect("failed to deserialize UROOB"),
+        )
+        .build();
     app_state.writer = Some(writer);
 
     unsafe {
@@ -80,12 +79,12 @@ pub async fn main() {
                     EventKind::MouseDown { x, y, .. } => {
                         // console_log!("pos:[{},{}]\n",x,y);
                         state.mouse_pos = [x as f32, y as f32];
-                        state.mouse_disp = [0.;2];
+                        state.mouse_disp = [0.; 2];
                         state.mouse_down = true;
                     }
                     EventKind::MouseUp { x, y, .. } => {
                         state.mouse_pos = [x as f32, y as f32];
-                        state.mouse_disp = [0.;2];
+                        state.mouse_disp = [0.; 2];
                         state.mouse_down = false;
                         // console_log!("pos:[{},{}]\n",x,y);
 

@@ -6,7 +6,7 @@ pub mod io_util;
 #[path = "./io/web_io.rs"]
 pub mod io_util;
 
-use crate::FlufflError;
+use crate::Error;
 pub use io_util::*;
 
 #[macro_export]

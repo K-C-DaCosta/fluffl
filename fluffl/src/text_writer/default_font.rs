@@ -1,10 +1,33 @@
+/// # Description
+/// A hiero_font encoded to base64
+pub struct Font<'a> {
+    base64: &'a str,
+}
+
+impl<'a> Font<'a> {
+    pub const fn from_base64(base64: &'a str) -> Self {
+        Self { base64 }
+    }
+    
+    /// # Description
+    /// decodes the base64 to binary then deserializes to an atlas
+    pub fn to_hiero_atlas(self) -> Result<hiero_pack::HieroAtlas, hiero_pack::Error> {
+        let packed_font_binary = crate::decoders::base64::decode(self.base64).map_err(|_| {
+            hiero_pack::Error::CustomStatic("base64 failed to decode, found invalid digit")
+        })?;
+        hiero_pack::HieroAtlas::deserialize(packed_font_binary)
+    }
+}
+
+pub const UROOB: Font<'static> = Font::from_base64(UROOB_BASE64);
+
 /// ## Description
-/// an font file Uroob 
+/// an font file Uroob
 /// Its output from `hiero_pack` encoded to base64
 /// ## Contains
-/// - a 512x512 png 
+/// - a 512x512 png
 /// - glypth info
-pub const UROOB: &str = "
+const UROOB_BASE64: &str = "
 DQAAAAAAAABVcm9vYiBSZWd1bGFyIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAZAAAAAEAAAABAAAA
 BAAAAAAAAAABAAAAAQAAAAEAAAABAAAAAgAAAAAAAAD+/////v///yEAAAAVAAAAAAIAAAACAAAB
 AAAAAAAAANUAAAAAAAAAOUgAAABPAAAADgAAABUAAAAAAAAAAgAAAA0AAAAAAAAAAAAAAGomAAAA
@@ -618,8 +641,7 @@ fn default_decode() {
     //     println!("{}",x);
     // }
 
-    let x = crate::decoders::base64::decode(UROOB)
-        .expect("failed to decode base64");
+    let x = crate::decoders::base64::decode(UROOB_BASE64).expect("failed to decode base64");
 
     let y = hiero_pack::HieroAtlas::deserialize(x);
     if y.is_err() {

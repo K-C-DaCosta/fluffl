@@ -79,20 +79,20 @@ impl<T> Deref for FlufflState<T> {
 
 #[derive(Debug)]
 /// A collection of Common errors that possibly could arise
-pub enum FlufflError {
+pub enum Error {
     GenericError(String),
     FromUtf8ParseError(String),
     WindowInitError(String),
     IOError(String),
 }
 
-impl From<std::io::Error> for FlufflError {
+impl From<std::io::Error> for Error {
     fn from(err: std::io::Error) -> Self {
-        FlufflError::IOError(err.to_string())
+        Error::IOError(err.to_string())
     }
 }
 
-impl From<std::string::FromUtf8Error> for FlufflError {
+impl From<std::string::FromUtf8Error> for Error {
     fn from(err: std::string::FromUtf8Error) -> Self {
         Self::FromUtf8ParseError(err.to_string())
     }

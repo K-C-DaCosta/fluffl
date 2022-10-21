@@ -99,11 +99,7 @@ pub async fn main() {
             .viewport(0, 0, window.width() as i32, window.height() as i32);
     }
 
-    let atlas_bytes = load_file!("./wasm_bins/resources/font.bcode").expect("file not found");
-    let atlas = HieroAtlas::deserialize(crate::decoders::base64::decode(UROOB).unwrap())
-        .ok()
-        .expect("font parse failed");
-
+    let atlas = UROOB.to_hiero_atlas().expect("hiero decode failed");
     let ctx = window.audio_context();
 
     let mixer_device = MixerAudioDeviceContext::new(ctx);
@@ -136,10 +132,10 @@ pub async fn main() {
         angle: FP32::from_bits(20000),
     };
 
-    FlufflWindow::run(window, app_state, main_loop);
+    FlufflWindow::run(window, app_state, entrypoint);
 }
 
-async fn main_loop(
+async fn entrypoint(
     win_ptr: FlufflWindowPtr,
     running: FlufflRunning,
     main_state: FlufflState<MainState>,
