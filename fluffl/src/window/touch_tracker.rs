@@ -10,7 +10,7 @@ pub struct TouchStats {
 impl TouchStats {
     pub fn initial_stats(pos: [f32; 2]) -> Self {
         Self {
-            prev_pos: [pos[0].floor(),pos[1].floor()],
+            prev_pos: pos,
             displacement: [0.0; 2],
         }
     }
