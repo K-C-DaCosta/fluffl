@@ -3,6 +3,6 @@
     <height>600</height>
     <title>example 1</title>
     <fullscreen>false</fullscreen>
-    <resizable>false</resizable>
+    <resizable>true</resizable>
     <canvas_id>fluffl</canvas_id>
 </window>

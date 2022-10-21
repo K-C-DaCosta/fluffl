@@ -391,16 +391,18 @@ impl<ProgramState> GuiManager<ProgramState> {
             let _old_signal_len = component_signal_bus.len();
             match event {
                 EventKind::KeyDown { code } => {
-                    if let KeyCode::BRACKET_R = code {
-                        let v = gui_component_tree
-                            .get_mut(GuiComponentKey(5))
-                            .unwrap()
-                            .is_visible();
-                        gui_component_tree
-                            .get_mut(GuiComponentKey(5))
-                            .unwrap()
-                            .set_visible(!v);
-                    }
+
+                    // // for debugging purposes 
+                    // if let KeyCode::BRACKET_R = code {
+                    //     let v = gui_component_tree
+                    //         .get_mut(GuiComponentKey(5))
+                    //         .unwrap()
+                    //         .is_visible();
+                    //     gui_component_tree
+                    //         .get_mut(GuiComponentKey(5))
+                    //         .unwrap()
+                    //         .set_visible(!v);
+                    // }
 
                     if !key_down_table.contains(&code) {
                         if let &mut Some(fkey) = focused_component {

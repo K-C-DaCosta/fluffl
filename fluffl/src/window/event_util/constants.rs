@@ -24,18 +24,18 @@ pub enum EventKind {
     /// # Description
     /// If the user moves the mouse, this event gets enqueued
     MouseMove {
-        x: i32,
-        y: i32,
-        dx: i32,
-        dy: i32,
+        x: f32,
+        y: f32,
+        dx: f32,
+        dy: f32,
     },
 
     /// # Description
     /// If the user pushes a mouse button, this event gets enqueued
     MouseDown {
         button_code: MouseCode,
-        x: i32,
-        y: i32,
+        x: f32,
+        y: f32,
     },
 
     /// # Description
@@ -45,8 +45,8 @@ pub enum EventKind {
     /// so (0,0) is top-left corner and (width,height) is botton right corner of the window
     MouseUp {
         button_code: MouseCode,
-        x: i32,
-        y: i32,
+        x: f32,
+        y: f32,
     },
 
     /// # Description
@@ -95,18 +95,18 @@ pub enum EventKind {
 impl EventKind {
     pub fn mouse_pos(&self) -> Vec2<f32> {
         match *self {
-            Self::MouseDown { x, y, .. } => Vec2::from([x as f32, y as f32]),
-            Self::MouseUp { x, y, .. } => Vec2::from([x as f32, y as f32]),
-            Self::MouseMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
-            Self::TouchMove { x, y, .. } => Vec2::from([x as f32, y as f32]),
+            Self::MouseDown { x, y, .. } => Vec2::from([x, y]),
+            Self::MouseUp { x, y, .. } => Vec2::from([x, y]),
+            Self::MouseMove { x, y, .. } => Vec2::from([x, y]),
+            Self::TouchMove { x, y, .. } => Vec2::from([x, y]),
             _ => Vec2::zero(),
         }
     }
 
     pub fn disp(&self) -> Vec2<f32> {
         match *self {
-            Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
-            Self::TouchMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+            Self::MouseMove { dx, dy, .. } => Vec2::from([dx , dy ]),
+            Self::TouchMove { dx, dy, .. } => Vec2::from([dx , dy ]),
             _ => Vec2::zero(),
         }
     }
@@ -267,7 +267,7 @@ impl KeyCode {
     }
 }
 
-impl From<KeyCode> for i128{
+impl From<KeyCode> for i128 {
     fn from(a: KeyCode) -> Self {
         a as Self
     }

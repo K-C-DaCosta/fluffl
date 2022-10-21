@@ -541,7 +541,7 @@ fn get_global_event_queue_mut<'a>() -> &'a mut FlufflEvent {
 /// # Comments
 /// I hate that I had to write this routine. Either the Javascript coordinate system sucks
 /// Or the documentation is lacking something.
-fn convert_from_viewport_to_window(x: f64, y: f64, dx: f64, dy: f64) -> (i32, i32, i32, i32) {
+fn convert_from_viewport_to_window(x: f64, y: f64, dx: f64, dy: f64) -> (f32, f32, f32, f32) {
     if is_mobile() {
         viewport_to_window_mobile_browser(x, y, dx, dy)
     } else {
@@ -549,7 +549,7 @@ fn convert_from_viewport_to_window(x: f64, y: f64, dx: f64, dy: f64) -> (i32, i3
     }
 }
 
-fn viewport_to_window_mobile_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32, i32, i32, i32) {
+fn viewport_to_window_mobile_browser(x: f64, y: f64, dx: f64, dy: f64) -> (f32, f32, f32, f32) {
     if is_in_portrait_mode() {
         //desktop way works in portrait mode both fullscreen and
         viewport_to_window_desktop_browser(x, y, dx, dy)
@@ -575,14 +575,14 @@ fn viewport_to_window_mobile_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32, 
             let dx = (dx - vp_x) * canvas_width / vp_width;
             let dy = (dy - vp_y) * (canvas_height) / vp_height;
 
-            (x as i32, y as i32, dx as i32, dy as i32)
+            (x as f32, y as f32, dx as f32, dy as f32)
         } else {
             let sx = canvas_width / rect.width() as f64;
             let sy = canvas_height / rect.height() as f64;
-            let x = (x * sx - rect.x() * sx) as i32;
-            let y = (y * sy - rect.y() * sy) as i32;
-            let dx = (dx * sx - rect.x() * sx) as i32;
-            let dy = (dy * sx - rect.y() * sx) as i32;
+            let x = (x * sx - rect.x() * sx) as f32;
+            let y = (y * sy - rect.y() * sy) as f32;
+            let dx = (dx * sx - rect.x() * sx) as f32;
+            let dy = (dy * sx - rect.y() * sx) as f32;
 
             // console_log!(
             //     "pos:[{},{}],vp_dims: [{},{}], rect dims: [x:{},y:{},w:{},h:{}], screen:[aw:{},ah:{},w:{},h:{}]\n",
@@ -605,7 +605,7 @@ fn viewport_to_window_mobile_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32, 
     }
 }
 
-fn viewport_to_window_desktop_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32, i32, i32, i32) {
+fn viewport_to_window_desktop_browser(x: f64, y: f64, dx: f64, dy: f64) -> (f32, f32, f32, f32) {
     let canvas = get_canvas();
     let rect = canvas.get_bounding_client_rect();
     let document: Document = web_sys::window().unwrap().document().unwrap();
@@ -613,13 +613,13 @@ fn viewport_to_window_desktop_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32,
     let canvas_width = canvas.width() as f64;
     let canvas_height = canvas.height() as f64;
 
-    if !document.fullscreen()  {
+    if !document.fullscreen() {
         let sx = canvas_width / rect.width() as f64;
         let sy = canvas_height / rect.height() as f64;
-        let x = (x * sx - rect.x() * sx) as i32;
-        let y = (y * sy - rect.y() * sy) as i32;
-        let dx = (dx * sx - rect.x() * sx) as i32;
-        let dy = (dy * sx - rect.y() * sx) as i32;
+        let x = (x * sx - rect.x() * sx) as f32;
+        let y = (y * sy - rect.y() * sy) as f32;
+        let dx = (dx * sx - rect.x() * sx) as f32;
+        let dy = (dy * sx - rect.y() * sx) as f32;
         (x, y, dx, dy)
     } else {
         // Explanation for the Else check:
@@ -664,10 +664,10 @@ fn viewport_to_window_desktop_browser(x: f64, y: f64, dx: f64, dy: f64) -> (i32,
         let sx = canvas.width() as f64 / vp_width;
         let sy = canvas.height() as f64 / vp_height;
 
-        let x = (sx * x - vp_x * sx) as i32;
-        let y = (sy * y - vp_y * sy) as i32;
-        let dx = (dx * sx - vp_x * sx) as i32;
-        let dy = (dy * sy - vp_y * sy) as i32;
+        let x = (sx * x - vp_x * sx) as f32;
+        let y = (sy * y - vp_y * sy) as f32;
+        let dx = (dx * sx - vp_x * sx) as f32;
+        let dy = (dy * sy - vp_y * sy) as f32;
 
         (x, y, dx, dy)
     }

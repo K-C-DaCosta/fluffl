@@ -10,7 +10,7 @@ pub struct TouchStats {
 impl TouchStats {
     pub fn initial_stats(pos: [f32; 2]) -> Self {
         Self {
-            prev_pos: pos,
+            prev_pos: [pos[0].floor(),pos[1].floor()],
             displacement: [0.0; 2],
         }
     }
@@ -49,22 +49,17 @@ where
     /// - touch displacement of `id`
     pub fn get_touch_displacement(&mut self, id: ID, new_pos: [f32; 2]) -> [f32; 2] {
         let touch_table = self;
-
-        let old_pos = touch_table
-            .get(&id)
-            .map(|&x| x.prev_pos)
-            .unwrap_or([0., 0.]);
-        let disp = [new_pos[0] - old_pos[0], new_pos[1] - old_pos[1]];
-
-        touch_table
+        let updated_stats = touch_table
             .table
             .entry(id)
             .and_modify(|stats| {
-                stats.prev_pos = new_pos;
+                let old_pos = stats.prev_pos;
+                let disp = [new_pos[0] - old_pos[0], new_pos[1] - old_pos[1]];
                 stats.displacement = disp;
+                stats.prev_pos = new_pos;
             })
             .or_insert_with(|| TouchStats::initial_stats(new_pos));
 
-        touch_table.get(&id).unwrap().displacement
+        updated_stats.displacement
     }
 }

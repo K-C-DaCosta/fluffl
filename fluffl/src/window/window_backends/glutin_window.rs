@@ -130,16 +130,16 @@ impl FlufflWindow {
                     let fluffl_event = match state {
                         ElementState::Pressed => EventKind::MouseDown {
                             button_code,
-                            x: device_state.prev_pos[0] as i32,
-                            y: device_state.prev_pos[1] as i32,
+                            x: device_state.prev_pos[0],
+                            y: device_state.prev_pos[1],
                         },
                         ElementState::Released => {
                             // it appears that I dont have to remove on glutin
                             // TouchTracker::get_mut().remove(&device_id);
                             EventKind::MouseUp {
                                 button_code,
-                                x: device_state.prev_pos[0] as i32,
-                                y: device_state.prev_pos[1] as i32,
+                                x: device_state.prev_pos[0],
+                                y: device_state.prev_pos[1],
                             }
                         }
                     };
@@ -155,10 +155,10 @@ impl FlufflWindow {
                         .get_touch_displacement(device_id, [x as f32, y as f32]);
 
                     self.events.push_event(EventKind::MouseMove {
-                        x: x as i32,
-                        y: y as i32,
-                        dx: device_displacement[0] as i32,
-                        dy: device_displacement[1] as i32,
+                        x: x as f32,
+                        y: y as f32,
+                        dx: device_displacement[0],
+                        dy: device_displacement[1],
                     })
                 }
 
