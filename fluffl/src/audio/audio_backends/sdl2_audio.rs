@@ -1,4 +1,4 @@
-use super::{AudioDeviceCore};
+use super::AudioDeviceCore;
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex};
 
@@ -9,22 +9,22 @@ pub struct FlufflAudioContext {
     pub audio_ss: Arc<RefCell<be_sdl2::AudioSubsystem>>,
 }
 
-/// # Description 
+/// # Description
 /// You use this to actually start playing the sound.
-/// This struct is just a generic 'handler'/'pointer' to the audio backend, and to the state that 
+/// This struct is just a generic 'handler'/'pointer' to the audio backend, and to the state that
 /// was defined in the core
 /// # Desktop Comments
-/// A pointer to SDL2's audio device (which is uses some multithreading). Nothing really interesting happens on this side. 
+/// A pointer to SDL2's audio device (which is uses some multithreading). Nothing really interesting happens on this side.
 /// Its literally just a wrapper, for sdl2's interface.
 /// # Wasm/Web Comments
 /// The implementation for this side of things was much more complicated than I could've
-/// imagined. With a lot of help from these sources: 
+/// imagined. With a lot of help from these sources:
 /// - https://developer.mozilla.org/en-US/docs/Web/API/Web_Audio_API
 /// - https://blog.mecheye.net/2017/09/i-dont-know-who-the-web-audio-api-is-designed-for/
 /// - https://rustwasm.github.io/docs/wasm-bindgen/" \
 /// I was able to cobble  something together that actually seems to work okay , well, for now anyway.
 /// A new chrome or firefox update could break this code further.
-/// As of writing this Chrome appearently reduced timer resolutions which slightly break the wasm implemention 
+/// As of writing this Chrome appearently reduced timer resolutions which slightly break the wasm implemention
 /// causing noticable pops and cracks in the audio playback(Firefox works great though).
 /// Look is the `web_audio.rs` module for a peek at the  wasm implementation
 pub struct FlufflAudioDeviceContext<Callback, State>
@@ -61,15 +61,15 @@ where
     ) -> FlufflAudioDeviceContext<Callback, State> {
         // println!("new music context");
         let desired_spec = be_sdl2::audio::AudioSpecDesired {
-            freq: core.desired_specs.sample_rate.clone().map(|a| {
+            freq: core.desired_specs.sample_rate.map(|a| {
                 // println!("freq = {}", a);
                 a as i32
             }),
-            channels: core.desired_specs.channels.clone().map(|a| {
+            channels: core.desired_specs.channels.map(|a| {
                 // println!("channels = {}", a);
                 a as u8
             }),
-            samples: core.desired_specs.buffer_size.clone().map(|a| {
+            samples: core.desired_specs.buffer_size.map(|a| {
                 // println!("buffer_size = {}", a);
                 a as u16
             }),
@@ -95,27 +95,27 @@ where
             sdl2_device: Arc::new(sdl2_device),
         }
     }
-    
+
     /// ## Description
     /// Allows the user to modify state through a callback
     /// ### Comments
-    /// If I can't easily return the value to code higher up in the stack, 
+    /// If I can't easily return the value to code higher up in the stack,
     /// the next best thing is pass a callback to the value  
     pub fn modify_state<ModifyCallback>(&self, mut cb: ModifyCallback)
     where
-        ModifyCallback: FnMut(Option<&mut State>)->Option<()>,
+        ModifyCallback: FnMut(Option<&mut State>) -> Option<()>,
     {
         let mut lck = self.fluffl_audio_device.lock().unwrap();
         let device = &mut *lck;
         let s = device.core.state.as_mut();
         let _ = cb(s);
     }
-    /// resumes the device 
+    /// resumes the device
     pub fn resume(&self) {
         self.sdl2_device.resume();
     }
 
-    /// pauses the device 
+    /// pauses the device
     pub fn pause(&self) {
         self.sdl2_device.pause();
     }
@@ -162,8 +162,8 @@ where
         let mut callback = self.audio_device.lock().unwrap().callback();
         let mut device_lock = self.audio_device.lock().unwrap();
         let device = &mut *device_lock;
-        device.state().map(|state| {
+        if let Some(state) = device.state() {
             callback(state, out);
-        });
+        }
     }
 }

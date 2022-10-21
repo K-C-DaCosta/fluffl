@@ -43,7 +43,7 @@ impl CustomSDL2Window {
         Self { context }
     }
 
-    fn to_window(&mut self) -> &mut be_sdl2::video::Window {
+    fn as_sdl2_window_mut(&mut self) -> &mut be_sdl2::video::Window {
         let mut_ref: &mut Self = self;
         unsafe { mem::transmute(mut_ref) }
     }
@@ -64,7 +64,7 @@ pub struct FlufflWindow {
     sdl_state: be_sdl2::Sdl,
     sdl_gl_context: be_sdl2::video::GLContext,
     sdl_event_pump: be_sdl2::EventPump,
-    gl: Arc<Box<Context>>,
+    gl: GlowGL,
     render_loop: Option<RenderLoop<be_sdl2::video::Window>>,
     audio_context: FlufflAudioContext,
     video_ss: be_sdl2::VideoSubsystem,
@@ -158,7 +158,7 @@ impl HasFlufflWindow for FlufflWindow {
             if settings.resizable {
                 builder_ref = builder.resizable();
             }
-            if settings.resizable == false && settings.fullscreen {
+            if !settings.resizable && settings.fullscreen {
                 builder_ref = builder.fullscreen();
             }
 
@@ -207,15 +207,13 @@ impl HasFlufflWindow for FlufflWindow {
     }
 
     fn set_fullscreen(&mut self, go_fullscreen: bool) {
-        let window = self.window_pointer.to_window();
+        let window = self.window_pointer.as_sdl2_window_mut();
         if go_fullscreen {
             if let Err(msg) = window.set_fullscreen(FullscreenType::True) {
                 panic!("Error:{}", msg)
             }
-        } else {
-            if let Err(msg) = window.set_fullscreen(FullscreenType::Off) {
-                panic!("Error:{}", msg)
-            }
+        } else if let Err(msg) = window.set_fullscreen(FullscreenType::Off) {
+            panic!("Error:{}", msg)
         }
     }
 }
@@ -306,26 +304,26 @@ impl HasEventCollection for FlufflWindow {
                     TouchTracker::get_mut().remove(&id);
                 }
 
-                Event::Window { win_event, .. } => match win_event {
-                    be_sdl2::event::WindowEvent::Resized(width, height) => {
-                        push_event!(gevent, EventKind::Resize { width, height });
-                        width_update = Some(width as u32);
-                        height_update = Some(height as u32);
-                    }
-                    _ => (),
-                },
-
-                Event::KeyUp { scancode, .. } => {
-                    scancode.map(|sc| {
-                        let code = map_scancode(sc);
-                        push_event!(gevent, EventKind::KeyUp { code })
-                    });
+                Event::Window {
+                    win_event: be_sdl2::event::WindowEvent::Resized(width, height),
+                    ..
+                } => {
+                    push_event!(gevent, EventKind::Resize { width, height });
+                    width_update = Some(width as u32);
+                    height_update = Some(height as u32);
                 }
-                Event::KeyDown { scancode, .. } => {
-                    scancode.map(|sc| {
-                        let code = map_scancode(sc);
-                        push_event!(gevent, EventKind::KeyDown { code })
-                    });
+
+                Event::KeyUp {
+                    scancode: Some(sc), ..
+                } => {
+                    let code = map_scancode(sc);
+                    push_event!(gevent, EventKind::KeyUp { code })
+                }
+                Event::KeyDown {
+                    scancode: Some(sc), ..
+                } => {
+                    let code = map_scancode(sc);
+                    push_event!(gevent, EventKind::KeyDown { code })
                 }
                 Event::MouseButtonDown {
                     mouse_btn, x, y, ..
@@ -334,24 +332,24 @@ impl HasEventCollection for FlufflWindow {
                         gevent,
                         EventKind::MouseDown {
                             button_code: MouseCode::LEFT_BUTTON,
-                            x,
-                            y
+                            x: x as f32,
+                            y: y as f32,
                         }
                     ),
                     MouseButton::Right => push_event!(
                         gevent,
                         EventKind::MouseDown {
                             button_code: MouseCode::RIGHT_BUTTON,
-                            x,
-                            y
+                            x: x as f32,
+                            y: y as f32,
                         }
                     ),
                     MouseButton::Middle => push_event!(
                         gevent,
                         EventKind::MouseDown {
                             button_code: MouseCode::WHEEL { direction: 0 },
-                            x,
-                            y
+                            x: x as f32,
+                            y: y as f32,
                         }
                     ),
                     _ => (),
@@ -363,24 +361,24 @@ impl HasEventCollection for FlufflWindow {
                         gevent,
                         EventKind::MouseUp {
                             button_code: MouseCode::LEFT_BUTTON,
-                            x,
-                            y
+                            x: x as f32,
+                            y: y as f32,
                         }
                     ),
                     MouseButton::Right => push_event!(
                         gevent,
                         EventKind::MouseUp {
                             button_code: MouseCode::RIGHT_BUTTON,
-                            x,
-                            y
+                            x: x as f32,
+                            y: y as f32,
                         }
                     ),
                     MouseButton::Middle => push_event!(
                         gevent,
                         EventKind::MouseUp {
                             button_code: MouseCode::WHEEL { direction: 0 },
-                            x,
-                            y
+                            x: x as f32,
+                            y: y as f32,
                         }
                     ),
                     _ => (),
@@ -391,10 +389,10 @@ impl HasEventCollection for FlufflWindow {
                     push_event!(
                         gevent,
                         EventKind::MouseMove {
-                            x,
-                            y,
-                            dx: xrel,
-                            dy: yrel
+                            x: x as f32,
+                            y: y as f32,
+                            dx: xrel as f32,
+                            dy: yrel as f32
                         }
                     );
                 }
@@ -409,8 +407,12 @@ impl HasEventCollection for FlufflWindow {
                 _ => (),
             });
 
-        width_update.map(|width| self.window_width = width);
-        height_update.map(|height| self.window_height = height);
+        if let Some(width) = width_update {
+            self.window_width = width;
+        }
+        if let Some(height) = height_update {
+            self.window_height = height;
+        }
         //make sure to give the pollevent back
         self.glue_event = gevent;
     }
