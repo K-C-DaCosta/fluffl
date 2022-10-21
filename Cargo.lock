@@ -492,7 +492,11 @@ dependencies = [
 
 [[package]]
 name = "fluffl"
+<<<<<<< HEAD
 version = "0.0.5"
+=======
+version = "0.0.4"
+>>>>>>> ea31c7f9e66750e31210e6e3283063ac235eb9b2
 dependencies = [
  "adhoc_audio",
  "alsa",
