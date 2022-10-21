@@ -22,11 +22,11 @@ impl IdxSlice {
         self.len += off;
     }
 
-    pub fn lbound(&self)->usize{
+    pub fn lbound(&self) -> usize {
         self.lbound
     }
-    
-    pub fn ubound_exclusive(&self)->usize {
+
+    pub fn ubound_exclusive(&self) -> usize {
         self.lbound + self.len
     }
 

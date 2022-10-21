@@ -9,7 +9,7 @@ cfg_if::cfg_if! {
     }
 }
 
-pub use glow::{self,HasContext};
+pub use crate::console::*;
 pub use fluffl_macros::*;
-pub use hiero_pack::{self,*};
-pub use crate::console::*; 
+pub use glow::{self, HasContext};
+pub use hiero_pack::{self, *};

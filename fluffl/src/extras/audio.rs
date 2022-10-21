@@ -1,6 +1,6 @@
-pub mod mp3; 
-pub mod music_player; 
-pub mod ogg; 
+pub mod mp3;
+pub mod music_player;
+pub mod ogg;
 pub mod wav;
 
 /// A trait that converts a type into a list of `AudioSamples`
@@ -16,7 +16,7 @@ pub struct AudioSample<T> {
 /// Structs that implement the `AudioBuffer` trait contain encoded **PCM**. \
 /// This is used to fetch decoded PCM within **Ogg** and **Mp3** files
 pub trait AudioBuffer<T: Copy> {
-    /// Decode `usize` samples and write it into the `out` slice 
+    /// Decode `usize` samples and write it into the `out` slice
     fn read(&mut self, out: &mut [AudioSample<T>]) -> usize;
     /// Just sets a pointer back to the beggining of the track
     fn seek_to_start(&mut self);

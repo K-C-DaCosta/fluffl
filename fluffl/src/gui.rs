@@ -12,10 +12,10 @@ use crate::{
         fixed_stack::FixedStack,
         flat_nary_tree::{LinearTree, NodeID, StackSignal},
     },
-    text_writer::TextWriter,
     math::{self, translate4, ComponentWriter, Mat4, MatStack, Vec2, Vec4, AABB2},
     mem::force_borrow_mut,
     ogl::{self, ArrayBuilder, Bindable, BufferPair, HasBufferBuilder, OglProg},
+    text_writer::TextWriter,
     window::event_util::{EventKind, KeyCode},
     FlufflState, GlowGL,
 };
@@ -391,8 +391,7 @@ impl<ProgramState> GuiManager<ProgramState> {
             let _old_signal_len = component_signal_bus.len();
             match event {
                 EventKind::KeyDown { code } => {
-
-                    // // for debugging purposes 
+                    // // for debugging purposes
                     // if let KeyCode::BRACKET_R = code {
                     //     let v = gui_component_tree
                     //         .get_mut(GuiComponentKey(5))

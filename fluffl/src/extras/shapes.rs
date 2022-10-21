@@ -1,5 +1,8 @@
 use super::math_util::*;
-use crate::{GlowGL,ogl::{array::*, buffer::*, program::*, *}};
+use crate::{
+    ogl::{array::*, buffer::*, program::*, *},
+    GlowGL,
+};
 use glow::*;
 
 static BOX_PROGRAM_SOURCE: &str = "

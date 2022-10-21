@@ -8,7 +8,7 @@ impl<'a> Font<'a> {
     pub const fn from_base64(base64: &'a str) -> Self {
         Self { base64 }
     }
-    
+
     /// # Description
     /// decodes the base64 to binary then deserializes to an atlas
     pub fn to_hiero_atlas(self) -> Result<hiero_pack::HieroAtlas, hiero_pack::Error> {

@@ -52,10 +52,7 @@ struct MixerCursor {
 }
 impl MixerCursor {
     pub fn new(t0: SampleTime, delta: SampleTime) -> Self {
-        Self {
-            t0,
-            delta,
-        }
+        Self { t0, delta }
     }
 
     pub fn to_interval_ms(self) -> Interval {
@@ -397,7 +394,6 @@ impl Mixer {
                     // hasn't been added to the running_streams linkedlist yet (its still intersecting)
                     vacant_entry.insert(Ptr::null());
 
-
                     let track_id = track_id_table
                         .iter()
                         .find(|&(_, &v)| v == gi)
@@ -409,7 +405,6 @@ impl Mixer {
                     ));
 
                     // println!("[{:?}] added",gi);
-
                 }
 
                 // if !running_streams_table.contains_key(&gi) {
@@ -823,7 +818,7 @@ fn mix_resample_audio_both_2_channels_slow_reference(src: &[f32], dst: &mut [f32
     }
 }
 
-#[allow(dead_code,clippy::identity_op)]
+#[allow(dead_code, clippy::identity_op)]
 fn mix_resample_audio_both_2_channels_iterator_version_vectorized(src: &[f32], dst: &mut [f32]) {
     const NUM_CHANNELS: usize = 2;
 

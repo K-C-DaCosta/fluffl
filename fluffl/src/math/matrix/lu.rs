@@ -283,7 +283,7 @@ where
     /// ## Comments
     /// - tried to make this as branchless as possible
     /// - source: https://www.javatpoint.com/doolittle-algorithm-lu-decomposition
-    pub fn decomp_lu_inplace_doolittle(& mut self) -> DecompLUInplace<'_, N, T> {
+    pub fn decomp_lu_inplace_doolittle(&mut self) -> DecompLUInplace<'_, N, T> {
         for i in 1..N {
             for j in 0..N {
                 let a = self[i][j];
@@ -351,7 +351,7 @@ fn lu_decomp_sanity() {
     let decomp = mat.decomp_plu(0.01).expect("this matrix is not degenerate");
 
     let recomposition = decomp.recompose();
-    assert!( mat.is_similar(&recomposition, THRESHOLD));
+    assert!(mat.is_similar(&recomposition, THRESHOLD));
 
     // decomp.print();
     // let sol = decomp.upper.back_sub([1.0, 2.0, 3.0]);
@@ -363,9 +363,7 @@ fn lu_decomp_sanity() {
         .decomp_plu(0.01)
         .map(|lu| lu.invert())
         .expect("matrix is not degenerate");
-    assert!(
-        (inverse * mat).is_similar(&Mat3::identity(), THRESHOLD)
-    );
+    assert!((inverse * mat).is_similar(&Mat3::identity(), THRESHOLD));
 
     //this should fail
     let mat = degen_4x4();
@@ -377,7 +375,7 @@ fn lu_decomp_sanity() {
     // println!("transform:\n{mat}");
     let decomp = mat.decomp_plu(0.01).expect("shouldn't be degen");
     // decomp.print();
-    assert!( mat.is_similar(&decomp.recompose(), THRESHOLD));
+    assert!(mat.is_similar(&decomp.recompose(), THRESHOLD));
 
     let mat = rigid_rotation_4x4();
     let mat_inv = rigid_rotation_4x4().decomp_lu_inplace_gaussian().invert();

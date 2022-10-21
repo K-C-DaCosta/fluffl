@@ -24,8 +24,7 @@ impl<T> NetIncomplete<T> {
     }
 }
 
-pub trait WebSocketBuilder<MessageCallback, CloseCallback,ErrorCallback>
-{
+pub trait WebSocketBuilder<MessageCallback, CloseCallback, ErrorCallback> {
     type InnerType;
     fn with_on_message_cb(self, callback: MessageCallback) -> Self;
     fn with_on_close_cb(self, callback: CloseCallback) -> Self;
@@ -33,10 +32,8 @@ pub trait WebSocketBuilder<MessageCallback, CloseCallback,ErrorCallback>
     fn connect(self, uri: &str) -> Result<Self::InnerType, WebsocketError>;
 }
 
-pub trait HasWebSocketClient
-{
+pub trait HasWebSocketClient {
     fn send(&mut self, data: &[u8]) -> Result<(), WebsocketError>;
     fn is_closed(&self) -> bool;
     fn listen(&mut self);
-
 }

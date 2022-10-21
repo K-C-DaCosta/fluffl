@@ -141,7 +141,7 @@ where
             AUDCLNT_SHAREMODE_SHARED,
             0,
             //allocate 100ms worth of data to buffer ahead by
-            10_000_000/10 ,
+            10_000_000 / 10,
             0,
             (&requested_device_format) as *const _ as *const _,
             None,

@@ -265,18 +265,17 @@ impl From<f64> for FP64 {
 }
 
 impl FP64 {
-
     /// divisor assumed to be relatively small
     pub fn remainder(self, inv_divisor: Self, divisor: Self) -> Self {
         let x = self;
-        let x_scaled = Self::from_bits( ((x.data >> 14) * (inv_divisor.data >> 1)) >> 1);
+        let x_scaled = Self::from_bits(((x.data >> 14) * (inv_divisor.data >> 1)) >> 1);
         let x_quotient = x_scaled.floor();
-        let x_multiple = Self::from_bits( ((x_quotient.data >> 14) * (divisor.data >> 1)) >> 1);
+        let x_multiple = Self::from_bits(((x_quotient.data >> 14) * (divisor.data >> 1)) >> 1);
         x - x_multiple
     }
 
     /// Computes sin quickly by using spline approximations
-    /// ## Comments 
+    /// ## Comments
     /// - no multiplications
     pub fn sin(self) -> Self {
         let inaccurate_spline = |x: Self| {
@@ -292,14 +291,14 @@ impl FP64 {
 
             let spline = inaccurate_spline(x);
             let spline_squared = spline * spline;
-            
+
             // better result by interpolating spline and spline_squared
             let accurate_estimation =
                 Self::from_bits(K0) * spline + Self::from_bits(K1) * spline_squared;
 
             // clip accurate spline between 0 and pi
-            let when_gt_zero = (Self::zero() - x).data as i64 >>63;
-            let when_lt_pi  =  (x-  Self::pi()).data as i64 >> 63; 
+            let when_gt_zero = (Self::zero() - x).data as i64 >> 63;
+            let when_lt_pi = (x - Self::pi()).data as i64 >> 63;
             Self::from_bits(accurate_estimation.data & (when_gt_zero & when_lt_pi))
         };
 
@@ -358,7 +357,7 @@ fn trig_eval_bug_1() {
 #[test]
 fn trig_tests() {
     const NUM_STEPS: usize = 2048;
-    let delta_f64 = 2.0*std::f64::consts::PI / NUM_STEPS as f64;
+    let delta_f64 = 2.0 * std::f64::consts::PI / NUM_STEPS as f64;
     let delta_fp64 = FP64::from(delta_f64);
     let mut t_f64 = 0.0f64;
     let mut t_fp64 = FP64::zero();

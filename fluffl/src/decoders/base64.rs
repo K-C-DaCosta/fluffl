@@ -37,7 +37,6 @@ pub fn encode(data: &[u8]) -> String {
     output
 }
 
-
 #[allow(clippy::same_item_push)]
 pub fn decode<S: AsRef<str>>(raw_text: S) -> Result<Vec<u8>, Error> {
     let raw_text = raw_text.as_ref();

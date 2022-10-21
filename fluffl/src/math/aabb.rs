@@ -44,8 +44,8 @@ where
 
     pub fn from_point_and_lengths<V0, V1>(x0: V0, dim: V1) -> Self
     where
-        V0:Copy+ Into<Vector<DIM, T>>,
-        V1:Copy+ Into<Vector<DIM, T>>,
+        V0: Copy + Into<Vector<DIM, T>>,
+        V1: Copy + Into<Vector<DIM, T>>,
     {
         Self {
             min_pos: x0.into(),

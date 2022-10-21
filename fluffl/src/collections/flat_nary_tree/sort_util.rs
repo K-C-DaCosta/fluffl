@@ -107,5 +107,4 @@ fn quick_sort_sanity() {
             .all(|(&a, &b)| a.abs() == b.abs()),
         "test and co_test should have the same magnitude after sort"
     );
-
 }

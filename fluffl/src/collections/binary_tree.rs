@@ -1,10 +1,9 @@
 #![allow(dead_code)]
 
+use super::Ptr;
 use std::ops::{Index, IndexMut};
-use super::Ptr; 
 
-
-#[derive(Copy, Clone,Default)]
+#[derive(Copy, Clone, Default)]
 pub struct BinNode<T> {
     pub data: Option<T>,
     pub parent: Ptr,
@@ -37,7 +36,6 @@ impl<T> BinNode<T> {
     }
 }
 
-
 #[derive(Default)]
 pub struct BinaryTree<T> {
     root: Ptr,
@@ -46,7 +44,6 @@ pub struct BinaryTree<T> {
 }
 
 impl<T> BinaryTree<T> {
-
     pub fn new() -> Self {
         Self {
             root: Ptr::null(),
@@ -54,7 +51,7 @@ impl<T> BinaryTree<T> {
             pool: Ptr::null(),
         }
     }
-    pub fn nodes(&self)->&[BinNode<T>]{
+    pub fn nodes(&self) -> &[BinNode<T>] {
         self.node.as_slice()
     }
 

@@ -10,7 +10,6 @@ pub mod linked_list;
 pub mod nary_forest;
 pub mod segment_tree;
 
-
 /// ## Description
 /// The Official Pseudo Pointer type for this module
 /// ### comments

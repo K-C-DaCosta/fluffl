@@ -1,4 +1,4 @@
-use super::*; 
+use super::*;
 
 #[rustfmt::skip]
 pub fn perspective(l:f32,r:f32,t:f32,b:f32,n:f32,f:f32)->Mat4<f32>{

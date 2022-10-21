@@ -1,6 +1,6 @@
 use super::{AudioDeviceCore, ConcreteSpecs};
 
-cfg_if::cfg_if!{
+cfg_if::cfg_if! {
     if #[cfg(target_os="linux")] {
         #[path ="./glutin_audio/glutin_alsa.rs"]
         mod glutin_audio_backend;
@@ -10,4 +10,4 @@ cfg_if::cfg_if!{
     }
 }
 
-pub use glutin_audio_backend::*; 
+pub use glutin_audio_backend::*;

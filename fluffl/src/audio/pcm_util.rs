@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 /// but carrying a little more information about the data
 #[derive(Clone, Copy)]
 pub struct PCMSlice<'a, T> {
-    /// a slice like normal 
+    /// a slice like normal
     planar_pcm: &'a [T],
     /// **additional info**: samples per second
     frequency: u32,
@@ -38,7 +38,7 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         self.channels
     }
 
-    pub fn samples(&self)->usize{
+    pub fn samples(&self) -> usize {
         self.planar_pcm.len()
     }
     pub fn samples_per_channel(&self) -> u64 {

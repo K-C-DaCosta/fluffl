@@ -1,9 +1,8 @@
 use super::*;
 
-
 #[derive(Default)]
 pub struct OriginState {
-    common: GuiCommonState, 
+    common: GuiCommonState,
 }
 
 impl OriginState {
@@ -15,11 +14,10 @@ impl OriginState {
 }
 
 impl GuiComponent for OriginState {
-    
     fn common(&self) -> &GuiCommonState {
         &self.common
     }
-    
+
     fn common_mut(&mut self) -> &mut GuiCommonState {
         &mut self.common
     }

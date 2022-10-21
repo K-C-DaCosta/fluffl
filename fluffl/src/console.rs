@@ -9,7 +9,6 @@ pub mod console_util;
 ///Platform specific implementations are here.
 pub use console_util::*;
 
-
 #[macro_export]
 macro_rules! console_log {
     // Note that this is using the `log` function imported above during

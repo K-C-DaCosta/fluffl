@@ -1,5 +1,5 @@
 use wasm_bindgen;
-use wasm_bindgen::prelude::*; 
+use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 extern "C" {

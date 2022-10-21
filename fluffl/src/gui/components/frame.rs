@@ -48,9 +48,6 @@ enum FocusedScrollBarKind {
     Nothing,
 }
 
-
-
-
 #[derive(Clone)]
 pub struct FrameState {
     pub common: GuiCommonState,
@@ -70,8 +67,8 @@ pub struct FrameState {
     focused_scrollbar: FocusedScrollBarKind,
 }
 
-impl Default for FrameState{
-    fn default()->Self{
+impl Default for FrameState {
+    fn default() -> Self {
         Self::new()
     }
 }
@@ -180,7 +177,7 @@ impl GuiComponent for FrameState {
         state: RenderState<'b>,
         _text_writer: &mut TextWriter,
     ) {
-        if !self.is_visible()  {
+        if !self.is_visible() {
             return;
         }
 

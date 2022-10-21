@@ -12,8 +12,9 @@ pub async fn load_file(file_path: &str) -> Result<Vec<u8>, Error> {
     load_file_helper(path.as_str()).await
 }
 
-pub fn load_file_cb<F>(file_path: &str,mut cb:F)
-where F : FnMut( Result<Vec<u8>,Error>) + 'static 
+pub fn load_file_cb<F>(file_path: &str, mut cb: F)
+where
+    F: FnMut(Result<Vec<u8>, Error>) + 'static,
 {
     let path = String::from(file_path);
     spawn_local(async move {
@@ -39,11 +40,9 @@ async fn load_file_helper(file_path: &str) -> Result<Vec<u8>, Error> {
     let resp: Response = resp_val.dyn_into().unwrap();
 
     if resp.status() != 200 {
-        return Err(Error::IOError(String::from(
-            "Error: File not found!",  
-        )));
+        return Err(Error::IOError(String::from("Error: File not found!")));
     }
-    
+
     let blob: Blob = JsFuture::from(resp.blob().unwrap())
         .await?
         .dyn_into()

@@ -143,20 +143,20 @@ impl PcmConverter<f32> for WavFile {
     }
 }
 
-impl <T> From<Vec<AudioSample<T>>> for WavBuffer<T>{
-    fn from( samples:Vec<AudioSample<T>>) -> Self {
-        Self{
-            samples, 
-            sample_index:0,
+impl<T> From<Vec<AudioSample<T>>> for WavBuffer<T> {
+    fn from(samples: Vec<AudioSample<T>>) -> Self {
+        Self {
+            samples,
+            sample_index: 0,
         }
     }
 }
 
-impl From<WavFile> for WavBuffer<f32>{
-    fn from(wf:WavFile)->Self{
-        Self{
-            samples:wf.samples(),
-            sample_index:0, 
+impl From<WavFile> for WavBuffer<f32> {
+    fn from(wf: WavFile) -> Self {
+        Self {
+            samples: wf.samples(),
+            sample_index: 0,
         }
     }
 }

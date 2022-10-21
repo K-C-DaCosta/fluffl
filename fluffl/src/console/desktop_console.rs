@@ -1,3 +1,3 @@
-pub fn console_write(text:&str){
-    print!("{}",text);
+pub fn console_write(text: &str) {
+    print!("{}", text);
 }

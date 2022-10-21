@@ -105,8 +105,8 @@ impl EventKind {
 
     pub fn disp(&self) -> Vec2<f32> {
         match *self {
-            Self::MouseMove { dx, dy, .. } => Vec2::from([dx , dy ]),
-            Self::TouchMove { dx, dy, .. } => Vec2::from([dx , dy ]),
+            Self::MouseMove { dx, dy, .. } => Vec2::from([dx, dy]),
+            Self::TouchMove { dx, dy, .. } => Vec2::from([dx, dy]),
             _ => Vec2::zero(),
         }
     }

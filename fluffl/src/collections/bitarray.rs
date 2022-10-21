@@ -1,4 +1,3 @@
-
 #[derive(Default)]
 pub struct BitArray {
     blocks: Vec<u32>,
@@ -24,9 +23,9 @@ impl BitArray {
         }
         self.len = num_bits;
     }
-    
+
     pub fn is_empty(&self) -> bool {
-        self.len() == 0 
+        self.len() == 0
     }
 
     /// returns number of bits available
@@ -88,8 +87,8 @@ impl std::ops::Not for BitArray {
 }
 
 #[test]
-fn set_bit(){
-     let mut bits = BitArray::new();
+fn set_bit() {
+    let mut bits = BitArray::new();
     bits.allocate(16, 0);
     bits.set_bit(0, 1);
     bits.set_bit(2, 1);
@@ -97,5 +96,3 @@ fn set_bit(){
     bits.set_bit(6, 1);
     bits.set_bit(8, 1);
 }
-
-

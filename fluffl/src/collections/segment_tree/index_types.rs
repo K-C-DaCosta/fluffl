@@ -1,6 +1,6 @@
-use super::*; 
+use super::*;
 
-#[derive(Copy, Clone, Debug,PartialEq,Eq,Hash)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
 pub struct GlobalIndex {
     pub idx: usize,
 }
@@ -11,13 +11,11 @@ impl From<usize> for GlobalIndex {
 }
 impl Default for GlobalIndex {
     fn default() -> Self {
-        Self{
-            idx:!0, 
-        }
+        Self { idx: !0 }
     }
 }
 
-#[derive(Copy, Clone,Debug)]
+#[derive(Copy, Clone, Debug)]
 pub struct BucketIndex {
     pub idx: usize,
 }

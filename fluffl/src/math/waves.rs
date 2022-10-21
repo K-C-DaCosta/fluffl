@@ -67,7 +67,7 @@ pub fn value_noise(t: f64) -> f64 {
 }
 
 pub fn perlin_noise(t: f64) -> f64 {
-    let amplitudes = [1.,];
+    let amplitudes = [1.];
 
     let (n, amp_max) = amplitudes
         .iter()
@@ -77,5 +77,5 @@ pub fn perlin_noise(t: f64) -> f64 {
                 amp_acc + amp,
             )
         });
-    (n/amp_max) as f64 * 0.1
+    (n / amp_max) as f64 * 0.1
 }

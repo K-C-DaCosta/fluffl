@@ -2,7 +2,10 @@ use super::*;
 use crate::{console::*, *};
 use std::sync::{Arc, Mutex};
 
-use std::{thread, time::{Instant,Duration}};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 use alsa::{
     pcm::{Access, Format},
@@ -155,7 +158,7 @@ where
             // because no other threads should be fighting for it
             let io = pcm.io_f32().unwrap();
             let real_time = Instant::now();
-    
+
             if pcm.state() != alsa::pcm::State::Running {
                 pcm.start().unwrap();
             }
@@ -167,13 +170,12 @@ where
 
             loop {
                 // currenly this thread doesn't have the lock so its okay to sleep here (if requested)
-                if let Some(excess_time) = is_sleep_requested.take(){
+                if let Some(excess_time) = is_sleep_requested.take() {
                     // because mixing can be an expensive process I've decided to
                     // sleep by fraction the excess_time so I have a chance to keep buffering data
                     // if mixing gets slower (on my end)
-                    thread::sleep(Duration::from_nanos((excess_time as u64*5)/16));
+                    thread::sleep(Duration::from_nanos((excess_time as u64 * 5) / 16));
                 }
-
 
                 // check if state changed then break
                 if let Ok(DeviceState::Paused) = ctx.state.try_lock().map(|a| *a) {
@@ -188,7 +190,7 @@ where
                     let real_time_nanos = real_time.elapsed().as_nanos();
 
                     if written_time_nanos > (BUFFER_DELTA_IN_NANOS + real_time_nanos) {
-                        // if the buffer is ahead by BUFFER_DELTA 
+                        // if the buffer is ahead by BUFFER_DELTA
                         // tell thread to go to sleep by excess time
                         let excess_time = written_time_nanos - real_time_nanos;
 
@@ -206,7 +208,7 @@ where
                     callback(state, &mut buffer[..]);
 
                     // send ALL samples retrieved from state to ALSA
-                    // this requires a loop because IO::writei(..) 
+                    // this requires a loop because IO::writei(..)
                     // may only write parts of the buffer
                     let mut frames_pending = buffer_size as isize;
                     while let Ok(frames_written) = io.writei(&buffer[..]) {

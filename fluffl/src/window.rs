@@ -297,8 +297,8 @@ impl FlufflWindowConfigs {
     }
 }
 
-impl Default for FlufflWindowConfigs{
-    fn default()->Self{
+impl Default for FlufflWindowConfigs {
+    fn default() -> Self {
         Self::new()
     }
 }

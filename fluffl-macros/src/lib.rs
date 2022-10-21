@@ -45,7 +45,7 @@ pub fn fluffl(attr: TokenStream, input: TokenStream) -> TokenStream {
     } else {
         quote! { /* STUB */  }
     };
-    
+
     let expanded = quote! {
         pub fn main() #return_type {
             //wasm entry point

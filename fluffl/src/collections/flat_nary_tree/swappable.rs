@@ -22,4 +22,3 @@ impl<T> CanSwap for Swappable<&mut [T]> {
         self.array.swap(a, b);
     }
 }
-

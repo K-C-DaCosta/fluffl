@@ -62,11 +62,11 @@ pub enum MixerRequest {
     /// the user invents a `TrackID` to associate with `Track`
     AddTrack(TrackID, OffsetKind, Track),
     RemoveTrack(TrackID),
-    /// fetches the internal mixer time 
+    /// fetches the internal mixer time
     FetchMixerTime,
     /// Send this to preform advanced mutations on a track
-    /// or simply 
-    MutateMixer(TrackID,fn(TrackID,&mut Mixer) -> MutatedResult<()>),
+    /// or simply
+    MutateMixer(TrackID, fn(TrackID, &mut Mixer) -> MutatedResult<()>),
 }
 
 #[derive(Debug)]
@@ -77,7 +77,7 @@ pub enum AddTrackErr {
 #[derive(Debug)]
 pub enum RemoveTrackErr {
     TrackNotFound,
-    TrackCurrentlyPlaying
+    TrackCurrentlyPlaying,
 }
 
 #[derive(Debug)]
@@ -90,8 +90,8 @@ pub enum SeekErr {
     CursorOutOfBounds,
 }
 
-#[derive(Debug,Copy,Clone)]
-pub enum MixerEventKind{
+#[derive(Debug, Copy, Clone)]
+pub enum MixerEventKind {
     /// the track has began playing for the first time
     TrackStarted(TrackID),
     /// the track has finished playing.
@@ -103,10 +103,10 @@ pub enum MixerResponse {
     AddTrackStatus(TrackID, Result<(), AddTrackErr>),
     RemoveTrackStatus(TrackID, Result<Track, RemoveTrackErr>),
     /// the function was executed
-    MixerMutatedStatus(TrackID,Result<(), TrackMutatedErr>),
+    MixerMutatedStatus(TrackID, Result<(), TrackMutatedErr>),
     SeekStatus(Result<(), SeekErr>),
     /// ## Description
-    /// The mixer will let the user know things when certain tracks start or are finised playing etc\ 
+    /// The mixer will let the user know things when certain tracks start or are finised playing etc\
     MixerEvent(MixerEventKind),
     MixerTime(SampleTime),
 }
@@ -119,17 +119,15 @@ impl TrackID {
     pub fn from_u64(id: u64) -> Self {
         Self { id }
     }
-    
+
     /// for when you dont care about mutating a specific track but still want
     /// to mutate the mixer   
-    pub const fn null()->Self{
-        Self{
-            id:!0,
-        }
+    pub const fn null() -> Self {
+        Self { id: !0 }
     }
 }
 
-impl Default for TrackID{
+impl Default for TrackID {
     fn default() -> Self {
         Self::null()
     }

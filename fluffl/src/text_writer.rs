@@ -435,7 +435,11 @@ impl TextWriter {
             gl.enable(glow::BLEND);
             gl.blend_func(glow::SRC_ALPHA, glow::ONE_MINUS_SRC_ALPHA);
             //make uniforms are up-to-date
-            gl.uniform_matrix_4_f32_slice(self.projection_mat_loc.as_ref(), true, proj_mat.as_slice());
+            gl.uniform_matrix_4_f32_slice(
+                self.projection_mat_loc.as_ref(),
+                true,
+                proj_mat.as_slice(),
+            );
             gl.uniform_matrix_4_f32_slice(self.model_loc.as_ref(), true, resize_matrix.as_slice());
         }
 

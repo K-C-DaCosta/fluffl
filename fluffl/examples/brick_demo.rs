@@ -4,9 +4,9 @@ use fluffl::{
         audio::{music_player::*, ogg::*, *},
         shapes::ShapePainter2D,
     },
-    text_writer::*,
     io::*,
     prelude::*,
+    text_writer::*,
     window::{event_util::*, *},
     GlowGL, *,
 };

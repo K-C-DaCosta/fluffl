@@ -75,6 +75,22 @@ https://k-c-dacosta.github.io/wasm_bins/examples/brick_demo/
 ```
 cargo run --exmaple=brick_demo
 ``` 
+
+## Cargo-Make
+
+I have scripts that basically does what the git-workflow does except locally, however it requires a tool called `cargo-make`.
+
+to use the script make sure `cargo-make` is installed by doing a:
+
+```
+cargo install cargo-make
+```
+
+then to run do 
+```
+cargo make build
+```
+
 ## Update/Thoughts so far 
 - I'm considering removing:
     - websocket module (tungstenite)

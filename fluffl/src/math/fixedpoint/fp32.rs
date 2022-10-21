@@ -30,7 +30,7 @@ impl FP32 {
 
     /// does no conversion at all,use From trait for that
     pub fn from_bits(bits: i32) -> Self {
-        Self { data:bits }
+        Self { data: bits }
     }
 
     /// not using the from trait for this because it needs to be const

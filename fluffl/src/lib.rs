@@ -35,10 +35,10 @@ pub mod math;
 pub mod ogl;
 
 /// a utility module for drawing text
-pub mod text_writer; 
+pub mod text_writer;
 
 /// Optional module for websocket clients
-#[cfg(feature="net")]
+#[cfg(feature = "net")]
 pub mod net;
 
 /// Extras module has music playback and text-rendering routines

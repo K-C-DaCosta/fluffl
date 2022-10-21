@@ -30,20 +30,12 @@ where
 fn load_file_helper(file_path: &str) -> Result<Vec<u8>, Error> {
     let mut file = match File::open(file_path) {
         Ok(f) => f,
-        Err(_) => {
-            return Err(Error::IOError(format!(
-                "failed to open {}",
-                file_path,
-            )))
-        }
+        Err(_) => return Err(Error::IOError(format!("failed to open {}", file_path,))),
     };
 
     let mut byte_buffer = Vec::new();
     if file.read_to_end(&mut byte_buffer).is_err() {
-        return Err(Error::IOError(format!(
-            "failed to read {}",
-            file_path
-        )));
+        return Err(Error::IOError(format!("failed to read {}", file_path)));
     }
     Ok(byte_buffer)
 }

@@ -7,13 +7,12 @@ pub unsafe fn force_static<'a, T>(reference: &'a T) -> &'static T {
     &*(reference as *const T)
 }
 
-/// forces the reference to be seen as 'static', essentially disables the borrow checker 
+/// forces the reference to be seen as 'static', essentially disables the borrow checker
 pub unsafe fn force_static_mut<'a, T>(reference: &'a mut T) -> &'static mut T {
     &mut *(reference as *mut T as *mut T)
 }
 
 /// basically clones a mutable reference with a different lifetime
-pub unsafe fn force_borrow_mut<'a,'b, T>(reference: &'a mut T) -> &'b mut T {
+pub unsafe fn force_borrow_mut<'a, 'b, T>(reference: &'a mut T) -> &'b mut T {
     &mut *(reference as *mut T as *mut T)
 }
-

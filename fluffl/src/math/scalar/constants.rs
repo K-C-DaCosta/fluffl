@@ -3,7 +3,7 @@ use super::*;
 pub trait HasConstants {
     fn zero() -> Self;
     fn one() -> Self;
-    fn from_i32(val:i32) -> Self;
+    fn from_i32(val: i32) -> Self;
 }
 
 #[rustfmt::skip]
