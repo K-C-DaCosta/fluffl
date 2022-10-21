@@ -136,7 +136,7 @@ impl HasFlufflWindow for FlufflWindow {
         self.glue_event.as_mut().unwrap()
     }
 
-    fn init(config: &str) -> Result<Self, FlufflError> {
+    fn init(config: &str) -> Result<Self, Error> {
         let settings = FlufflWindowConfigs::new().parser_config_file(config);
 
         // Create a context from a sdl2 window
@@ -218,15 +218,15 @@ impl HasFlufflWindow for FlufflWindow {
     }
 }
 
-impl From<String> for FlufflError {
+impl From<String> for Error {
     fn from(string: String) -> Self {
         Self::WindowInitError(string)
     }
 }
 
-impl From<be_sdl2::video::WindowBuildError> for FlufflError {
+impl From<be_sdl2::video::WindowBuildError> for Error {
     fn from(build_err: be_sdl2::video::WindowBuildError) -> Self {
-        FlufflError::WindowInitError(build_err.to_string())
+        Error::WindowInitError(build_err.to_string())
     }
 }
 

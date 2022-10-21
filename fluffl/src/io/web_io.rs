@@ -7,13 +7,13 @@ use web_sys::*;
 
 pub use wasm_bindgen_futures::*;
 
-pub async fn load_file(file_path: &str) -> Result<Vec<u8>, FlufflError> {
+pub async fn load_file(file_path: &str) -> Result<Vec<u8>, Error> {
     let path = String::from(file_path);
     load_file_helper(path.as_str()).await
 }
 
 pub fn load_file_cb<F>(file_path: &str,mut cb:F)
-where F : FnMut( Result<Vec<u8>,FlufflError>) + 'static 
+where F : FnMut( Result<Vec<u8>,Error>) + 'static 
 {
     let path = String::from(file_path);
     spawn_local(async move {
@@ -22,7 +22,7 @@ where F : FnMut( Result<Vec<u8>,FlufflError>) + 'static
     });
 }
 
-async fn load_file_helper(file_path: &str) -> Result<Vec<u8>, FlufflError> {
+async fn load_file_helper(file_path: &str) -> Result<Vec<u8>, Error> {
     let mut opts = RequestInit::new();
     opts.method("GET");
     opts.mode(RequestMode::Cors);
@@ -39,7 +39,7 @@ async fn load_file_helper(file_path: &str) -> Result<Vec<u8>, FlufflError> {
     let resp: Response = resp_val.dyn_into().unwrap();
 
     if resp.status() != 200 {
-        return Err(FlufflError::IOError(String::from(
+        return Err(Error::IOError(String::from(
             "Error: File not found!",  
         )));
     }
@@ -54,8 +54,8 @@ async fn load_file_helper(file_path: &str) -> Result<Vec<u8>, FlufflError> {
     Ok(byte_buffer)
 }
 
-impl From<JsValue> for FlufflError {
+impl From<JsValue> for Error {
     fn from(_js_error: JsValue) -> Self {
-        FlufflError::IOError(String::new())
+        Error::IOError(String::new())
     }
 }

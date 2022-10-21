@@ -1,4 +1,4 @@
-use super::{event_util::*, FlufflError, HasFlufflWindow, TouchTracker};
+use super::{event_util::*, Error, HasFlufflWindow, TouchTracker};
 use crate::{
     audio::{init_audio_threads, FlufflAudioContext},
     console::*,
@@ -159,7 +159,7 @@ impl HasFlufflWindow for FlufflWindow {
     #[allow(unused_variables)]
     /// spins up a window
     /// `config_xml` - an xml text containing window config data
-    fn init(config_xml: &str) -> Result<Self, FlufflError> {
+    fn init(config_xml: &str) -> Result<Self, Error> {
         determine_desktop_or_mobile();
 
         console_log!("is_mobile = {}\n", is_mobile());
@@ -199,7 +199,7 @@ impl HasFlufflWindow for FlufflWindow {
 
         if attach_event_handlers(&web_window, &canvas).is_err() {
             // console_write("Event handler instantiation failed!");
-            return Err(FlufflError::WindowInitError(String::from(
+            return Err(Error::WindowInitError(String::from(
                 "javascript event listeners failed",
             )));
         }
