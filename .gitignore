@@ -2,3 +2,4 @@
 /wasm_bins/examples/touch_test
 /wasm_bins/resources/*.adhoc
 /mixer_dump.wav
+^/dump/.stub

@@ -186,11 +186,11 @@ pub async fn main() {
     let gl = window.gl();
 
     //load boss intro and put it into memory
-    let file_bytes = load_file!("./wasm_bins/resources/BossIntro.ogg").unwrap();
+    let file_bytes = load_file!("./resources/BossIntro.ogg").unwrap();
     let boss_intro = ogg::OggFile::new().with_data(file_bytes).parse().unwrap();
 
     //load the main track into memory
-    let file_bytes = load_file!("./wasm_bins/resources/BossMain.ogg").unwrap();
+    let file_bytes = load_file!("./resources/BossMain.ogg").unwrap();
     let boss_main = ogg::OggFile::new().with_data(file_bytes).parse().unwrap();
 
     //setup the into track
@@ -244,7 +244,7 @@ pub async fn main() {
     app_state.boss_main_track = Some(main_device);
 
     //load font here:
-    let font_data = load_file!("./wasm_bins/resources/plasmatic.bcode").unwrap();
+    let font_data = load_file!("./resources/plasmatic.bcode").unwrap();
     let atlas = HieroAtlas::deserialize(font_data).ok().unwrap();
     app_state.writer = Some(TextWriter::new(&gl).with_atlas(atlas).build());
     FlufflWindow::run(window, app_state, main_loop);

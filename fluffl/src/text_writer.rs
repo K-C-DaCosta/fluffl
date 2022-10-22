@@ -349,20 +349,20 @@ impl TextWriter {
     /// ## For exmaple(of worst case scenario):
     /// suppose character 'a' is in page 0 and character 'b' is in page 1, then the string 'ababab' will
     /// decode page 0 and 1 SIX times collectively. Decodes are really,relly, really slow.  
-    pub fn draw_text_line_preserved(
+    pub fn draw_text_line_preserved<T:Into<Option<(u32, u32)>>>(
         &mut self,
         text: &str,
         x0: f32,
         y0: f32,
         size: f32,
-        screen_bounds: Option<(u32, u32)>,
+        screen_bounds: T,
     ) {
         //just covering base cases
         if text.is_empty() {
             return;
         }
         let gl = self.gl.clone();
-        let (screen_w, screen_h) = screen_bounds.unwrap_or((800, 600));
+        let (screen_w, screen_h) = screen_bounds.into().unwrap_or((800, 600));
         let proj_mat = calc_ortho_window_f32(screen_w as f32, screen_h as f32);
         let src_bb = self.calculate_bounding_box(x0, y0, text);
         let aspect_ratio = src_bb.w() / src_bb.h();

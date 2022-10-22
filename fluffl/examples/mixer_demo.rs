@@ -87,7 +87,7 @@ pub async fn main() {
     math::waves::noise::init();
 
     //FlufflWindow is configured with XML, the format is self-explanitory
-    let raw_bytes = load_file!("./wasm_bins/resources/config.xml").expect("config failed to load");
+    let raw_bytes = load_file!("./resources/config.xml").expect("config failed to load");
     let config_text = String::from_utf8(raw_bytes).expect("config file currupted");
     let window = FlufflWindow::init(config_text.as_str()).expect("failed to init window");
     let gl = window.gl();
@@ -231,9 +231,8 @@ async fn process_events(
                 //     }));
                 // }
                 if let KeyCode::KEY_T = code {
-                    let file_pointer_to_music =
-                        std::fs::File::open("./wasm_bins/resources/fuck_jannies.adhoc")
-                            .expect("file galed to load");
+                    let file_pointer_to_music = std::fs::File::open("./resources/fj_fj.adhoc")
+                        .expect("file galed to load");
                     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
                         .expect("failed to read music file");
                     let id = mixer_device.gen_id();

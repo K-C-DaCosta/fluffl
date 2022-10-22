@@ -203,6 +203,7 @@ pub struct FlufflWindowConfigs {
     pub resizable: bool,
     /// Specifies if window is fullscreen
     pub fullscreen: bool,
+    pub icon_path: Option<String>,
 }
 
 impl FlufflWindowConfigs {
@@ -219,6 +220,7 @@ impl FlufflWindowConfigs {
             context_minor: 0,
             resizable: true,
             fullscreen: false,
+            icon_path: None,
         }
     }
 
@@ -243,6 +245,11 @@ impl FlufflWindowConfigs {
 
         Self::search_bool(&parser, "resizable", |val| self.resizable = val);
         Self::search_bool(&parser, "fullscreen", |val| self.fullscreen = val);
+
+        Self::search_string(&parser, "icon_path", |val| {
+            self.icon_path = Some(val.clone())
+        });
+        
         self
     }
 

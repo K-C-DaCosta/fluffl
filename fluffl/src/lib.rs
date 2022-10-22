@@ -15,7 +15,7 @@ pub mod window;
 /// private custom datastructures
 pub mod collections;
 /// private decodes
-pub mod decoders;
+pub mod codecs;
 /// private custom parsers
 mod parsers;
 mod slice;

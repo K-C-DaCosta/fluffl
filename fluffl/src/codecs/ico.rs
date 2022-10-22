@@ -191,7 +191,7 @@ pub fn parse_ico() {
     let ico_file = std::fs::File::open("../resources/test.ico").unwrap();
     let ico = Ico::load(ico_file).unwrap();
 
-    let mut ppm = std::fs::File::create("./ico.ppm").unwrap();
+    let mut ppm = std::fs::File::create("../dump/ico.ppm").unwrap();
     writeln!(ppm, "P3").unwrap();
     writeln!(ppm, "{} {}", ico.entries[0].width, ico.entries[0].height).unwrap();
     writeln!(ppm, "{max_color_val}", max_color_val = 255).unwrap();

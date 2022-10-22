@@ -3,7 +3,7 @@ use super::{
     *,
 };
 
-use crate::FlufflState;
+use crate::{load_file, FlufflState};
 
 use be_glutin::{
     self,
@@ -12,6 +12,7 @@ use be_glutin::{
         DeviceId, ElementState, Event, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent,
     },
     event_loop::ControlFlow,
+    window::Icon,
     ContextWrapper,
 };
 
@@ -191,11 +192,23 @@ impl HasFlufflWindow for FlufflWindow {
         let event_loop = be_glutin::event_loop::EventLoop::new();
         let mut window_builder = be_glutin::window::WindowBuilder::new();
 
-        window_builder = window_builder.with_title(settings.title);
-        window_builder = window_builder.with_inner_size(be_glutin::dpi::LogicalSize::new(
-            settings.width,
-            settings.height,
-        ));
+        window_builder = window_builder
+            .with_title(settings.title)
+            .with_inner_size(be_glutin::dpi::LogicalSize::new(
+                settings.width,
+                settings.height,
+            ))
+            .with_resizable(settings.resizable);
+
+        if let Some(path) = settings.icon_path {
+            println!("icon path found = {path}");
+            let mut ico =
+                crate::codecs::ico::Ico::load(std::fs::File::open(path).unwrap()).unwrap();
+            let entry = ico.entries.swap_remove(0);
+            window_builder = window_builder.with_window_icon(
+                Icon::from_rgba(entry.bitmap, entry.width as u32, entry.height as u32).ok(),
+            );
+        }
 
         let window = unsafe {
             be_glutin::ContextBuilder::new()
@@ -208,6 +221,8 @@ impl HasFlufflWindow for FlufflWindow {
         let gl = unsafe {
             glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _)
         };
+
+        // window.window().set_cursor_visible(false);
 
         TouchTracker::init();
 

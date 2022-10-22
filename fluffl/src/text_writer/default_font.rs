@@ -12,7 +12,7 @@ impl<'a> Font<'a> {
     /// # Description
     /// decodes the base64 to binary then deserializes to an atlas
     pub fn to_hiero_atlas(self) -> Result<hiero_pack::HieroAtlas, hiero_pack::Error> {
-        let packed_font_binary = crate::decoders::base64::decode(self.base64).map_err(|_| {
+        let packed_font_binary = crate::codecs::base64::decode(self.base64).map_err(|_| {
             hiero_pack::Error::CustomStatic("base64 failed to decode, found invalid digit")
         })?;
         hiero_pack::HieroAtlas::deserialize(packed_font_binary)
@@ -641,7 +641,7 @@ fn default_decode() {
     //     println!("{}",x);
     // }
 
-    let x = crate::decoders::base64::decode(UROOB_BASE64).expect("failed to decode base64");
+    let x = crate::codecs::base64::decode(UROOB_BASE64).expect("failed to decode base64");
 
     let y = hiero_pack::HieroAtlas::deserialize(x);
     if y.is_err() {
