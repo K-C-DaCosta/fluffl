@@ -201,4 +201,8 @@ pub fn parse_ico() {
     let ico_file = std::fs::File::open("../resources/pokeball.ico").unwrap();
     let ico = Ico::load(ico_file).unwrap();
     ico.dump_ppm("../dump/pokeball.ppm").unwrap();
+
+    let ico_file = std::fs::File::open("../resources/complex.ico").unwrap();
+    let ico = Ico::load(ico_file).unwrap();
+    ico.dump_ppm("../dump/complex.ppm").unwrap();
 }

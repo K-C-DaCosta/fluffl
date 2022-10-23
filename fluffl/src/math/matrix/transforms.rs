@@ -68,3 +68,25 @@ pub fn resize_region(src: AABB2<f32>, dst: AABB2<f32>) -> Mat4<f32>{
         [0.       ,  0.      ,   0.  ,1.                          ],
     ])
 }
+
+#[rustfmt::skip]
+/// standard projection matrix in **row-major**
+pub fn projection(n:f32,f:f32,t:f32,b:f32,l:f32,r:f32)->Mat4<f32>{
+    Mat4::new().with_data([
+        [2.*n/(r-l), 0.0       , (r+l)/(r-l), 0.0          ],
+        [0.0       , 2.*n/(t-b), (t+b)/(t-b), 0.0          ],
+        [0.0       , 0.0       , (f+n)/(n-f), 2.0*f*n/(n-f)],
+        [0.0       , 0.        , -1.        , 0.           ]
+    ])
+}
+
+#[rustfmt::skip]
+/// standard projection matrix in **row-major**
+pub fn ortho(n:f32,f:f32,t:f32,b:f32,l:f32,r:f32)->Mat4<f32>{
+    Mat4::new().with_data([
+        [2./(r-l), 0.0       , 0.0       , (r+l)/(l-r)  ],
+        [0.0       , 2./(t-b), 0.0       , (t+b)/(b-t)  ],
+        [0.0       , 0.0     , 2.0/(n-f) , (f+n)/(n-f)  ],
+        [0.0       , 0.      , -1.       , 1.0          ],
+    ])
+}

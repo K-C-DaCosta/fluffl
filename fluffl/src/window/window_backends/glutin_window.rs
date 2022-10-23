@@ -213,7 +213,6 @@ impl HasFlufflWindow for FlufflWindow {
             Some(IconSetting::Base64(b64)) => {
                 let ico_bytes = crate::codecs::base64::decode(b64).expect("decode failed");
                 let mut ico = crate::codecs::ico::Ico::load(Cursor::new(ico_bytes)).unwrap();
-                ico.dump_ppm("/home/narco/decoded.txt").unwrap();
                 let entry = ico.entries.swap_remove(0);
                 window_builder = window_builder.with_window_icon(
                     Icon::from_rgba(entry.bitmap, entry.width as u32, entry.height as u32).ok(),
