@@ -2,8 +2,7 @@ use super::{
     event_util::{constants::*, FlufflEvent},
     *,
 };
-
-use crate::{load_file, FlufflState};
+use crate::FlufflState;
 
 use be_glutin::{
     self,
@@ -15,6 +14,8 @@ use be_glutin::{
     window::Icon,
     ContextWrapper,
 };
+
+use std::io::Cursor;
 
 ///Global for touch tracker
 static mut GLOBAL_TOUCH_TRACKER: Option<TouchTracker<DeviceId>> = None;
@@ -200,14 +201,25 @@ impl HasFlufflWindow for FlufflWindow {
             ))
             .with_resizable(settings.resizable);
 
-        if let Some(path) = settings.icon_path {
-            println!("icon path found = {path}");
-            let mut ico =
-                crate::codecs::ico::Ico::load(std::fs::File::open(path).unwrap()).unwrap();
-            let entry = ico.entries.swap_remove(0);
-            window_builder = window_builder.with_window_icon(
-                Icon::from_rgba(entry.bitmap, entry.width as u32, entry.height as u32).ok(),
-            );
+        match settings.icon {
+            Some(IconSetting::Path(path)) => {
+                let mut ico =
+                    crate::codecs::ico::Ico::load(std::fs::File::open(path).unwrap()).unwrap();
+                let entry = ico.entries.swap_remove(0);
+                window_builder = window_builder.with_window_icon(
+                    Icon::from_rgba(entry.bitmap, entry.width as u32, entry.height as u32).ok(),
+                );
+            }
+            Some(IconSetting::Base64(b64)) => {
+                let ico_bytes = crate::codecs::base64::decode(b64).expect("decode failed");
+                let mut ico = crate::codecs::ico::Ico::load(Cursor::new(ico_bytes)).unwrap();
+                ico.dump_ppm("/home/narco/decoded.txt").unwrap();
+                let entry = ico.entries.swap_remove(0);
+                window_builder = window_builder.with_window_icon(
+                    Icon::from_rgba(entry.bitmap, entry.width as u32, entry.height as u32).ok(),
+                );
+            }
+            _ => (),
         }
 
         let window = unsafe {

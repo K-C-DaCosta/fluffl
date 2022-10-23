@@ -8,7 +8,7 @@ use std::{
 mod window_backends;
 
 use super::parsers::xml::*;
-use crate::{audio::FlufflAudioContext, Error, GlowGL};
+use crate::{audio::FlufflAudioContext, collections::Ptr, Error, GlowGL};
 
 pub use event_util::FlufflEvent;
 pub use window_backends::*;
@@ -183,6 +183,11 @@ impl fmt::Display for Error {
         }
     }
 }
+
+pub enum IconSetting {
+    Base64(String),
+    Path(String),
+}
 /// Parses Config setting from xml to be used in window building on execution
 pub struct FlufflWindowConfigs {
     ///window width
@@ -203,7 +208,7 @@ pub struct FlufflWindowConfigs {
     pub resizable: bool,
     /// Specifies if window is fullscreen
     pub fullscreen: bool,
-    pub icon_path: Option<String>,
+    pub icon: Option<IconSetting>,
 }
 
 impl FlufflWindowConfigs {
@@ -220,7 +225,7 @@ impl FlufflWindowConfigs {
             context_minor: 0,
             resizable: true,
             fullscreen: false,
-            icon_path: None,
+            icon: None,
         }
     }
 
@@ -246,10 +251,25 @@ impl FlufflWindowConfigs {
         Self::search_bool(&parser, "resizable", |val| self.resizable = val);
         Self::search_bool(&parser, "fullscreen", |val| self.fullscreen = val);
 
-        Self::search_string(&parser, "icon_path", |val| {
-            self.icon_path = Some(val.clone())
+        let icon_node = Self::search_string(&parser, "icon", |val| {
+            self.icon = Some(IconSetting::Base64(
+                val.chars()
+                    .filter(|c| !c.is_whitespace())
+                    .collect::<String>(),
+            ))
         });
-        
+        if let Some(icon_node) = icon_node {
+            if let Some(path) = parser.ast[icon_node]
+                .data
+                .as_ref()
+                .unwrap()
+                .attribs
+                .get("path")
+            {
+                self.icon = Some(IconSetting::Path(path.trim().to_string()))
+            }
+        }
+
         self
     }
 
@@ -273,7 +293,11 @@ impl FlufflWindowConfigs {
         }
     }
 
-    fn search_string<Callback>(parser: &XMLParser, tag_name: &str, mut closure: Callback)
+    fn search_string<Callback>(
+        parser: &XMLParser,
+        tag_name: &str,
+        mut closure: Callback,
+    ) -> Option<Ptr>
     where
         Callback: FnMut(&String),
     {
@@ -281,10 +305,11 @@ impl FlufflWindowConfigs {
             for (_, data) in parser.get_child_tokens(node_ptr) {
                 if let Some(token) = data {
                     closure(&token.content);
-                    break;
+                    return Some(node_ptr);
                 }
             }
         }
+        None
     }
 
     fn search_numeric<Callback>(parser: &XMLParser, tag_name: &str, mut closure: Callback)

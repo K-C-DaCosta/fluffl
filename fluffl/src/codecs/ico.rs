@@ -1,7 +1,7 @@
 #[allow(unused_imports)]
 use std::{
     fmt::Debug,
-    io::{self, Cursor, Read, Seek, SeekFrom},
+    io::{self, Cursor, Read, Seek, SeekFrom, Write},
     mem,
 };
 
@@ -119,7 +119,7 @@ impl Ico {
     {
         let header = IcoHeader::load(&mut input)?;
 
-        // println!("ico header = {:?}", header);
+        println!("ico header = {:?}", header);
 
         let mut entries = Vec::with_capacity(header.num_images as usize);
         for _ in 0..header.num_images {
@@ -128,14 +128,13 @@ impl Ico {
         let mut bmp_bytes = vec![0u8; 512 * 512 * 4];
 
         for entry in entries.iter_mut() {
-            let num_bytes = entry.bitmap_filesize as u64;
+            let bitmap_filesize = entry.bitmap_filesize as usize;
             let offset = entry.offset as u64;
             let width = entry.width as usize;
             let height = entry.height as usize;
-            let bytes_per_pixel = entry.bits_per_pixel as usize / 8;
 
-            // make sure vector is exactly 'num_bytes' in length
-            bmp_bytes.resize(num_bytes as usize, 0);
+            // make sure vector is same size as bitmap
+            bmp_bytes.resize(bitmap_filesize, 0);
 
             // seek to the start of the bitmap data
             input.seek(SeekFrom::Start(offset))?;
@@ -144,31 +143,40 @@ impl Ico {
             input.read_exact(&mut bmp_bytes)?;
 
             // according to the spec, the BMP file will have NO file-header (DIB header is still included)
-            // Update: turns out this was all pointless, but im keeping here as reference 
+            // Update: turns out this was all pointless, but im keeping here as reference
             // let mut bmp_file = Cursor::new(&bmp_bytes[..]);
             // let bmp_header = DIBHeader::load(&mut bmp_file)?;
             // println!("bmp header = {:?}", bmp_header);
 
-            // Update: so appearently the DIB header is pretty much useless in terms of finding the offset into
-            // the pixel data. So I just went "fuck it" and read straight past the DIBheader to get straight to the pixel-data in the bitmap
-            // by subtracting the difference in the bitmap file size to the expected bitmap size
-            let expected_bitmap_size = width * height * bytes_per_pixel;
-            let offset = entry.bitmap_filesize as usize - expected_bitmap_size;
-            let pixel_info = &bmp_bytes[offset..];
+            let padding = 0;
+            let bytes_per_pixel = entry.bits_per_pixel as usize / 8;
+            let image_row_bytes = (width * bytes_per_pixel) + padding;
+            let pixel_info = &bmp_bytes[40..];
 
             // bitmaps are stored flipped for some dumb reason
             // so I have to unflip them
             for i in 0..height {
                 for j in 0..width {
-                    let ofx = ((height-i-1)*width + j)*bytes_per_pixel;
-                    for channel in 0..bytes_per_pixel{
-                        entry.bitmap.push(pixel_info[ofx+channel]);
+                    let ofx = ((height - i - 1) * image_row_bytes) + bytes_per_pixel * j;
+                    for channel in 0..bytes_per_pixel {
+                        entry.bitmap.push(pixel_info[ofx + channel]);
                     }
                 }
             }
         }
 
         Ok(Self { entries })
+    }
+
+    pub fn dump_ppm<P: AsRef<std::path::Path>>(&self, path: P) -> io::Result<()> {
+        let mut ppm = std::fs::File::create(path)?;
+        writeln!(ppm, "P3")?;
+        writeln!(ppm, "{} {}", self.entries[0].width, self.entries[0].height)?;
+        writeln!(ppm, "{max_color_val}", max_color_val = 255)?;
+        for pixel in self.entries[0].bitmap.chunks_exact(4) {
+            writeln!(ppm, " {} {} {} ", pixel[2], pixel[1], pixel[0]).unwrap();
+        }
+        Ok(())
     }
 }
 
@@ -184,19 +192,13 @@ pub fn read_primitive<T: Read, Output: Copy + Default>(
 
 #[test]
 pub fn parse_ico() {
-    use std::io::Write;
     // let cwd = std::env::current_dir();
     // println!("my cwd is = {:?}", cwd);
-
     let ico_file = std::fs::File::open("../resources/test.ico").unwrap();
     let ico = Ico::load(ico_file).unwrap();
+    ico.dump_ppm("../dump/ico.ppm").unwrap();
 
-    let mut ppm = std::fs::File::create("../dump/ico.ppm").unwrap();
-    writeln!(ppm, "P3").unwrap();
-    writeln!(ppm, "{} {}", ico.entries[0].width, ico.entries[0].height).unwrap();
-    writeln!(ppm, "{max_color_val}", max_color_val = 255).unwrap();
-
-    for pixel in ico.entries[0].bitmap.chunks(4) {
-        writeln!(ppm, " {} {} {} ", pixel[0], pixel[1], pixel[2]).unwrap();
-    }
+    let ico_file = std::fs::File::open("../resources/pokeball.ico").unwrap();
+    let ico = Ico::load(ico_file).unwrap();
+    ico.dump_ppm("../dump/pokeball.ppm").unwrap();
 }
