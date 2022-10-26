@@ -12,10 +12,10 @@ pub mod time;
 /// Module for creating a an opengl window
 pub mod window;
 
-/// private custom datastructures
-pub mod collections;
 /// private decodes
 pub mod codecs;
+/// private custom datastructures
+pub mod collections;
 /// private custom parsers
 mod parsers;
 mod slice;

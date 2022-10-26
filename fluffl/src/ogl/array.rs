@@ -4,16 +4,13 @@ use crate::*;
 /// `buffer_name` should be a unique string to name your buffer.
 /// `buffer_object` is just the buffer object
 pub struct BufferPair {
-    buffer_name: &'static str,
-    buffer_object: Box<dyn HasBufferObj>,
+    name: &'static str,
+    object: Box<dyn HasBufferObj>,
 }
 
 impl BufferPair {
     pub fn new(name: &'static str, object: Box<dyn HasBufferObj>) -> Self {
-        Self {
-            buffer_name: name,
-            buffer_object: object,
-        }
+        Self { name, object }
     }
 }
 
@@ -34,26 +31,29 @@ impl ArrayBuilder for OglIncomplete<OglArray> {
             self.inner.bind(true);
         }
         for BufferPair {
-            buffer_name,
-            buffer_object,
+            name: buffer_name,
+            object: buffer_object,
         } in buffer_list
         {
             //bind buffer object
             buffer_object.bind(true);
             let index = buffer_object.info().index;
-            unsafe {
-                //define attrib pointers
-                gl.vertex_attrib_pointer_f32(
-                    index,
-                    buffer_object.info().num_comps as i32,
-                    glow::FLOAT,
-                    false,
-                    0,
-                    0,
-                );
 
-                //enable attrib pointer
-                gl.enable_vertex_attrib_array(index);
+            if buffer_object.info().target == glow::ARRAY_BUFFER {
+                unsafe {
+                    //define attrib pointers
+                    gl.vertex_attrib_pointer_f32(
+                        index,
+                        buffer_object.info().num_comps as i32,
+                        glow::FLOAT,
+                        false,
+                        0,
+                        0,
+                    );
+
+                    //enable attrib pointer
+                    gl.enable_vertex_attrib_array(index);
+                }
             }
 
             self.inner
@@ -78,11 +78,13 @@ impl OglArray {
             buf_table: HashMap::new(),
         })
     }
+
     pub fn get(&self, buffer_name: &'static str) -> Option<&dyn HasBufferObj> {
         self.buf_table
             .get(buffer_name)
             .map(|box_ptr| box_ptr.as_ref())
     }
+
     pub fn get_mut(
         &mut self,
         buffer_name: &'static str,

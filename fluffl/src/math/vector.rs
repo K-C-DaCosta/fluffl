@@ -91,6 +91,35 @@ where
     }
 }
 
+impl<T> Vector<3, T>
+where
+    T: Default + Copy + Sub<Output = T> + Mul<Output = T> + HasConstants,
+{
+    pub fn cross(self, b: Self) -> Self {
+        let a = self;
+        Self::from_array([
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+        ])
+    }
+}
+
+impl<T> Vector<4, T>
+where
+    T: Default + Copy + Sub<Output = T> + Mul<Output = T> + HasConstants,
+{
+    pub fn cross(self, b: Self) -> Self {
+        let a = self;
+        Self::from_array([
+            a[1] * b[2] - a[2] * b[1],
+            a[2] * b[0] - a[0] * b[2],
+            a[0] * b[1] - a[1] * b[0],
+            T::zero(),
+        ])
+    }
+}
+
 impl<const N: usize, T> Vector<N, T>
 where
     T: Default + Copy + Add<Output = T> + Mul<Output = T>,

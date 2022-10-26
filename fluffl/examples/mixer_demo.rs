@@ -231,8 +231,8 @@ async fn process_events(
                 //     }));
                 // }
                 if let KeyCode::KEY_T = code {
-                    let file_pointer_to_music = std::fs::File::open("./resources/fj_fj.adhoc")
-                        .expect("file galed to load");
+                    let file_pointer_to_music =
+                        std::fs::File::open("./resources/fj_fj.adhoc").expect("file galed to load");
                     let parsed_music_file = adhoc_audio::AdhocCodec::load(file_pointer_to_music)
                         .expect("failed to read music file");
                     let id = mixer_device.gen_id();

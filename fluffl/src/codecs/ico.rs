@@ -119,7 +119,7 @@ impl Ico {
     {
         let header = IcoHeader::load(&mut input)?;
 
-        println!("ico header = {:?}", header);
+        // println!("ico header = {:?}", header);
 
         let mut entries = Vec::with_capacity(header.num_images as usize);
         for _ in 0..header.num_images {

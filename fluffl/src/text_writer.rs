@@ -349,7 +349,7 @@ impl TextWriter {
     /// ## For exmaple(of worst case scenario):
     /// suppose character 'a' is in page 0 and character 'b' is in page 1, then the string 'ababab' will
     /// decode page 0 and 1 SIX times collectively. Decodes are really,relly, really slow.  
-    pub fn draw_text_line_preserved<T:Into<Option<(u32, u32)>>>(
+    pub fn draw_text_line_preserved<T: Into<Option<(u32, u32)>>>(
         &mut self,
         text: &str,
         x0: f32,

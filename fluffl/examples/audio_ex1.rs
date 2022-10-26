@@ -35,7 +35,7 @@ pub async fn main() {
     let ogg = {
         //load_file!("../../wasm_bins/resources/HipHopNoir_1.ogg")
         let file_bytes: Vec<u8> =
-            load_file!("../resources/HipHopNoir_1.ogg").expect("ogg failed to load");
+            load_file!("./resources/HipHopNoir_1.ogg").expect("ogg failed to load");
         ogg::OggFile::new()
             .with_data(file_bytes)
             .parse()
@@ -43,7 +43,7 @@ pub async fn main() {
     };
 
     //GlueWindow is configured with XML, the format is self-explanitory
-    let raw_bytes = load_file!("../resources/config.xml").expect("config failed to load");
+    let raw_bytes = load_file!("./resources/config.xml").expect("config failed to load");
     let config_text = String::from_utf8(raw_bytes).expect("config file currupted");
     let window = FlufflWindow::init(config_text.as_str()).expect("failed to init window");
     let gl = window.gl();
@@ -78,7 +78,7 @@ pub async fn main() {
     // Creating a device context is where things really start to happen (new threads and memory are allocated for processing audio)
     let device = FlufflAudioDeviceContext::new(device_core, window.audio_context());
 
-    let atlas_bytes = load_file!("../resources/font.bcode").expect("file not found");
+    let atlas_bytes = load_file!("./resources/font.bcode").expect("file not found");
     let atlas = HieroAtlas::deserialize(atlas_bytes)
         .ok()
         .expect("font parse failed");
