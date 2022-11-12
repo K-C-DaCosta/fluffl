@@ -431,10 +431,9 @@ pub fn draw_game_stage(
         }
 
         //delete dead bricks
-        if !removable_bricks.is_empty() {
-            let index = removable_bricks[0];
-            if brick_state.brick_list[index].brick_health <= 0 {
-                brick_state.brick_list.remove(index);
+        if let Some(removeable_idx) = removable_bricks.pop() {
+            if brick_state.brick_list[removeable_idx].brick_health <= 0 {
+                brick_state.brick_list.remove(removeable_idx);
             }
         }
     }

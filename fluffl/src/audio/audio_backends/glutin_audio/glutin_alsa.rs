@@ -1,5 +1,4 @@
 use super::*;
-use crate::{console::*, *};
 use std::sync::{Arc, Mutex};
 
 use std::{
@@ -130,15 +129,15 @@ where
                 .unwrap();
             pcm.sw_params(&swp).unwrap();
 
-            console_log!(
-                "PCM status: {:?}, {:?}",
+            println!(
+                "PCM status: {:?}, {:?}\n",
                 pcm.state(),
                 pcm.hw_params_current().unwrap()
             );
 
             let mut outp = Output::buffer_open().unwrap();
             pcm.dump(&mut outp).unwrap();
-            console_log!("== PCM dump ==\n{}", outp);
+            println!("== PCM dump ==\n{}\n", outp);
 
             let mut buffer = vec![0.0f32; channels * buffer_size];
             let audio_device = audio_device;
@@ -160,7 +159,11 @@ where
             let real_time = Instant::now();
 
             if pcm.state() != alsa::pcm::State::Running {
-                pcm.start().unwrap();
+                //added error handling because the whole thing completely fails on raspberry PI
+                if let Err(e) = pcm.start().map_err(|e| e.errno()) {
+                    pcm.recover(e as i32, false)
+                        .expect("encountered an error, tried to recover but it STILL failed");
+                }
             }
 
             /// buffer approximately 100ms milliseconds ahead

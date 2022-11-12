@@ -1,3 +1,8 @@
+[profile.release]
+incremental=true
+
 [build]
 # target = "wasm32-unknown-unknown"
 # target = "x86_64-pc-windows-gnu"
+# use faster linker for better compile times 
+# rustflags = [ "-C", "link-arg=-fuse-ld=lld"]
