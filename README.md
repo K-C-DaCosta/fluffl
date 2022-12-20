@@ -8,6 +8,13 @@
 fluffl is a media layer that provides an extremely simple, but cross-platform, interface between **desktop** and **wasm** targets.
 Its built on top of the <a href="https://github.com/grovesNL/glow">glow</a> OpenGL bindings.
 
+## a simple example
+Check the `examples` folder for runnable demos.
+Wasm version of the examples are here: https://k-c-dacosta.github.io/wasm_bins/examples/audio_ex_1/
+
+## A breakout clone (more complicated)
+https://k-c-dacosta.github.io/wasm_bins/examples/brick_demo/
+
 ## why fluffl? 
 If you need a *simple* layer/interface that provides audio,graphics, and maybe networking then this is the crate for you. 
 Interface-wise its like SDL(you can use literally use* SDL if you select it) but it *doesn't* depend on the `wasm32-unknown-emscripten` target. The emscripten target is considered to be **deprecated** and is intended on being phased out last I checked. Instead, this crate uses the preferred `wasm32-unkown-unknown` target when building for the browser. 
@@ -60,12 +67,8 @@ The beauty of cross compilation is you can immediatly test the windows binary on
 
 Wine chads... **I kneel**
 
-## a simple example
-Check the `examples` folder for runnable demos.
-Wasm version of the examples are here: https://k-c-dacosta.github.io/wasm_bins/examples/audio_ex_1/
 
-## A breakout clone (more complicated)
-https://k-c-dacosta.github.io/wasm_bins/examples/brick_demo/
+
 
 ## How to run examples
 - look in `./fluffl/examples` 
