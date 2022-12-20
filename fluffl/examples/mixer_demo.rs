@@ -729,7 +729,7 @@ fn setup_test_gui(
         .with_parent(red_frame)
         .with_bounds([400.0, 45.0])
         .with_position([0.0, 0.0])
-        .with_caption("its fucking over :-(")
+        .with_caption("sample text")
         .build();
 
     // println!("origin={}", origin);
