@@ -525,15 +525,6 @@ fn get_global_event_queue_mut<'a>() -> &'a mut FlufflEvent {
     unsafe { GLOBAL_EVENT_QUEUE.as_mut().unwrap() }
 }
 
-// #[wasm_bindgen(module = "/js/aux_util.js")]
-// extern "C" {
-//     fn get_xml_config() -> String;
-//     /// This kind of acts as "command line arguments" for the wasm module.
-//     /// The idea is that you call `set_xml_config` right before you *init* the wasm module and
-//     /// whatever config options get passed through this function will take absolute precedence.
-//     pub fn set_xml_config(xml_text: String);
-// }
-
 /// # Description
 /// converts javascript viewport coordinates to expected window coordinates
 /// # Retuns
