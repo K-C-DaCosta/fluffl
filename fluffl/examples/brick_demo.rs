@@ -18,16 +18,16 @@ type ShortDeviceContext = FlufflAudioDeviceContext<ShortCallback, ShortState>;
 
 static mut RAND_STATE: u64 = 0;
 
-static FLUFFL_CONFIG: &str = "
-    <window>
-        <width>800</width>
-        <height>600</height>
-        <title>brick_demo</title>
-        <fullscreen>false</fullscreen>
-        <resizable>false</resizable>
-        <canvas_id>fluffl</canvas_id>
-    </window>
-";
+static FLUFFL_CONFIG: &str = r#"
+    {
+        "width":630,
+        "height":600,
+        "title":"brick demo",
+        "fullscreen":false,
+        "resizable":false,
+        "canvas_id":"fluffl"
+    }
+"#;
 #[derive(Copy, Clone)]
 pub struct Ball {
     pos: [f32; 2],

@@ -5,17 +5,16 @@ use std::{
     sync::Arc,
 };
 
-mod window_backends;
-
-use super::parsers::xml::*;
-use crate::{audio::FlufflAudioContext, collections::Ptr, Error, GlowGL};
-
-pub use event_util::FlufflEvent;
-pub use window_backends::*;
 pub mod event_util;
 pub mod touch_tracker;
+mod window_backends;
 
+use crate::{audio::FlufflAudioContext, Error, GlowGL};
+use serde_json::{Map, Value};
+
+pub use event_util::FlufflEvent;
 use touch_tracker::*;
+pub use window_backends::*;
 
 #[derive(Clone, Copy)]
 pub struct FlufflRunning {
@@ -183,7 +182,7 @@ impl fmt::Display for Error {
         }
     }
 }
-
+#[derive()]
 pub enum IconSetting {
     Base64(String),
     Path(String),
@@ -230,102 +229,56 @@ impl FlufflWindowConfigs {
     }
 
     /// parses config text setting the struct to values specified in thext
-    pub fn parser_config_file(mut self, config: &str) -> Self {
-        let parser = XMLParser::new().parse(&String::from(config)).unwrap();
+    pub fn parse_config_file(mut self, config: &str) -> Result<Self, serde_json::Error> {
+        let obj = serde_json::from_str::<Map<String, Value>>(config)?;
 
-        Self::search_numeric(&parser, "width", |num| self.width = num);
-        Self::search_numeric(&parser, "height", |num| self.height = num);
-        Self::search_numeric(&parser, "context_major", |num| {
-            self.context_major = num as u8
-        });
-        Self::search_numeric(&parser, "context_minor", |num| {
-            self.context_minor = num as u8
-        });
+        if let Some(val) = obj.get("width").and_then(|num| num.as_u64()) {
+            self.width = val as u32;
+        }
 
-        Self::search_string(&parser, "title", |text| self.title = text.clone());
-        Self::search_string(&parser, "canvas_id", |text| self.canvas_id = text.clone());
-        Self::search_string(&parser, "wgl_version", |text| {
-            self.webgl_version = text.clone()
-        });
+        if let Some(val) = obj.get("height").and_then(|num| num.as_u64()) {
+            self.height = val as u32;
+        }
 
-        Self::search_bool(&parser, "resizable", |val| self.resizable = val);
-        Self::search_bool(&parser, "fullscreen", |val| self.fullscreen = val);
+        if let Some(val) = obj.get("context_major").and_then(|num| num.as_u64()) {
+            self.context_major = val as u8;
+        }
 
-        let icon_node = Self::search_string(&parser, "icon", |val| {
-            self.icon = Some(IconSetting::Base64(
-                val.chars()
-                    .filter(|c| !c.is_whitespace())
-                    .collect::<String>(),
-            ))
-        });
-        if let Some(icon_node) = icon_node {
-            if let Some(path) = parser.ast[icon_node]
-                .data
-                .as_ref()
-                .unwrap()
-                .attribs
-                .get("path")
-            {
-                self.icon = Some(IconSetting::Path(path.trim().to_string()))
+        if let Some(val) = obj.get("context_minor").and_then(|num| num.as_u64()) {
+            self.context_minor = val as u8;
+        }
+
+        if let Some(val) = obj.get("title").and_then(|num| num.as_str()) {
+            self.title = String::from(val);
+        }
+
+        if let Some(val) = obj.get("canvas_id").and_then(|num| num.as_str()) {
+            self.canvas_id = String::from(val);
+        }
+
+        if let Some(val) = obj.get("wgl_version").and_then(|num| num.as_str()) {
+            self.webgl_version = String::from(val);
+        }
+
+        if let Some(val) = obj.get("resizable").and_then(|num| num.as_bool()) {
+            self.resizable = val;
+        }
+        if let Some(val) = obj.get("fullscreen").and_then(|num| num.as_bool()) {
+            self.fullscreen = val;
+        }
+
+        if let Some(icon_obj) = obj.get("icon").and_then(|val| val.as_object()) {
+            if let Some(path) = icon_obj.get("path").and_then(|val| val.as_str()) {
+                self.icon = Some(IconSetting::Path(String::from(path)));
+            }
+            if let Some(path) = icon_obj.get("base64").and_then(|val| val.as_str()) {
+                self.icon = Some(IconSetting::Base64(
+                    path.chars().filter(|c| !c.is_whitespace()).collect(),
+                ));
             }
         }
 
-        self
-    }
-
-    fn search_bool<Callback>(parser: &XMLParser, tag_name: &str, mut closure: Callback)
-    where
-        Callback: FnMut(bool),
-    {
-        if let Some(node_ptr) = parser.search(tag_name, parser.ast.root_list[0]) {
-            for (_, data) in parser.get_child_tokens(node_ptr) {
-                if let Some(token) = data {
-                    let content_text = token.content.trim().to_lowercase();
-                    let is_true = content_text == "true";
-                    let is_false = content_text == "false";
-                    let is_valid_text_boolean = is_true || is_false;
-                    if is_valid_text_boolean {
-                        closure(is_true);
-                    }
-                    break;
-                }
-            }
-        }
-    }
-
-    fn search_string<Callback>(
-        parser: &XMLParser,
-        tag_name: &str,
-        mut closure: Callback,
-    ) -> Option<Ptr>
-    where
-        Callback: FnMut(&String),
-    {
-        if let Some(node_ptr) = parser.search(tag_name, parser.ast.root_list[0]) {
-            for (_, data) in parser.get_child_tokens(node_ptr) {
-                if let Some(token) = data {
-                    closure(&token.content);
-                    return Some(node_ptr);
-                }
-            }
-        }
-        None
-    }
-
-    fn search_numeric<Callback>(parser: &XMLParser, tag_name: &str, mut closure: Callback)
-    where
-        Callback: FnMut(u32),
-    {
-        if let Some(node_ptr) = parser.search(tag_name, parser.ast.root_list[0]) {
-            for (_, data) in parser.get_child_tokens(node_ptr) {
-                if let Some(token) = data {
-                    if let Ok(num) = token.content.parse() {
-                        closure(num);
-                        break;
-                    };
-                };
-            }
-        }
+        Ok(self)
     }
 }
 

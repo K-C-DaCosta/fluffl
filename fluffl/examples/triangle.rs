@@ -48,12 +48,12 @@ pub struct GlobalVariablesOrWhatever {
 /// A simple triangle demo, nothing but opengl and some basic event handling
 #[fluffl(Debug)]
 pub async fn main() {
-    let config_text = "
-        <window>
-            <width>512</width>
-            <height>512</height>
-            <title>triangle</title>
-        </window>";
+    let config_text = r#"
+        {
+            "width":512,
+            "height":512,
+            "title":"triangle"
+        }"#;
     let window = FlufflWindow::init(config_text).unwrap();
     let (win_w, win_h) = window.get_bounds();
 

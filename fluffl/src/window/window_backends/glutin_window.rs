@@ -188,7 +188,9 @@ impl FlufflWindow {
 }
 impl HasFlufflWindow for FlufflWindow {
     fn init(config: &str) -> Result<Self, Error> {
-        let settings = FlufflWindowConfigs::new().parser_config_file(config);
+        let settings = FlufflWindowConfigs::new()
+            .parse_config_file(config)
+            .expect("parse error");
 
         let event_loop = be_glutin::event_loop::EventLoop::new();
         let mut window_builder = be_glutin::window::WindowBuilder::new();

@@ -1,0 +1,8 @@
+{
+    "width":1000,
+    "height":600,
+    "title":"example 1",
+    "fullscreen":false,
+    "resizable":true,
+    "canvas_id":"fluffl"
+}

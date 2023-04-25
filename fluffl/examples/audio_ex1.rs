@@ -43,7 +43,7 @@ pub async fn main() {
     };
 
     //GlueWindow is configured with XML, the format is self-explanitory
-    let raw_bytes = load_file!("./resources/config.xml").expect("config failed to load");
+    let raw_bytes = load_file!("./resources/config.json").expect("config failed to load");
     let config_text = String::from_utf8(raw_bytes).expect("config file currupted");
     let window = FlufflWindow::init(config_text.as_str()).expect("failed to init window");
     let gl = window.gl();

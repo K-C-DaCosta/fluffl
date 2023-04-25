@@ -8,14 +8,14 @@ use fluffl::{
 
 use std::collections::HashMap;
 
-static CONFIG: &str = "
-    <window>
-        <width>800</width> 
-        <height>600</height>
-        <resizable>true</resizable> 
-        <canvas_id>fluffl</canvas_id>
-    </window>
-";
+static CONFIG: &str = r#"
+    {
+        "width":800, 
+        "height":600,
+        "resizable":true,
+        "canvas_id":fluffl
+    }
+"#;
 
 struct AppState {
     writer: Option<TextWriter>,

@@ -165,18 +165,17 @@ impl HasFlufflWindow for FlufflWindow {
         console_log!("is_mobile = {}\n", is_mobile());
 
         //get config settings from javascript (if possible)
-
         #[allow(unused_unsafe)]
         // let config_js = unsafe { get_xml_config() };
-
         // let xml_text = if config_js.is_empty() == false {
         //     config_js.as_str()
         // } else {
         //     config_xml
         // };
         let xml_text = config_xml;
-
-        let settings = FlufflWindowConfigs::new().parser_config_file(config_xml);
+        let settings = FlufflWindowConfigs::new()
+            .parse_config_file(config_xml)
+            .expect("parse error");
 
         let web_window = web_sys::window().unwrap();
         let canvas = web_window

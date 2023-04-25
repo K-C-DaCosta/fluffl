@@ -137,7 +137,9 @@ impl HasFlufflWindow for FlufflWindow {
     }
 
     fn init(config: &str) -> Result<Self, Error> {
-        let settings = FlufflWindowConfigs::new().parser_config_file(config);
+        let settings = FlufflWindowConfigs::new()
+            .parse_config_file(config)
+            .expect("config error");
 
         // Create a context from a sdl2 window
         let sdl = be_sdl2::init()?;

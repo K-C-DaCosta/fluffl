@@ -1,8 +1,0 @@
-<window>
-    <width>800</width>
-    <height>600</height>
-    <title>example 1</title>
-    <fullscreen>false</fullscreen>
-    <resizable>true</resizable>
-    <canvas_id>fluffl</canvas_id>
-</window>
