@@ -87,7 +87,6 @@ fn map_b64_digit_to_binary(c: char) -> Option<u8> {
 }
 
 fn map_binary_to_b64_digit(b: u8) -> Option<char> {
-    let b = b as u8;
     let b = match b {
         0..=25 => b + b'A',
         26..=51 => (b - 26) + b'a',

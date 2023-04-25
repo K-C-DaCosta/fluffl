@@ -67,7 +67,7 @@ pub trait HasComponentBuilder<ProgramState>: Sized {
                 GuiEventKind::OnDrag,
                 Box::new(|info| {
                     if let EventKind::MouseMove { dx, dy, .. } = info.event {
-                        let disp = Vec2::from([dx as f32, dy as f32]);
+                        let disp = Vec2::from([dx, dy]);
                         info.gui_comp_tree
                             .get_mut(info.key)
                             .expect("invalid key")

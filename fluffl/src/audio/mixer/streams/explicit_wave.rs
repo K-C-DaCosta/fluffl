@@ -52,10 +52,10 @@ impl ExplicitWave {
         }
     }
 
-    fn pull_samples_repeat_non_repeat<'a>(
+    fn pull_samples_repeat_non_repeat(
         &mut self,
         scratch_space: &mut [f32],
-        mut audio_pcm: PCMSlice<'a, f32>,
+        mut audio_pcm: PCMSlice<'_, f32>,
     ) -> PullInfo {
         let mut sample_group = [0.0; MAX_CHANNELS_TO_MIX];
 
@@ -67,7 +67,7 @@ impl ExplicitWave {
         let local_release_in_ms = elapsed_track_time_in_ms - self.state.release_time as f32;
 
         let num_channels_in_output = audio_pcm.channels() as usize;
-        let num_channels_in_explicit_wave = self.explicit_wave.info().channels() as usize;
+        let num_channels_in_explicit_wave = self.explicit_wave.info().channels();
         let samples_writeable_per_channel = audio_pcm.samples_per_channel() as usize;
         let samples_needed_to_read = num_channels_in_explicit_wave * samples_writeable_per_channel;
 
@@ -161,10 +161,10 @@ impl ExplicitWave {
     /// ## Comments & Warnings
     /// this code will break if  `audio_pcm` is larger than the sound track because it will require multiple seeks back to start
     /// and this code will only do one seek (only one seek is required when the cursor is smaller than the audio )  
-    fn pull_samples_repeat_repeat<'a>(
+    fn pull_samples_repeat_repeat(
         &mut self,
         scratch_space: &mut [f32],
-        mut audio_pcm: PCMSlice<'a, f32>,
+        mut audio_pcm: PCMSlice<'_, f32>,
     ) -> PullInfo {
         let samples_needed_per_channel = audio_pcm.samples_per_channel() as usize;
         let first_pull_info = self.pull_samples_repeat_non_repeat(scratch_space, audio_pcm);
@@ -213,10 +213,10 @@ impl ExplicitWave {
         }
     }
 
-    pub fn pull_samples_stretch<'a>(
+    pub fn pull_samples_stretch(
         &mut self,
         _scratch_space: &mut [f32],
-        _audio_pcm: PCMSlice<'a, f32>,
+        _audio_pcm: PCMSlice<'_, f32>,
     ) -> PullInfo {
         unimplemented!("stretch not implemented");
     }
@@ -238,10 +238,10 @@ impl HasAudioStream for ExplicitWave {
     fn stream_state_mut(&mut self) -> &mut StreamState {
         &mut self.state
     }
-    fn pull_samples<'a>(
+    fn pull_samples(
         &mut self,
         scratch_space: &mut [f32],
-        audio_pcm: PCMSlice<'a, f32>,
+        audio_pcm: PCMSlice<'_, f32>,
     ) -> PullInfo {
         match self.scale_mode {
             ScaleMode::Repeat => self.pull_samples_repeat_repeat(scratch_space, audio_pcm),

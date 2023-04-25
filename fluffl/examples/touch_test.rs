@@ -78,16 +78,15 @@ pub async fn main() {
                     }
                     EventKind::MouseDown { x, y, .. } => {
                         // console_log!("pos:[{},{}]\n",x,y);
-                        state.mouse_pos = [x as f32, y as f32];
+                        state.mouse_pos = [x, y];
                         state.mouse_disp = [0.; 2];
                         state.mouse_down = true;
                     }
                     EventKind::MouseUp { x, y, .. } => {
-                        state.mouse_pos = [x as f32, y as f32];
+                        state.mouse_pos = [x, y];
                         state.mouse_disp = [0.; 2];
                         state.mouse_down = false;
                         // console_log!("pos:[{},{}]\n",x,y);
-
                         if x < 64.0 && y < 64.0 {
                             console_log!("Going fullscreen!\n");
                             go_fullscreen = true;

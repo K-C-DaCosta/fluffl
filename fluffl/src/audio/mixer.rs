@@ -162,10 +162,10 @@ pub trait HasAudioStream: Send + Debug {
     /// the internal stream to 2 channels before writing to `audio_pcm`.
     ///     - Use `scratch_space` to do the conversion
     ///     - note: the mixer *WILL* break if the channel conversion doesn't happen
-    fn pull_samples<'a>(
+    fn pull_samples(
         &mut self,
         scratch_space: &mut [f32],
-        audio_pcm: PCMSlice<'a, f32>,
+        audio_pcm: PCMSlice<'_, f32>,
     ) -> PullInfo;
 
     fn seek(&mut self, global_time: SampleTime);

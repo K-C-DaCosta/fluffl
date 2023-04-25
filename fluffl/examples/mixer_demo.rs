@@ -302,8 +302,8 @@ async fn process_events(
             }
             EventKind::MouseMove { x, y, .. } => {
                 // console_log!("mouse move: [x:{},y:{},dx:{},dy:{}]\n", x, y, dx, dy);
-                main_state.pos_x = x as f32;
-                main_state.pos_y = y as f32;
+                main_state.pos_x = x;
+                main_state.pos_y = y;
             }
             EventKind::MouseDown {
                 button_code: MouseCode::LEFT_BUTTON,

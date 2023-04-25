@@ -30,19 +30,19 @@ impl GuiComponent for OriginState {
         self
     }
 
-    fn render_entry<'a>(
+    fn render_entry(
         &mut self,
         _gl: &GlowGL,
-        _state: RenderState<'a>,
+        _state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         /* not implemented on purpose*/
     }
 
-    fn render_exit<'a>(
+    fn render_exit(
         &mut self,
         _gl: &GlowGL,
-        _state: RenderState<'a>,
+        _state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         /* not implemented on purpose  */

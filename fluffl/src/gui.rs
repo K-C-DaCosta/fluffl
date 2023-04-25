@@ -436,7 +436,7 @@ impl<ProgramState> GuiManager<ProgramState> {
                     *clicked_component = None;
                 }
                 EventKind::MouseDown { x, y, .. } => {
-                    let mouse_pos = Vec2::from([x as f32, y as f32]);
+                    let mouse_pos = Vec2::from([x, y]);
                     let prev_focused_component = *focused_component;
 
                     *clicked_component = None;
@@ -499,8 +499,8 @@ impl<ProgramState> GuiManager<ProgramState> {
                     }
                 }
                 EventKind::MouseMove { x, y, dx, dy } => {
-                    let mouse_pos = Vec2::from([x as f32, y as f32]);
-                    let _disp = Vec2::from([dx as f32, dy as f32]);
+                    let mouse_pos = Vec2::from([x, y]);
+                    let _disp = Vec2::from([dx, dy]);
 
                     if let &mut Some(hover_key) = hover_component {
                         if visibility_table[hover_key] {

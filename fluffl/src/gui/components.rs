@@ -263,18 +263,18 @@ pub trait GuiComponent {
     }
 
     /// this fires the first occurrence in the tree
-    fn render_entry<'a>(
+    fn render_entry(
         &mut self,
         gl: &GlowGL,
-        state: RenderState<'a>,
+        state: RenderState<'_>,
         text_writer: &mut TextWriter,
     );
 
     /// this fires after everything in the component subtree has been rendered
-    fn render_exit<'a>(
+    fn render_exit(
         &mut self,
         gl: &GlowGL,
-        state: RenderState<'a>,
+        state: RenderState<'_>,
         text_writer: &mut TextWriter,
     );
 }

@@ -84,7 +84,7 @@ impl FP64 {
     }
 
     pub fn as_i64(&self) -> i64 {
-        (self.data >> FRACTIONAL_BITS) as i64
+        self.data >> FRACTIONAL_BITS
     }
 
     pub fn as_f64(&self) -> f64 {
@@ -221,7 +221,6 @@ impl From<i32> for FP64 {
 }
 impl From<i64> for FP64 {
     fn from(num: i64) -> Self {
-        let num = num as i64;
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -297,8 +296,8 @@ impl FP64 {
                 Self::from_bits(K0) * spline + Self::from_bits(K1) * spline_squared;
 
             // clip accurate spline between 0 and pi
-            let when_gt_zero = (Self::zero() - x).data as i64 >> 63;
-            let when_lt_pi = (x - Self::pi()).data as i64 >> 63;
+            let when_gt_zero = (Self::zero() - x).data  >> 63;
+            let when_lt_pi = (x - Self::pi()).data  >> 63;
             Self::from_bits(accurate_estimation.data & (when_gt_zero & when_lt_pi))
         };
 

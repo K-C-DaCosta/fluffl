@@ -75,7 +75,7 @@ impl FP32 {
     }
 
     pub fn as_i32(&self) -> i32 {
-        (self.data >> FRACTIONAL_BITS) as i32
+        self.data >> FRACTIONAL_BITS
     }
 
     pub fn as_f32(&self) -> f32 {
@@ -230,8 +230,7 @@ impl Debug for FP32 {
  CONVERSION CRAP HERE
 */
 impl From<i32> for FP32 {
-    fn from(num: i32) -> Self {
-        let num = num as i32;
+    fn from(num: i32) -> Self {        
         Self {
             data: num << FRACTIONAL_BITS,
         }
@@ -257,7 +256,7 @@ impl From<u64> for FP32 {
 
 impl From<f32> for FP32 {
     fn from(num: f32) -> Self {
-        FP32::from_bits((num * FIXED_POINT_FACTOR as f32) as i32)
+        FP32::from_bits((num * FIXED_POINT_FACTOR ) as i32)
     }
 }
 impl From<f64> for FP32 {

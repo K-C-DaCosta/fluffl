@@ -48,10 +48,10 @@ impl GuiComponent for SliderState {
         self.slider_frame.set_bounds(bounds);
     }
 
-    fn render_entry<'a>(
+    fn render_entry(
         &mut self,
         gl: &GlowGL,
-        state: RenderState<'a>,
+        state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         let win_w = state.win_w;
@@ -77,10 +77,10 @@ impl GuiComponent for SliderState {
         layer_unlock(gl);
     }
 
-    fn render_exit<'a>(
+    fn render_exit(
         &mut self,
         _gl: &GlowGL,
-        _state: RenderState<'a>,
+        _state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         /* not implemented on purpose  */

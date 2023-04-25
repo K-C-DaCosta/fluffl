@@ -351,10 +351,10 @@ impl GuiComponent for TextBoxState {
         self
     }
 
-    fn render_entry<'a>(
+    fn render_entry(
         &mut self,
         gl: &GlowGL,
-        state: RenderState<'a>,
+        state: RenderState<'_>,
         text_writer: &mut TextWriter,
     ) {
         const HORIZONTAL_MARGIN: f32 = 20.0;
@@ -525,10 +525,10 @@ impl GuiComponent for TextBoxState {
         }
     }
 
-    fn render_exit<'a>(
+    fn render_exit(
         &mut self,
         _gl: &GlowGL,
-        _state: RenderState<'a>,
+        _state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         /* not implemented on purpose  */
@@ -641,11 +641,11 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
         self = self
             .with_listener(GuiEventKind::OnMouseDown, |tb, ek, _mrc| {
                 if let EventKind::MouseDown { x, y, .. } = ek {
-                    let mouse_pos = Vec2::from([x as f32, y as f32]);
+                    let mouse_pos = Vec2::from([x, y ]);
 
                     if tb.cursor_area.is_point_inside(mouse_pos) {
                         let dims = tb.cursor_area.dims();
-                        let new_percentage = (x as f32 - tb.cursor_area.min_pos.x()) / dims.x();
+                        let new_percentage = (x  - tb.cursor_area.min_pos.x()) / dims.x();
                         const SNAP_TO_BOUNDS_THRESH: f32 = 0.1;
                         if new_percentage < SNAP_TO_BOUNDS_THRESH {
                             tb.clipper.request_offset_of_scroll_cursor(1);
@@ -673,10 +673,10 @@ impl<'a, ProgramState> HasComponentBuilder<ProgramState> for TextBoxBuilder<'a, 
                             .as_any_mut()
                             .downcast_mut::<TextBoxState>()
                             .unwrap();
-                        let mouse_pos = Vec2::from([x as f32, y as f32]);
+                        let mouse_pos = Vec2::from([x, y]);
                         if tb.cursor_area.is_point_inside(mouse_pos) {
                             let dims = tb.cursor_area.dims();
-                            let new_percentage = (x as f32 - tb.cursor_area.min_pos.x()) / dims.x();
+                            let new_percentage = (x - tb.cursor_area.min_pos.x()) / dims.x();
                             tb.clipper.set_scroll_cursor_by_percentage(new_percentage);
                         }
                     }

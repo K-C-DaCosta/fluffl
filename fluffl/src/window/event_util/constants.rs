@@ -122,7 +122,7 @@ impl EventKind {
 
     pub fn disp_mouse_only(&self) -> Vec2<f32> {
         match self {
-            &Self::MouseMove { dx, dy, .. } => Vec2::from([dx as f32, dy as f32]),
+            &Self::MouseMove { dx, dy, .. } => Vec2::from([dx, dy]),
             _ => Vec2::zero(),
         }
     }

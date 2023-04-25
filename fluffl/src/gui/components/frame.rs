@@ -171,10 +171,10 @@ impl GuiComponent for FrameState {
         self
     }
 
-    fn render_entry<'b>(
+    fn render_entry(
         &mut self,
         gl: &GlowGL,
-        state: RenderState<'b>,
+        state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         if !self.is_visible() {
@@ -236,10 +236,10 @@ impl GuiComponent for FrameState {
         }
     }
 
-    fn render_exit<'a>(
+    fn render_exit(
         &mut self,
         gl: &GlowGL,
-        state: RenderState<'a>,
+        state: RenderState<'_>,
         _text_writer: &mut TextWriter,
     ) {
         let r = state.renderer;

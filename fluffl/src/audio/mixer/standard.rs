@@ -122,8 +122,8 @@ impl std::ops::DerefMut for StandardMixerState {
 fn standard_mixer_state_cb(state: &mut StandardMixerState, output: &mut [f32]) {
     state.mixer.mix_audio(PCMSlice::new(
         output,
-        state.frequency as u32,
-        state.channels as u32,
+        state.frequency,
+        state.channels,
     ));
     //for debug purposes
     // state.recording.encode(output);

@@ -42,7 +42,7 @@ impl<'a, T: Copy + Clone + Default> PCMSlice<'a, T> {
         self.planar_pcm.len()
     }
     pub fn samples_per_channel(&self) -> u64 {
-        (self.planar_pcm.len() as u32 / self.channels as u32) as u64
+        (self.planar_pcm.len() as u32 / self.channels) as u64
     }
 
     fn planar_pcm_mut<'b>(&'a self) -> &'b mut [T]

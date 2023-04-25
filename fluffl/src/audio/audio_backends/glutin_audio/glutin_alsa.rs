@@ -115,7 +115,7 @@ where
             let hwp = alsa::pcm::HwParams::any(pcm).expect("hw params failed");
             hwp.set_channels(channels as u32)
                 .expect("set_channels(..) failed");
-            hwp.set_rate(sample_rate as u32, ValueOr::Nearest)
+            hwp.set_rate(sample_rate, ValueOr::Nearest)
                 .expect("set_format(..) failed");
             hwp.set_format(Format::float())
                 .expect("set_format(..) failed");
