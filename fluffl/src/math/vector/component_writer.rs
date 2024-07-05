@@ -2,87 +2,40 @@ use super::*;
 
 /// ## Description
 /// Used to write vector components into arrays
-pub struct ComponentWriter<'a, T, Len, Push> {
+pub struct ComponentWriter<'a> {
     cursor: usize,
-    data: &'a mut T,
-    len_cb: Len,
-    push_cb: Option<Push>,
+    data: &'a mut Vec<f32>,
 }
 
-impl<'a, T, M, Len, Push> ComponentWriter<'a, T, Len, Push>
-where
-    Push: FnMut(&mut T, M) + Copy,
-    Len: Fn(&T) -> usize + Copy,
-    T: Index<usize, Output = M> + IndexMut<usize, Output = M>,
-    M: Copy + Default,
-{
-    pub fn new(data: &'a mut T, len_cb: Len, push_cb: Option<Push>) -> Self {
-        Self {
-            cursor: 0,
-            data,
-            len_cb,
-            push_cb,
-        }
+impl<'a> ComponentWriter<'a> {
+    pub fn new(data: &'a mut Vec<f32>) -> Self {
+        Self { cursor: 0, data }
     }
 
     pub fn seek(&mut self, from_start: usize) {
-        let len = self.len_cb;
-        self.cursor = from_start.clamp(0, len(self.data));
+        self.cursor = from_start.clamp(0, self.data.len() - 1);
     }
 
-    pub fn write<const N: usize>(&mut self, vec: &Vector<N, M>) -> usize {
-        match self.push_cb {
-            Some(push) => self.write_pushable(push, vec),
-            None => self.write_cant_push(vec),
-        }
-    }
-
-    fn write_cant_push<const N: usize>(&mut self, vec: &Vector<N, M>) -> usize {
-        let len = self.len_cb;
-        let mut k = 0;
-        while (k < N) && self.cursor < len(self.data) {
-            self.data[self.cursor] = vec[k];
-            self.cursor += 1;
-            k += 1;
-        }
-        k
-    }
-
-    fn write_pushable<const N: usize>(&mut self, mut push: Push, vec: &Vector<N, M>) -> usize {
-        let len = self.len_cb;
+    pub fn write<const N: usize>(&mut self, vec: &Vector<N, f32>) {
+        let data = &mut self.data;
+        let cursor = &mut self.cursor;
         for k in 0..N {
-            if self.cursor >= len(self.data) {
-                push(self.data, M::default())
+            if *cursor < data.len() {
+                data[*cursor] = vec[k];
+            } else {
+                data.push(vec[k]);
             }
-            self.data[self.cursor] = vec[k];
-            self.cursor += 1;
+            *cursor += 1;
         }
-        N
     }
-    pub fn done(self) {}
 }
 
-impl<'a, T> From<&'a mut Vec<T>>
-    for ComponentWriter<'a, Vec<T>, fn(&Vec<T>) -> usize, fn(&mut Vec<T>, T)>
-where
-    T: Copy + Default,
+impl<'a> From<&'a mut Vec<f32>> for ComponentWriter<'a>
 {
-    fn from(obj: &'a mut Vec<T>) -> Self {
+    fn from(obj: &'a mut Vec<f32>) -> Self {
         Self::new(
             obj,
-            |vec: &Vec<_>| vec.len(),
-            Some(|vec, item| vec.push(item)),
         )
-    }
-}
-
-impl<'a, T> From<&'a mut [T]> for ComponentWriter<'a, [T], fn(&[T]) -> usize, fn(&mut [T], T)>
-where
-    [T]: Sized,
-    T: Copy + Default,
-{
-    fn from(obj: &'a mut [T]) -> Self {
-        Self::new(obj, |vec: &[_]| vec.len(), None)
     }
 }
 

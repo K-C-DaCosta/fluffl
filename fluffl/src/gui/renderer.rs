@@ -3,6 +3,7 @@ use glow::HasContext;
 
 mod shader_sources;
 use shader_sources::*;
+use crate::math::ComponentWriter;
 
 #[derive(Copy, Clone, Eq, Hash, PartialEq)]
 pub enum GuiShaderKind {

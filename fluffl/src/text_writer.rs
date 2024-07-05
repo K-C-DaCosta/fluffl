@@ -10,7 +10,7 @@ use crate::{
 };
 
 use glow::*;
-pub use hiero_pack::{self, *};
+pub use hiero_pack::{HieroAtlas};
 
 pub mod default_font;
 pub use default_font::*;
