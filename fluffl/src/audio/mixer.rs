@@ -165,7 +165,7 @@ pub trait HasAudioStream: Send + Debug {
     fn pull_samples(
         &mut self,
         scratch_space: &mut [f32],
-        audio_pcm: PCMSlice<'_, f32>,
+        audio_pcm: PCMSlice<f32>,
     ) -> PullInfo;
 
     fn seek(&mut self, global_time: SampleTime);
@@ -238,7 +238,7 @@ impl Mixer {
         }
     }
 
-    fn mix_audio(&mut self, mut output_buffer: PCMSlice<'_, f32>) {
+    fn mix_audio(&mut self, mut output_buffer: PCMSlice<f32>) {
         //the 'length' of the cursor determines the global speed of the mixer
         //this controls the speed of the mixer
         let new_samples_per_channel =
